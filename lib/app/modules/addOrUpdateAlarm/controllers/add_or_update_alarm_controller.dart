@@ -113,6 +113,11 @@ class AddOrUpdateAlarmController extends GetxController {
   final RxInt hours = 0.obs, minutes = 0.obs, meridiemIndex = 0.obs;
   final List<RxString> meridiem = ['AM'.obs, 'PM'.obs];
 
+  final RxBool isGuardian = false.obs;
+  final RxInt guardianTimer = 0.obs;
+  final RxString guardian = ''.obs;
+  final RxBool isCall = false.obs;
+
   Future<List<UserModel?>> fetchUserDetailsForSharedUsers() async {
     List<UserModel?> userDetails = [];
 
@@ -136,11 +141,6 @@ class AddOrUpdateAlarmController extends GetxController {
 
   late ProfileModel profileModel;
   final storage = Get.find<GetStorageProvider>();
-
-  final RxBool isGuardian = false.obs;
-  final RxInt guardianTimer = 0.obs;
-  final RxString guardian = ''.obs;
-  final RxBool isCall = false.obs;
 
   void toggleIsPlaying() {
     isPlaying.toggle();
@@ -413,7 +413,7 @@ class AddOrUpdateAlarmController extends GetxController {
     return true;
   }
 
-  createAlarm(AlarmModel alarmData) async {
+  Future<void> createAlarm(AlarmModel alarmData) async {
     if (isSharedAlarmEnabled.value == true) {
       alarmRecord.value =
           await FirestoreDb.addAlarm(userModel.value, alarmData);
@@ -627,7 +627,7 @@ class AddOrUpdateAlarmController extends GetxController {
     detectedQrValue.value = retake ? '' : qrValue.value;
   }
 
-  updateAlarm(AlarmModel alarmData) async {
+  Future<void> updateAlarm(AlarmModel alarmData) async {
     // Adding the ID's so it can update depending on the db
     if (isSharedAlarmEnabled.value == true) {
       // Making sure the alarm wasn't suddenly updated to be an
@@ -674,28 +674,6 @@ class AddOrUpdateAlarmController extends GetxController {
 
     if (Get.arguments != null) {
       alarmRecord.value = Get.arguments;
-    }
-
-    userModel.value = homeController.userModel.value;
-
-    if (userModel.value != null) {
-      userId.value = userModel.value!.id;
-      userName.value = userModel.value!.fullName;
-      lastEditedUserId.value = userModel.value!.id;
-    }
-    IsarDb.loadDefaultRingtones();
-
-    // listens to the userModel declared in homeController and updates on signup event
-    homeController.userModel.stream.listen((UserModel? user) {
-      userModel.value = user;
-      if (user != null) {
-        userId.value = user.id;
-        userName.value = user.fullName;
-        lastEditedUserId.value = user.id;
-      }
-    });
-
-    if (Get.arguments != null || homeController.isProfile.value) {
       selectedDate.value = Utils.stringToDate(alarmRecord.value.alarmDate);
       isFutureDate.value =
           selectedDate.value.difference(DateTime.now()).inHours > 0;
@@ -1014,7 +992,6 @@ class AddOrUpdateAlarmController extends GetxController {
 
     // if alarmRecord is null or alarmRecord.ownerId is null,
     // then assign the current logged-in user as the owner.
-
     if (alarmRecord.value.ownerId.isEmpty) {
       ownerId = userId.value;
       ownerName = userName.value;
@@ -1022,6 +999,7 @@ class AddOrUpdateAlarmController extends GetxController {
       ownerId = alarmRecord.value.ownerId;
       ownerName = alarmRecord.value.ownerName;
     }
+    
     return AlarmModel(
       snoozeDuration: snoozeDuration.value,
       volMax: volMax.value,
@@ -1351,7 +1329,6 @@ class AddOrUpdateAlarmController extends GetxController {
     storage.writeProfile(profileModel.profileName);
     homeController.writeProfileName(profileModel.profileName);
   }
-}
 
   int orderedCountryCode(Country countryA, Country countryB) {
     // `??` for null safety of 'dialCode'
@@ -1360,3 +1337,4 @@ class AddOrUpdateAlarmController extends GetxController {
 
     return int.parse(dialCodeA).compareTo(int.parse(dialCodeB));
   }
+}

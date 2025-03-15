@@ -54,6 +54,7 @@ class ProfileModel {
   late int guardianTimer;
   late String guardian;
   late bool isCall;
+  late String backgroundImage;
   @ignore
   Map? offsetDetails;
 
@@ -101,7 +102,8 @@ class ProfileModel {
       required this.isGuardian,
       required this.guardianTimer,
       required this.guardian,
-      required this.isCall});
+      required this.isCall,
+      this.backgroundImage = ''});
 
   ProfileModel.fromDocumentSnapshot({
     required firestore.DocumentSnapshot documentSnapshot,
@@ -219,6 +221,7 @@ class ProfileModel {
     guardian = profileData['guardian'];
     isCall = profileData['isCall'];
     ringOn = profileData['ringOn'];
+    backgroundImage = profileData['backgroundImage'] ?? '';
   }
 
   ProfileModel.fromJson(String profileData, UserModel? user) {
@@ -274,7 +277,8 @@ class ProfileModel {
       'guardianTimer': profileRecord.guardianTimer,
       'guardian': profileRecord.guardian,
       'isCall': profileRecord.isCall,
-      'ringOn': profileRecord.ringOn
+      'ringOn': profileRecord.ringOn,
+      'backgroundImage': profileRecord.backgroundImage
     };
 
     if (profileRecord.isSharedAlarmEnabled) {

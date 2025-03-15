@@ -863,6 +863,10 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                         controller: controller,
                                         themeController: themeController,
                                       ),
+                                      Divider(
+                                        color: themeController
+                                            .primaryDisabledTextColor.value,
+                                      ),
                                     ],
                                   )
                                 : const SizedBox(),

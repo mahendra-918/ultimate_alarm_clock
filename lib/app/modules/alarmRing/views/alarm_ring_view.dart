@@ -4,14 +4,19 @@ import 'package:get/get.dart';
 import 'package:ultimate_alarm_clock/app/modules/settings/controllers/theme_controller.dart';
 import 'package:ultimate_alarm_clock/app/utils/constants.dart';
 import 'package:ultimate_alarm_clock/app/utils/utils.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
+import 'dart:io';
 
 import '../controllers/alarm_ring_controller.dart';
+import 'package:ultimate_alarm_clock/app/modules/settings/controllers/settings_controller.dart';
 
 // ignore: must_be_immutable
 class AlarmControlView extends GetView<AlarmControlController> {
   AlarmControlView({Key? key}) : super(key: key);
 
   ThemeController themeController = Get.find<ThemeController>();
+  SettingsController settingsController = Get.find<SettingsController>();
 
   Obx getAddSnoozeButtons(
       BuildContext context, int snoozeMinutes, String title) {
@@ -60,6 +65,41 @@ class AlarmControlView extends GetView<AlarmControlController> {
         child: Scaffold(
           body: Stack(
             children: [
+              // Background Image
+              Positioned.fill(
+                child: Obx(() {
+                  final alarmImage = controller.currentlyRingingAlarm.value.backgroundImage;
+                  final defaultImage = settingsController.defaultBackgroundImage.value;
+                  final imagePath = alarmImage.isNotEmpty ? alarmImage : defaultImage;
+                  
+                  if (imagePath.isEmpty) {
+                    return Container(color: Colors.black);
+                  }
+                  
+                  return FutureBuilder<bool>(
+                    future: File(imagePath).exists(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData && snapshot.data == true) {
+                        return Image.file(
+                          File(imagePath),
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            debugPrint('Error loading background image: $error');
+                            return Container(color: Colors.black);
+                          },
+                        );
+                      }
+                      return Container(color: Colors.black);
+                    },
+                  );
+                }),
+              ),
+              // Overlay to ensure text readability
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withOpacity(0.5),
+                ),
+              ),
               Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,

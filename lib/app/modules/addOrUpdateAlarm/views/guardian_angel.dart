@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl_phone_number_input/intl_phone_number_input.dart';
+import 'package:intl_phone_number_input/src/models/country_model.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/controllers/add_or_update_alarm_controller.dart';
 import 'package:ultimate_alarm_clock/app/modules/settings/controllers/theme_controller.dart';
 import 'package:ultimate_alarm_clock/app/utils/constants.dart';
 import 'package:ultimate_alarm_clock/app/utils/utils.dart';
 import 'package:permission_handler/permission_handler.dart';
+
+int orderedCountryCode(Country countryA, Country countryB) {
+  String dialCodeA = countryA.dialCode ?? '0';
+  String dialCodeB = countryB.dialCode ?? '0';
+  return int.parse(dialCodeA).compareTo(int.parse(dialCodeB));
+}
 
 class GuardianAngel extends StatelessWidget {
   const GuardianAngel({

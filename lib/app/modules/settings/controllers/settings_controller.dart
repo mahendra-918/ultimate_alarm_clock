@@ -64,6 +64,7 @@ class SettingsController extends GetxController {
       'description': 'Spanish',
     },
   };
+  final defaultBackgroundImage = ''.obs;
 
   @override
   void onInit() async {
@@ -74,6 +75,7 @@ class SettingsController extends GetxController {
       userModel.value = await _secureStorageProvider.retrieveUserModel();
     }
     _loadPreference();
+    defaultBackgroundImage.value = storage.readDefaultBackgroundImage() ?? '';
   }
 
   // Logins user using GoogleSignIn

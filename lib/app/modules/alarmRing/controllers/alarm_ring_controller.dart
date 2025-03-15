@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -157,7 +158,19 @@ class AlarmControlController extends GetxController {
   @override
   void onInit() async {
     super.onInit();
-    currentlyRingingAlarm.value = Get.arguments;
+    
+    if (Get.arguments != null) {
+      currentlyRingingAlarm.value = Get.arguments;
+      debugPrint('Alarm loaded in preview with background image: ${currentlyRingingAlarm.value.backgroundImage}');
+      
+      // Verify the background image file exists
+      if (currentlyRingingAlarm.value.backgroundImage.isNotEmpty) {
+        File(currentlyRingingAlarm.value.backgroundImage).exists().then((exists) {
+          debugPrint('Background image file exists: $exists');
+        });
+      }
+    }
+
     print('hwyooo ${currentlyRingingAlarm.value.isGuardian}');
     if (currentlyRingingAlarm.value.isGuardian) {
       guardianTimer = Timer.periodic(const Duration(seconds: 1), (timer) {

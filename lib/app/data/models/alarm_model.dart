@@ -59,6 +59,7 @@ class AlarmModel {
   late int guardianTimer;
   late String guardian;
   late bool isCall;
+  late String backgroundImage;
   @ignore
   Map? offsetDetails;
 
@@ -109,6 +110,7 @@ class AlarmModel {
       required this.isGuardian,
       required this.guardianTimer,
       required this.guardian,
+      this.backgroundImage = '',
       required this.isCall});
 
   AlarmModel.fromDocumentSnapshot({
@@ -231,6 +233,7 @@ class AlarmModel {
       guardian: map['guardian'],
       isCall: map['isCall'] == 1,
       ringOn: map['ringOn'] == 1,
+      backgroundImage: map['backgroundImage'] ?? '',
     );
   }
 
@@ -283,6 +286,7 @@ class AlarmModel {
       'guardianTimer': guardianTimer,
       'guardian': guardian,
       'isCall': isCall ? 1 : 0,
+      'backgroundImage': backgroundImage,
     };
   }
 
@@ -338,6 +342,7 @@ class AlarmModel {
     guardian = alarmData['guardian'];
     isCall = alarmData['isCall'];
     ringOn = alarmData['ringOn'];
+    backgroundImage = alarmData['backgroundImage'] ?? '';
   }
 
   AlarmModel.fromJson(String alarmData, UserModel? user) {
@@ -395,7 +400,8 @@ class AlarmModel {
       'guardianTimer': alarmRecord.guardianTimer,
       'guardian': alarmRecord.guardian,
       'isCall': alarmRecord.isCall,
-      'ringOn': alarmRecord.ringOn
+      'ringOn': alarmRecord.ringOn,
+      'backgroundImage': alarmRecord.backgroundImage,
     };
 
     if (alarmRecord.isSharedAlarmEnabled) {

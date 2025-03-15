@@ -6,6 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 class GetStorageProvider {
   late final GetStorage _getStorage;
 
+  static const String defaultBackgroundImageKey = 'defaultBackgroundImage';
+
   Future<GetStorageProvider> init() async {
     await GetStorage.init();
     _getStorage = GetStorage();
@@ -51,5 +53,13 @@ class GetStorageProvider {
   Future<String> readProfile() async {
     String profile = await _getStorage.read('profile') ?? 'Default';
     return profile;
+  }
+
+  String? readDefaultBackgroundImage() {
+    return _getStorage.read<String>(defaultBackgroundImageKey);
+  }
+
+  Future<void> writeDefaultBackgroundImage(String path) async {
+    await _getStorage.write(defaultBackgroundImageKey, path);
   }
 }

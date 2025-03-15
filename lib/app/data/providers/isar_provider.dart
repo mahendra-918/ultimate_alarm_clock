@@ -109,8 +109,8 @@ class IsarDb {
         guardianTimer INTEGER,
         guardian TEXT,
         isCall INTEGER,
-        ringOn INTEGER
-        
+        ringOn INTEGER,
+        backgroundImage TEXT
       )
     ''');
     await db.execute('''
@@ -145,11 +145,12 @@ class IsarDb {
     final isarProvider = IsarDb();
     final sql = await IsarDb().getAlarmSQLiteDatabase();
     final db = await isarProvider.db;
+    debugPrint('Adding alarm to database with background image: ${alarmRecord.backgroundImage}');
     await db.writeTxn(() async {
       await db.alarmModels.put(alarmRecord);
     });
     final sqlmap = alarmRecord.toSQFliteMap();
-    print(sqlmap);
+    debugPrint('SQL map for alarm: $sqlmap');
     await sql!.insert('alarms', sqlmap);
     return alarmRecord;
   }
@@ -323,6 +324,7 @@ class IsarDb {
     final isarProvider = IsarDb();
     final sql = await IsarDb().getAlarmSQLiteDatabase();
     final db = await isarProvider.db;
+    debugPrint('Updating alarm in database with background image: ${alarmRecord.backgroundImage}');
     await db.writeTxn(() async {
       await db.alarmModels.put(alarmRecord);
     });
@@ -337,7 +339,11 @@ class IsarDb {
   static Future<AlarmModel?> getAlarm(int id) async {
     final isarProvider = IsarDb();
     final db = await isarProvider.db;
-    return db.alarmModels.get(id);
+    final alarm = await db.alarmModels.get(id);
+    if (alarm != null) {
+      debugPrint('Retrieved alarm from database with background image: ${alarm.backgroundImage}');
+    }
+    return alarm;
   }
 
   static getAlarms(String name) async* {
