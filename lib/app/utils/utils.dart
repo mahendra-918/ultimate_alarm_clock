@@ -79,17 +79,12 @@ class Utils {
   );
 
   static String formatDateTimeToHHMMSS(DateTime dateTime) {
-    // Extract hours, minutes, and seconds from the DateTime
     int hours = dateTime.hour;
     int minutes = dateTime.minute;
     int seconds = dateTime.second;
-
-    // Format each component to have two digits
     String formattedHours = hours.toString().padLeft(2, '0');
     String formattedMinutes = minutes.toString().padLeft(2, '0');
     String formattedSeconds = seconds.toString().padLeft(2, '0');
-
-    // Concatenate the components with ':' separator
     return '$formattedHours:$formattedMinutes:$formattedSeconds';
   }
 
@@ -100,12 +95,12 @@ class Utils {
     return TimeOfDay(hour: hour, minute: minute);
   }
 
-  static DateTime stringToDate(String date){
+  static DateTime stringToDate(String date) {
     final parts = date.split('-');
     final day = int.parse(parts[2]);
     final month = int.parse(parts[1]);
     final year = int.parse(parts[0]);
-    return DateTime(year,month,day);
+    return DateTime(year, month, day);
   }
 
   static DateTime? stringToDateTime(String timeString) {
@@ -115,17 +110,12 @@ class Utils {
         final hours = int.parse(parts[0]);
         final minutes = int.parse(parts[1]);
         final seconds = int.parse(parts[2]);
-
-        // Create a DateTime object with today's date and the provided time
         final now = DateTime.now();
         return DateTime(now.year, now.month, now.day, hours, minutes, seconds);
       }
     } catch (e) {
-      // Handle parsing errors if any
       debugPrint(e.toString());
     }
-
-    // Return null or some default value in case of an error
     return null;
   }
 
@@ -150,7 +140,6 @@ class Utils {
     }
   }
 
-// Adding an extra day since this function is used for scheduling service
   static int getMillisecondsToTimer(DateTime now, DateTime timerTime) {
     int milliseconds = timerTime.difference(now).inMilliseconds;
     return milliseconds;
@@ -160,7 +149,6 @@ class Utils {
     if (alarmTime.isBefore(now)) {
       alarmTime = alarmTime.add(const Duration(days: 1));
     }
-
     int milliseconds = alarmTime.difference(now).inMilliseconds;
     return milliseconds;
   }
@@ -170,7 +158,6 @@ class Utils {
     final int seconds = duration.inSeconds;
     final int minutes = duration.inMinutes;
     final int hours = duration.inHours;
-
     if (seconds < 10) {
       return '$seconds';
     } else if (seconds < 60) {
@@ -194,7 +181,6 @@ class Utils {
     if (hour == 0) {
       hour = 12;
     }
-
     return ['$hour:$minute', period];
   }
 
@@ -224,7 +210,6 @@ class Utils {
       default:
         daySuffix = 'th';
     }
-
     return '$formattedDate$daySuffix';
   }
 
@@ -256,13 +241,10 @@ class Utils {
     var dLon = deg2rad(destination.longitude - source.longitude);
     var lat1 = deg2rad(source.latitude);
     var lat2 = deg2rad(destination.latitude);
-
     var a = sin(dLat / 2) * sin(dLat / 2) +
         sin(dLon / 2) * sin(dLon / 2) * cos(lat1) * cos(lat2);
     var c = 2 * atan2(sqrt(a), sqrt(1 - a));
-
     var d = R * c;
-
     return d <= radius;
   }
 
@@ -279,15 +261,11 @@ class Utils {
       alarmTime.hour,
       alarmTime.minute,
     );
-
     Duration duration;
-
-    // Check if the alarm is a one-time alarm
     if (days.every((day) => !day)) {
       if (now.isBefore(todayAlarm)) {
         duration = todayAlarm.difference(now);
       } else {
-        // Schedule the alarm for the next day
         final nextAlarm = todayAlarm.add(const Duration(days: 1));
         duration = nextAlarm.difference(now);
       }
@@ -296,10 +274,8 @@ class Utils {
     } else {
       int daysUntilNextAlarm = 7;
       DateTime? nextAlarm;
-
       for (int i = 1; i <= 7; i++) {
         int nextDayIndex = (now.weekday + i - 1) % 7;
-
         if (days[nextDayIndex]) {
           if (i < daysUntilNextAlarm) {
             daysUntilNextAlarm = i;
@@ -313,14 +289,12 @@ class Utils {
           }
         }
       }
-
       if (nextAlarm != null) {
         duration = nextAlarm.difference(now);
       } else {
         return 'No upcoming alarms';
       }
     }
-
     if (duration.inMinutes < 1) {
       return 'less than 1 minute';
     } else if (duration.inHours < 24) {
@@ -331,9 +305,7 @@ class Utils {
       } else if (minutes == 0) {
         return hours == 1 ? '$hours hour' : '$hours hours';
       } else if (hours == 1) {
-        return minutes == 1
-            ? '$hours hour $minutes minute'
-            : '$hours hour $minutes minutes';
+        return minutes == 1 ? '$hours hour $minutes minute' : '$hours hour $minutes minutes';
       } else {
         return '$hours hour $minutes minutes';
       }
@@ -357,7 +329,6 @@ class Utils {
     int weekdayCount = 0;
     int weekendCount = 0;
     List<String> selectedDays = [];
-
     for (int i = 0; i < days.length; i++) {
       if (days[i]) {
         if (i < 5) {
@@ -368,7 +339,6 @@ class Utils {
         selectedDays.add(dayAbbreviations[i]);
       }
     }
-
     if (weekdayCount + weekendCount == 7) {
       return 'Everyday'.tr;
     } else if (weekdayCount == 5 && weekendCount == 0) {
@@ -386,60 +356,39 @@ class Utils {
     AlarmModel alarm1,
     AlarmModel alarm2,
   ) {
-    // Compare the isEnabled property for each alarm
     if (alarm1.isEnabled != alarm2.isEnabled) {
       return alarm1.isEnabled ? alarm1 : alarm2;
     }
-
-    // Get the current time
     final now = DateTime.now();
     final currentTimeInMinutes = now.hour * 60 + now.minute;
-    final currentDay = now.weekday - 1; // Monday is 0
-
+    final currentDay = now.weekday - 1;
     num timeUntilNextOccurrence(AlarmModel alarm) {
-      // Check if the alarm is a one-time alarm
       if (alarm.days.every((day) => !day)) {
-        int timeUntilNextAlarm =
-            alarm.minutesSinceMidnight - currentTimeInMinutes;
+        int timeUntilNextAlarm = alarm.minutesSinceMidnight - currentTimeInMinutes;
         if (timeUntilNextAlarm < 0) {
-          // Schedule the alarm for the next day
           timeUntilNextAlarm += 24 * 60;
         }
         return timeUntilNextAlarm;
       }
-
-      // Check if the alarm repeats every day
       if (alarm.days.every((day) => day)) {
-        int timeUntilNextAlarm =
-            alarm.minutesSinceMidnight - currentTimeInMinutes;
-        return timeUntilNextAlarm < 0
-            ? timeUntilNextAlarm + 24 * 60
-            : timeUntilNextAlarm;
+        int timeUntilNextAlarm = alarm.minutesSinceMidnight - currentTimeInMinutes;
+        return timeUntilNextAlarm < 0 ? timeUntilNextAlarm + 24 * 60 : timeUntilNextAlarm;
       }
-
-      // Calculate the time until the next occurrence for repeatable alarms
-      int dayDifference =
-          alarm.days.indexWhere((day) => day, currentDay) - currentDay;
+      int dayDifference = alarm.days.indexWhere((day) => day, currentDay) - currentDay;
       if (dayDifference < 0) {
         dayDifference += 7;
       }
       int timeUntilNextDay = dayDifference * 24 * 60;
-      int timeUntilNextAlarm =
-          alarm.minutesSinceMidnight - currentTimeInMinutes;
+      int timeUntilNextAlarm = alarm.minutesSinceMidnight - currentTimeInMinutes;
       if (timeUntilNextAlarm < 0) {
         timeUntilNextAlarm += 24 * 60;
         timeUntilNextDay += 24 * 60;
       }
       return timeUntilNextDay + timeUntilNextAlarm;
     }
-
-    // Compare the time until the next occurrence for each alarm
-    return timeUntilNextOccurrence(alarm1) < timeUntilNextOccurrence(alarm2)
-        ? alarm1
-        : alarm2;
+    return timeUntilNextOccurrence(alarm1) < timeUntilNextOccurrence(alarm2) ? alarm1 : alarm2;
   }
 
-  // Utility function to create a dummy model to pass to functions
   static Future<TimerModel> genFakeTimerModel() async {
     return TimerModel(
       timerValue: 0,
@@ -502,20 +451,15 @@ class Utils {
     if (weatherTypes.isEmpty) {
       return 'Off';
     }
-
     const allWeatherTypes = WeatherTypes.values;
-    final hasAllTypes =
-        allWeatherTypes.every((type) => weatherTypes.contains(type));
-
+    final hasAllTypes = allWeatherTypes.every((type) => weatherTypes.contains(type));
     if (hasAllTypes) {
       return 'All';
     }
-
     final formattedTypes = weatherTypes
         .map((type) => type.toString().split('.').last)
         .map((type) => type[0].toUpperCase() + type.substring(1))
         .toList();
-
     return formattedTypes.join(', ');
   }
 
@@ -554,21 +498,18 @@ class Utils {
     Random random = Random();
     int operand1, operand2, operand3 = 0;
     String operator;
-
     switch (difficulty) {
       case Difficulty.Easy:
         operand1 = random.nextInt(90) + 10;
         operand2 = random.nextInt(90) + 10;
         operator = '+';
         break;
-
       case Difficulty.Medium:
         operand1 = random.nextInt(90) + 10;
         operand2 = random.nextInt(90) + 10;
         operand3 = random.nextInt(90) + 10;
         operator = '+';
         break;
-
       case Difficulty.Hard:
         operand1 = random.nextInt(90) + 10;
         operand2 = random.nextInt(9) + 1;
@@ -576,10 +517,8 @@ class Utils {
         operator = '*';
         break;
     }
-
     String expression;
     int result;
-
     if (difficulty == Difficulty.Hard) {
       expression = '($operand1$operator$operand2)+$operand3 = ?';
       result = (operand1 * operand2) + operand3;
@@ -592,17 +531,14 @@ class Utils {
           ? operand1 + operand2 + operand3
           : operand1 * operand2 * operand3;
     }
-
     return [expression, result];
   }
 
   static bool isCurrentDayinList(List<bool> daysOfWeek) {
-    // Get the current day of the week (0 for Monday, 1 for Tuesday, etc.)
     int currentDay = DateTime.now().weekday - 1;
     if (daysOfWeek[currentDay]) {
       return true;
     }
-    // Check if all values in the list are false (one time alarm)
     bool allFalse = daysOfWeek.every((day) => day == false);
     if (allFalse) {
       return true;
@@ -632,9 +568,7 @@ class Utils {
   static void hapticFeedback() async {
     bool hapticFeedbackValue = await SecureStorageProvider()
         .readHapticFeedbackValue(key: 'haptic_feedback');
-
     if (hapticFeedbackValue) {
-      // Trigger haptic feedback if it's enabled in settings
       SystemChannels.platform.invokeMethod<void>(
         'HapticFeedback.vibrate',
         'HapticFeedbackType.selectionClick',
@@ -647,9 +581,7 @@ class Utils {
       borderRadius: const BorderRadius.all(
         Radius.circular(18),
       ),
-      color: isLightMode
-          ? kLightSecondaryBackgroundColor
-          : ksecondaryBackgroundColor,
+      color: isLightMode ? kLightSecondaryBackgroundColor : ksecondaryBackgroundColor,
     );
   }
 
@@ -663,58 +595,55 @@ class Utils {
     Utils.hapticFeedback();
     showModalBottomSheet(
       context: context,
-      backgroundColor: isLightMode
-          ? kLightSecondaryBackgroundColor
-          : ksecondaryBackgroundColor,
+      backgroundColor: isLightMode ? kLightSecondaryBackgroundColor : ksecondaryBackgroundColor,
       builder: (context) {
         return Center(
           child: Padding(
             padding: const EdgeInsets.all(25.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                Icon(
-                  iconData,
-                  color:
-                      isLightMode ? kLightPrimaryTextColor : kprimaryTextColor,
-                  size: MediaQuery.of(context).size.height * 0.1,
-                ),
-                Text(
-                  title.tr,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.displayMedium,
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 15.0),
-                  child: Text(
-                    description.tr,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                    textAlign: TextAlign.center,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Icon(
+                    iconData,
+                    color: isLightMode ? kLightPrimaryTextColor : kprimaryTextColor,
+                    size: MediaQuery.of(context).size.height * 0.1,
                   ),
-                ),
-                SizedBox(
-                  width: MediaQuery.of(context).size.width,
-                  child: TextButton(
-                    style: ButtonStyle(
-                      backgroundColor: MaterialStateProperty.all(
-                        kprimaryColor,
+                  Text(
+                    title.tr,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.displayMedium,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 15.0),
+                    child: Text(
+                      description.tr,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                  SizedBox(
+                    width: MediaQuery.of(context).size.width,
+                    child: TextButton(
+                      style: ButtonStyle(
+                        backgroundColor: MaterialStateProperty.all(kprimaryColor),
+                      ),
+                      onPressed: () {
+                        Utils.hapticFeedback();
+                        Get.back();
+                      },
+                      child: Text(
+                        'Understood'.tr,
+                        style: Theme.of(context).textTheme.displaySmall!.copyWith(
+                              color: isLightMode ? kLightPrimaryTextColor : ksecondaryTextColor,
+                            ),
                       ),
                     ),
-                    onPressed: () {
-                      Utils.hapticFeedback();
-                      Get.back();
-                    },
-                    child: Text(
-                      'Understood'.tr,
-                      style: Theme.of(context).textTheme.displaySmall!.copyWith(
-                            color: isLightMode
-                                ? kLightPrimaryTextColor
-                                : ksecondaryTextColor,
-                          ),
-                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -738,12 +667,10 @@ class Utils {
   static int calculateTimeDifference(DateTime targetDateTime) {
     targetDateTime = targetDateTime.toLocal();
     var currentTime = DateTime.now();
-    currentTime = currentTime.subtract(
-      Duration(
-        milliseconds: currentTime.millisecond,
-        microseconds: currentTime.microsecond,
-      ),
-    );
+    currentTime = currentTime.subtract(Duration(
+      milliseconds: currentTime.millisecond,
+      microseconds: currentTime.microsecond,
+    ));
     final difference = targetDateTime.difference(currentTime);
     final milliseconds = difference.inHours * 60 * 60 * 1000 +
         difference.inMinutes * 60 * 1000 +
@@ -751,14 +678,10 @@ class Utils {
     return milliseconds;
   }
 
-  static int getDifferenceMillisFromNow(
-    String datetimeString,
-    int milliseconds,
-  ) {
+  static int getDifferenceMillisFromNow(String datetimeString, int milliseconds) {
     try {
       final providedDatetime = DateTime.parse(datetimeString);
-      final updatedDatetime =
-          providedDatetime.add(Duration(milliseconds: milliseconds));
+      final updatedDatetime = providedDatetime.add(Duration(milliseconds: milliseconds));
       final currentDatetime = DateTime.now();
       final difference = updatedDatetime.difference(currentDatetime);
       return difference.inMilliseconds;
@@ -769,10 +692,8 @@ class Utils {
 
   static String formatDateTimeToStandard(DateTime dateTime) {
     dateTime = dateTime.toLocal();
-    final formattedDate =
-        '${dateTime.year}-${_twoDigits(dateTime.month)}-${_twoDigits(dateTime.day)}';
-    final formattedTime =
-        '${_twoDigits(dateTime.hour)}:${_twoDigits(dateTime.minute)}';
+    final formattedDate = '${dateTime.year}-${_twoDigits(dateTime.month)}-${_twoDigits(dateTime.day)}';
+    final formattedTime = '${_twoDigits(dateTime.hour)}:${_twoDigits(dateTime.minute)}';
     return '$formattedDate ($formattedTime)';
   }
 
@@ -810,22 +731,16 @@ class Utils {
   static String _twoDigits(int n) => n.toString().padLeft(2, '0');
 
   static String getInitials(String username) {
-    // Split the username into parts
     List<String> parts = username.split(' ');
-
-    // Get the first two letters of the first name
     String firstNameInitials = parts[0].substring(0, 1);
-
-    // Check if there is a last name
     if (parts.length > 1) {
-      // Get the first two letters of the last name
       String lastNameInitials = parts[1].substring(0, 1);
       return firstNameInitials + lastNameInitials;
     } else {
-      // Return only the first two letters of the first name
       return parts[0].substring(0, 2);
     }
   }
+  
   static double getFontSize(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     return width < 360 ? 14 : 30;

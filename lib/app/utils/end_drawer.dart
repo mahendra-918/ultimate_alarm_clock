@@ -17,7 +17,8 @@ Widget buildEndDrawer(BuildContext context) {
         ),
       ),
       backgroundColor: themeController.secondaryBackgroundColor.value,
-      child: Column(
+      child: ListView(
+        padding: EdgeInsets.zero,
         children: [
           DrawerHeader(
             decoration: const BoxDecoration(color: kLightSecondaryColor),
@@ -33,27 +34,25 @@ Widget buildEndDrawer(BuildContext context) {
                       ),
                     ),
                   ),
-                  const SizedBox(
-                    width: 10,
-                  ),
+                  const SizedBox(width: 10),
                   Flexible(
                     flex: 3,
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         SizedBox(
                           width: Get.width * 0.5,
                           child: Text(
                             'Ultimate Alarm Clock'.tr,
                             softWrap: true,
-                            style: Theme.of(context)
-                                .textTheme
-                                .displayMedium!
-                                .copyWith(
-                                  color: themeController
-                                      .primaryBackgroundColor.value,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.displayMedium!.copyWith(
+                              color: themeController.primaryBackgroundColor.value,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 23.0,
+                            ),
                           ),
                         ),
                         SizedBox(
@@ -61,13 +60,12 @@ Widget buildEndDrawer(BuildContext context) {
                           child: Text(
                             'v0.2.1'.tr,
                             softWrap: true,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge!
-                                .copyWith(
-                                  color: themeController.primaryTextColor.value,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleLarge!.copyWith(
+                              color: themeController.primaryTextColor.value,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20.0,
+                            ),
                           ),
                         ),
                       ],
@@ -87,8 +85,7 @@ Widget buildEndDrawer(BuildContext context) {
             title: Text(
               'Debug Logs'.tr,
               style: Theme.of(context).textTheme.titleLarge!.copyWith(
-                    color:
-                        themeController.primaryTextColor.value.withOpacity(0.8),
+                    color: themeController.primaryTextColor.value.withOpacity(0.8),
                   ),
             ),
             leading: Icon(
@@ -107,8 +104,7 @@ Widget buildEndDrawer(BuildContext context) {
             title: Text(
               'Settings'.tr,
               style: Theme.of(context).textTheme.titleLarge!.copyWith(
-                    color:
-                        themeController.primaryTextColor.value.withOpacity(0.8),
+                    color: themeController.primaryTextColor.value.withOpacity(0.8),
                   ),
             ),
             leading: Icon(
@@ -127,8 +123,7 @@ Widget buildEndDrawer(BuildContext context) {
             title: Text(
               'About'.tr,
               style: Theme.of(context).textTheme.titleLarge!.copyWith(
-                    color:
-                        themeController.primaryTextColor.value.withOpacity(0.8),
+                    color: themeController.primaryTextColor.value.withOpacity(0.8),
                   ),
             ),
             leading: Icon(

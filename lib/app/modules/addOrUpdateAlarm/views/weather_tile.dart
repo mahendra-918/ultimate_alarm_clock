@@ -71,14 +71,16 @@ class WeatherTile extends StatelessWidget {
         },
         title: Row(
           children: [
-            FittedBox(
-              alignment: Alignment.centerLeft,
-              fit: BoxFit.scaleDown,
-              child: Text(
-                'Weather Condition'.tr,
-                style: TextStyle(
-                  color: themeController.primaryTextColor.value,
-                  fontWeight: FontWeight.w500,
+            Expanded(
+              child: FittedBox(
+                alignment: Alignment.centerLeft,
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  'Weather Condition'.tr,
+                  style: TextStyle(
+                    color: themeController.primaryTextColor.value,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ),

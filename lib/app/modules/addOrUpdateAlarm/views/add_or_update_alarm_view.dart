@@ -186,396 +186,71 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                                     .isTimePicker.value
                                                 ? Obx(
                                                     () => Row(
-                                                      mainAxisAlignment:
-                                                          MainAxisAlignment
-                                                              .center,
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .center,
+                                                      mainAxisAlignment: MainAxisAlignment.center,
+                                                      crossAxisAlignment: CrossAxisAlignment.center,
                                                       children: [
-                                                        NumberPicker(
-                                                          minValue:
-                                                              settingsController
-                                                                      .is24HrsEnabled
-                                                                      .value
-                                                                  ? 0
-                                                                  : 1,
-                                                          maxValue:
-                                                              settingsController
-                                                                      .is24HrsEnabled
-                                                                      .value
-                                                                  ? 23
-                                                                  : 12,
-                                                          value: controller
-                                                              .hours.value,
-                                                          onChanged: (value) {
-                                                            Utils
-                                                                .hapticFeedback();
-                                                            controller.hours
-                                                                .value = value;
-
-                                                            // Update the selected time with proper format handling
-                                                            int hourValue;
-                                                            if (settingsController
-                                                                .is24HrsEnabled
-                                                                .value) {
-                                                              // In 24-hour mode, use the value directly
-                                                              hourValue = value;
-                                                            } else {
-                                                              // In 12-hour mode, convert based on AM/PM
-                                                              hourValue =
-                                                                  inputTimeController
-                                                                      .convert24(
-                                                                value,
-                                                                controller
-                                                                    .meridiemIndex
-                                                                    .value,
-                                                              );
-                                                            }
-
-                                                            controller
-                                                                    .selectedTime
-                                                                    .value =
-                                                                DateTime(
-                                                              controller
-                                                                  .selectedTime
-                                                                  .value
-                                                                  .year,
-                                                              controller
-                                                                  .selectedTime
-                                                                  .value
-                                                                  .month,
-                                                              controller
-                                                                  .selectedTime
-                                                                  .value
-                                                                  .day,
-                                                              hourValue,
-                                                              controller
-                                                                  .selectedTime
-                                                                  .value
-                                                                  .minute,
-                                                            );
-
-                                                            // Update text controllers to reflect current format
-                                                            inputTimeController
-                                                                    .inputHrsController
-                                                                    .text =
-                                                                controller
-                                                                    .hours.value
-                                                                    .toString();
-                                                            inputTimeController
-                                                                    .inputMinutesController
-                                                                    .text =
-                                                                controller
-                                                                    .minutes
-                                                                    .value
-                                                                    .toString();
-
-                                                            // Only update period for 12-hour format
-                                                            if (!settingsController
-                                                                .is24HrsEnabled
-                                                                .value) {
-                                                              inputTimeController
-                                                                  .changePeriod(
-                                                                controller.meridiemIndex
-                                                                            .value ==
-                                                                        0
-                                                                    ? 'AM'
-                                                                    : 'PM',
-                                                              );
-                                                            }
-
-                                                            inputTimeController
-                                                                .setTime();
-                                                          },
-                                                          infiniteLoop: true,
-                                                          itemWidth:
-                                                              width * 0.17,
-                                                          zeroPad: true,
-                                                          selectedTextStyle:
-                                                              Theme.of(context)
-                                                                  .textTheme
-                                                                  .displayLarge!
-                                                                  .copyWith(
-                                                                    fontSize: controller
-                                                                            .homeController
-                                                                            .scalingFactor *
-                                                                        40,
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .bold,
-                                                                    color:
-                                                                        kprimaryColor,
-                                                                  ),
-                                                          textStyle: Theme.of(
-                                                                  context)
-                                                              .textTheme
-                                                              .displayMedium!
-                                                              .copyWith(
-                                                                fontSize: controller
-                                                                        .homeController
-                                                                        .scalingFactor *
-                                                                    20,
-                                                                color: themeController
-                                                                    .primaryDisabledTextColor
-                                                                    .value,
-                                                              ),
+                                                        SizedBox(
+                                                          width: controller.timePickerWidth,
+                                                          child: NumberPicker(
+                                                            value: controller.hours.value,
+                                                            minValue: settingsController.is24HrsEnabled.value ? 0 : 1,
+                                                            maxValue: settingsController.is24HrsEnabled.value ? 23 : 12,
+                                                            onChanged: controller.updateHours,
+                                                            infiniteLoop: true,
+                                                            itemWidth: controller.timePickerWidth,
+                                                            itemHeight: controller.timePickerHeight,
+                                                            zeroPad: true,
+                                                            selectedTextStyle: controller.selectedTimeStyle,
+                                                            textStyle: controller.unselectedTimeStyle,
+                                                          ),
                                                         ),
                                                         Padding(
-                                                          padding: EdgeInsets
-                                                              .symmetric(
-                                                            horizontal:
-                                                                width * 0.02,
-                                                          ),
+                                                          padding: EdgeInsets.symmetric(horizontal: controller.timePickerPadding),
                                                           child: Text(
                                                             ':',
-                                                            style: Theme.of(
-                                                                    context)
-                                                                .textTheme
-                                                                .displayLarge!
-                                                                .copyWith(
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                  color: themeController
-                                                                      .primaryDisabledTextColor
-                                                                      .value,
-                                                                ),
+                                                            style: controller.separatorStyle,
                                                           ),
                                                         ),
-                                                        NumberPicker(
-                                                          minValue: 0,
-                                                          maxValue: 59,
-                                                          value: controller
-                                                              .minutes.value,
-                                                          onChanged: (value) {
-                                                            Utils
-                                                                .hapticFeedback();
-                                                            controller.minutes
-                                                                .value = value;
-                                                            controller
-                                                                    .selectedTime
-                                                                    .value =
-                                                                DateTime(
-                                                              controller
-                                                                  .selectedTime
-                                                                  .value
-                                                                  .year,
-                                                              controller
-                                                                  .selectedTime
-                                                                  .value
-                                                                  .month,
-                                                              controller
-                                                                  .selectedTime
-                                                                  .value
-                                                                  .day,
-                                                              controller
-                                                                  .selectedTime
-                                                                  .value
-                                                                  .hour,
-                                                              controller.minutes
-                                                                  .value,
-                                                            );
-                                                            inputTimeController
-                                                                    .inputHrsController
-                                                                    .text =
-                                                                controller
-                                                                    .hours.value
-                                                                    .toString();
-                                                            inputTimeController
-                                                                    .inputMinutesController
-                                                                    .text =
-                                                                controller
-                                                                    .minutes
-                                                                    .value
-                                                                    .toString();
-                                                            inputTimeController
-                                                                .changePeriod(
-                                                              controller.meridiemIndex
-                                                                          .value ==
-                                                                      0
-                                                                  ? 'AM'
-                                                                  : 'PM',
-                                                            );
-                                                          },
-                                                          infiniteLoop: true,
-                                                          itemWidth:
-                                                              width * 0.17,
-                                                          zeroPad: true,
-                                                          selectedTextStyle:
-                                                              Theme.of(context)
-                                                                  .textTheme
-                                                                  .displayLarge!
-                                                                  .copyWith(
-                                                                    fontSize: controller
-                                                                            .homeController
-                                                                            .scalingFactor *
-                                                                        40,
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .bold,
-                                                                    color:
-                                                                        kprimaryColor,
-                                                                  ),
-                                                          textStyle: Theme.of(
-                                                                  context)
-                                                              .textTheme
-                                                              .displayMedium!
-                                                              .copyWith(
-                                                                fontSize: controller
-                                                                        .homeController
-                                                                        .scalingFactor *
-                                                                    20,
-                                                                color: themeController
-                                                                    .primaryDisabledTextColor
-                                                                    .value,
-                                                              ),
+                                                        SizedBox(
+                                                          width: controller.timePickerWidth,
+                                                          child: NumberPicker(
+                                                            value: controller.minutes.value,
+                                                            minValue: 0,
+                                                            maxValue: 59,
+                                                            onChanged: controller.updateMinutes,
+                                                            infiniteLoop: true,
+                                                            itemWidth: controller.timePickerWidth,
+                                                            itemHeight: controller.timePickerHeight,
+                                                            zeroPad: true,
+                                                            selectedTextStyle: controller.selectedTimeStyle,
+                                                            textStyle: controller.unselectedTimeStyle,
+                                                          ),
                                                         ),
-                                                        Visibility(
-                                                          visible:
-                                                              settingsController
-                                                                      .is24HrsEnabled
-                                                                      .value
-                                                                  ? false
-                                                                  : true,
-                                                          child: Padding(
-                                                            padding: EdgeInsets
-                                                                .symmetric(
-                                                              horizontal:
-                                                                  width * 0.02,
-                                                            ),
+                                                        if (!settingsController.is24HrsEnabled.value) ...[
+                                                          Padding(
+                                                            padding: EdgeInsets.symmetric(horizontal: controller.timePickerPadding),
                                                             child: Text(
                                                               ':',
-                                                              style: Theme.of(
-                                                                      context)
-                                                                  .textTheme
-                                                                  .displayLarge!
-                                                                  .copyWith(
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .bold,
-                                                                    color: themeController
-                                                                        .primaryDisabledTextColor
-                                                                        .value,
-                                                                  ),
+                                                              style: controller.separatorStyle,
                                                             ),
                                                           ),
-                                                        ),
-                                                        Visibility(
-                                                          visible:
-                                                              settingsController
-                                                                      .is24HrsEnabled
-                                                                      .value
-                                                                  ? false
-                                                                  : true,
-                                                          child: NumberPicker(
-                                                            minValue: 0,
-                                                            maxValue: 1,
-                                                            value: controller
-                                                                .meridiemIndex
-                                                                .value,
-                                                            onChanged: (value) {
-                                                              Utils
-                                                                  .hapticFeedback();
-                                                              value == 0
-                                                                  ? controller
-                                                                      .meridiemIndex
-                                                                      .value = 0
-                                                                  : controller
-                                                                      .meridiemIndex
-                                                                      .value = 1;
-                                                              controller
-                                                                      .selectedTime
-                                                                      .value =
-                                                                  DateTime(
-                                                                controller
-                                                                    .selectedTime
-                                                                    .value
-                                                                    .year,
-                                                                controller
-                                                                    .selectedTime
-                                                                    .value
-                                                                    .month,
-                                                                controller
-                                                                    .selectedTime
-                                                                    .value
-                                                                    .day,
-                                                                inputTimeController
-                                                                    .convert24(
-                                                                  controller
-                                                                      .hours
-                                                                      .value,
-                                                                  controller
-                                                                      .meridiemIndex
-                                                                      .value,
-                                                                ),
-                                                                controller
-                                                                    .minutes
-                                                                    .value,
-                                                              );
-                                                              inputTimeController
-                                                                      .inputHrsController
-                                                                      .text =
-                                                                  controller
-                                                                      .hours
-                                                                      .value
-                                                                      .toString();
-                                                              inputTimeController
-                                                                      .inputMinutesController
-                                                                      .text =
-                                                                  controller
-                                                                      .minutes
-                                                                      .value
-                                                                      .toString();
-                                                              inputTimeController
-                                                                  .changePeriod(
-                                                                controller.meridiemIndex
-                                                                            .value ==
-                                                                        0
-                                                                    ? 'AM'
-                                                                    : 'PM',
-                                                              );
-                                                            },
-                                                            textMapper:
-                                                                (numberText) {
-                                                              return controller
-                                                                  .meridiem[
-                                                                      int.parse(
-                                                                numberText,
-                                                              )]
-                                                                  .value;
-                                                            },
-                                                            itemWidth:
-                                                                width * 0.2,
-                                                            selectedTextStyle:
-                                                                Theme.of(
-                                                                        context)
-                                                                    .textTheme
-                                                                    .displayLarge!
-                                                                    .copyWith(
-                                                                      fontSize:
-                                                                          Utils.getFontSize(
-                                                                              context),
-                                                                      fontWeight:
-                                                                          FontWeight
-                                                                              .bold,
-                                                                      color:
-                                                                          kprimaryColor,
-                                                                    ),
-                                                            textStyle: Theme.of(
-                                                                    context)
-                                                                .textTheme
-                                                                .displayMedium!
-                                                                .copyWith(
-                                                                  fontSize: Utils
-                                                                      .getFontSize(
-                                                                          context),
-                                                                  color: themeController
-                                                                      .primaryDisabledTextColor
-                                                                      .value,
-                                                                ),
+                                                          SizedBox(
+                                                            width: controller.timePickerAMPMWidth,
+                                                            child: NumberPicker(
+                                                              minValue: 0,
+                                                              maxValue: 1,
+                                                              value: controller.meridiemIndex.value,
+                                                              onChanged: controller.updateMeridiem,
+                                                              textMapper: (numberText) {
+                                                                return controller.meridiem[int.parse(numberText)].value;
+                                                              },
+                                                              itemWidth: controller.timePickerWidth,
+                                                              itemHeight: controller.timePickerHeight,
+                                                              selectedTextStyle: controller.selectedTimeStyle,
+                                                              textStyle: controller.unselectedTimeStyle,
+                                                            ),
                                                           ),
-                                                        ),
+                                                        ],
                                                       ],
                                                     ),
                                                   )

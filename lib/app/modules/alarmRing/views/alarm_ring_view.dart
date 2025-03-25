@@ -6,6 +6,7 @@ import 'package:ultimate_alarm_clock/app/utils/constants.dart';
 import 'package:ultimate_alarm_clock/app/utils/utils.dart';
 import 'package:ultimate_alarm_clock/app/data/providers/isar_provider.dart';
 import 'package:ultimate_alarm_clock/app/data/providers/firestore_provider.dart';
+import 'package:ultimate_alarm_clock/app/utils/audio_utils.dart';
 
 import '../controllers/alarm_ring_controller.dart';
 
@@ -71,7 +72,9 @@ class AlarmControlView extends GetView<AlarmControlController> {
                         children: [
                           Text(
                             controller.formattedDate.value,
-                            style: Theme.of(context).textTheme.bodyLarge,
+                            style: Theme.of(context).textTheme.bodyLarge!.copyWith(
+                              fontSize: 16 * controller.homeController.scalingFactor.value,
+                            ),
                           ),
                           const SizedBox(
                             height: 10,
@@ -87,7 +90,9 @@ class AlarmControlView extends GetView<AlarmControlController> {
                             style: Theme.of(context)
                                 .textTheme
                                 .displayLarge!
-                                .copyWith(fontSize: 50),
+                                .copyWith(
+                                  fontSize: 50 * controller.homeController.scalingFactor.value,
+                                ),
                           ),
                           const SizedBox(
                             height: 20,
@@ -121,7 +126,7 @@ class AlarmControlView extends GetView<AlarmControlController> {
                                 .bodyMedium!
                                 .copyWith(
                                   color: themeController.primaryTextColor.value,
-                                  fontSize: 20,
+                                  fontSize: 20 * controller.homeController.scalingFactor.value,
                                   fontWeight: FontWeight.w100,
                                   fontStyle: FontStyle.italic,
                                 ),
@@ -156,6 +161,7 @@ class AlarmControlView extends GetView<AlarmControlController> {
                                         color: themeController
                                             .primaryTextColor.value,
                                         fontWeight: FontWeight.w600,
+                                        fontSize: 16 * controller.homeController.scalingFactor.value,
                                       ),
                                 ),
                                 onPressed: () {
@@ -251,7 +257,14 @@ class AlarmControlView extends GetView<AlarmControlController> {
                     child: TextButton(
                       onPressed: () {
                         Utils.hapticFeedback();
-                        Get.offAllNamed('/bottom-navigation-bar');
+                        // Stop any playing audio
+                        AudioUtils.stopPreviewCustomSound();
+                        // Cancel any active timers
+                        if (controller.vibrationTimer != null) {
+                          controller.vibrationTimer!.cancel();
+                        }
+                        // Navigate back
+                        Get.back();
                       },
                       child: Text(
                         'Exit Preview'.tr,

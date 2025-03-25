@@ -322,33 +322,29 @@ class AlarmControlController extends GetxController {
   }
 
   @override
-  void onClose() async {
-    super.onClose();
-    Vibration.cancel();
-    vibrationTimer!.cancel();
-    isAlarmActive = false;
-    String ringtoneName = currentlyRingingAlarm.value.ringtoneName;
-    AudioUtils.stopAlarm(ringtoneName: ringtoneName);
-    await FlutterVolumeController.setVolume(
-      initialVolume,
-      stream: AudioStream.alarm,
-    );
-
-    
-    if (currentlyRingingAlarm.value.days.every((element) => element == false)) {
-      currentlyRingingAlarm.value.isEnabled = false;
-      if (currentlyRingingAlarm.value.isSharedAlarmEnabled == false) {
-        await IsarDb.updateAlarm(currentlyRingingAlarm.value);
-      } else {
-        await FirestoreDb.updateAlarm(
-          currentlyRingingAlarm.value.ownerId,
-          currentlyRingingAlarm.value,
-        );
-      }
+  void onClose() {
+    // Cancel all timers
+    if (vibrationTimer != null) {
+      vibrationTimer!.cancel();
     }
-
+    if (_currentTimeTimer != null) {
+      _currentTimeTimer!.cancel();
+    }
+    if (guardianTimer != null) {
+      guardianTimer.cancel();
+    }
+    
+    // Cancel subscriptions
     _subscription.cancel();
-    _currentTimeTimer?.cancel();
-    _sensorSubscription?.cancel();
+    if (_sensorSubscription != null) {
+      _sensorSubscription!.cancel();
+    }
+    
+    // Stop any playing audio
+    if (isPreviewMode.value) {
+      AudioUtils.stopPreviewCustomSound();
+    }
+    
+    super.onClose();
   }
 }

@@ -19,78 +19,67 @@ class GuardianAngel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Check if using Firestore and the current user is the owner
-    // and if not using, just show the tile
-
+    // Using a Row with mainAxisSize.min so that the text and the info icon sit together.
     return Column(
       children: [
         ListTile(
           onTap: () async {
-      var phonePerm =
-          await Permission.phone.request().isGranted;
-      var smsPerm = await Permission.sms.request().isGranted;
-
-      if (phonePerm && smsPerm) {
-        Get.dialog(
-          Dialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
-            ),
-            backgroundColor: themeController
-                .secondaryBackgroundColor.value,
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: InternationalPhoneNumberInput(
-                      textFieldController: controller
-                          .contactTextEditingController,
-                      onInputChanged: (value) {},
-                      onInputValidated: (value) {},
-                      spaceBetweenSelectorAndTextField: 0,
-                      selectorConfig: const SelectorConfig(
-                        showFlags: true,
-                        setSelectorButtonAsPrefixIcon: true,
-                        leadingPadding: 0,
-                        trailingSpace: false,
-                        countryComparator: orderedCountryCode,
-                      ),
-                    ),
+            var phonePerm = await Permission.phone.request().isGranted;
+            var smsPerm = await Permission.sms.request().isGranted;
+            if (phonePerm && smsPerm) {
+              Get.dialog(
+                Dialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
                   ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      vertical: controller
-                          .homeController.scalingFactor *
-                          8,
-                      horizontal: controller
-                          .homeController.scalingFactor *
-                          4,
-                    ),
-                    child: Row(
+                  backgroundColor: themeController.secondaryBackgroundColor.value,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Option(0, Icons.sms, 'Text'),
-                        Option(1, Icons.call, 'Call'),
-                        const Spacer(),
-                        Submit(),
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: InternationalPhoneNumberInput(
+                            textFieldController: controller.contactTextEditingController,
+                            onInputChanged: (value) {},
+                            onInputValidated: (value) {},
+                            spaceBetweenSelectorAndTextField: 0,
+                            selectorConfig: const SelectorConfig(
+                              showFlags: true,
+                              setSelectorButtonAsPrefixIcon: true,
+                              leadingPadding: 0,
+                              trailingSpace: false,
+                              // countryComparator: orderedCountryCode,
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                            vertical: controller.homeController.scalingFactor * 8,
+                            horizontal: controller.homeController.scalingFactor * 4,
+                          ),
+                          child: Row(
+                            children: [
+                              Option(0, Icons.sms, 'Text'),
+                              Option(1, Icons.call, 'Call'),
+                              const Spacer(),
+                              Submit(),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                ],
-              ),
-            ),
-          ),
-        );
-      }
-    },
-    title: Row(
-      children: [
-        FittedBox(
-          fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-              child: Obx(
+                ),
+              );
+            }
+          },
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Obx(
                 () => Text(
                   'Guardian Angel'.tr,
                   style: TextStyle(
@@ -98,23 +87,23 @@ class GuardianAngel extends StatelessWidget {
                   ),
                 ),
               ),
-             ),
+              // Optionally add a small SizedBox for a minimal gap (if desired); set width to 4 or 0.
+              const SizedBox(width: 4),
               Obx(
                 () => IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                   icon: Icon(
-                      Icons.info_sharp,
-                      size: 21,
-                      color: themeController.primaryTextColor.value.withOpacity(0.3),
-                    ),
+                    Icons.info_sharp,
+                    size: 21,
+                    color: themeController.primaryTextColor.value.withOpacity(0.3),
+                  ),
                   onPressed: () {
                     Utils.showModal(
                       context: context,
                       title: 'Guardian Angel',
                       description:
-                          'This feature will automatically call or text a person'
-                          ' you trust the most if you dont wake up to an alarm!'
-                          '\n \n CALLING AND SMS PERMISSION REQUIRED.'
-                          '\n \n RATES MAY APPLY AS PER YOUR SERVICE PROVIDER',
+                          'This feature will automatically call or text a person you trust the most if you dont wake up to an alarm!\n\nCALLING AND SMS PERMISSION REQUIRED.\n\nRATES MAY APPLY AS PER YOUR SERVICE PROVIDER',
                       iconData: Icons.info_sharp,
                       isLightMode: themeController.currentTheme.value == ThemeMode.light,
                     );
@@ -154,9 +143,11 @@ class GuardianAngel extends StatelessWidget {
             child: InkWell(
               borderRadius: BorderRadius.circular(28),
               onTap: () {
-                val == 0
-                    ? controller.isCall.value = false
-                    : controller.isCall.value = true;
+                if (val == 0) {
+                  controller.isCall.value = false;
+                } else {
+                  controller.isCall.value = true;
+                }
               },
               child: Container(
                 decoration: BoxDecoration(
