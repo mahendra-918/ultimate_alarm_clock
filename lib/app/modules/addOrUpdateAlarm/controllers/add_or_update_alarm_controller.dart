@@ -25,7 +25,6 @@ import 'package:ultimate_alarm_clock/app/utils/constants.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl_phone_number_input/src/models/country_model.dart';
 import '../../settings/controllers/settings_controller.dart';
-import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/controllers/input_time_controller.dart';
 
 class AddOrUpdateAlarmController extends GetxController {
   final labelController = TextEditingController();
@@ -114,97 +113,6 @@ class AddOrUpdateAlarmController extends GetxController {
   final RxInt hours = 0.obs, minutes = 0.obs, meridiemIndex = 0.obs;
   final List<RxString> meridiem = ['AM'.obs, 'PM'.obs];
 
-  
-  double get timePickerWidth => Get.width * 0.2;
-  double get timePickerHeight => Get.height * 0.06;
-  double get timePickerPadding => Get.width * 0.02;
-  double get timePickerAMPMWidth => Get.width * 0.25;
-
-  
-  TextStyle get selectedTimeStyle => Theme.of(Get.context!).textTheme.displayLarge!.copyWith(
-    fontSize: 32 * homeController.scalingFactor.value,
-    fontWeight: FontWeight.bold,
-    color: kprimaryColor,
-  );
-
-  TextStyle get unselectedTimeStyle => Theme.of(Get.context!).textTheme.displayMedium!.copyWith(
-    fontSize: 16 * homeController.scalingFactor.value,
-    color: Get.find<ThemeController>().primaryDisabledTextColor.value,
-  );
-
-  TextStyle get separatorStyle => Theme.of(Get.context!).textTheme.displayLarge!.copyWith(
-    fontSize: 40 * homeController.scalingFactor.value,
-    fontWeight: FontWeight.bold,
-    color: Get.find<ThemeController>().primaryDisabledTextColor.value,
-  );
-
-  // Time picker methods
-  void updateHours(int value) {
-    Utils.hapticFeedback();
-    hours.value = value;
-    int hourValue;
-    if (settingsController.is24HrsEnabled.value) {
-      hourValue = value;
-    } else {
-      hourValue = inputTimeController.convert24(
-        value,
-        meridiemIndex.value,
-      );
-    }
-    selectedTime.value = DateTime(
-      selectedTime.value.year,
-      selectedTime.value.month,
-      selectedTime.value.day,
-      hourValue,
-      selectedTime.value.minute,
-    );
-    inputTimeController.inputHrsController.text = hours.value.toString();
-    inputTimeController.inputMinutesController.text = minutes.value.toString();
-    if (!settingsController.is24HrsEnabled.value) {
-      inputTimeController.changePeriod(
-        meridiemIndex.value == 0 ? 'AM' : 'PM',
-      );
-    }
-    inputTimeController.setTime();
-  }
-
-  void updateMinutes(int value) {
-    Utils.hapticFeedback();
-    minutes.value = value;
-    selectedTime.value = DateTime(
-      selectedTime.value.year,
-      selectedTime.value.month,
-      selectedTime.value.day,
-      selectedTime.value.hour,
-      minutes.value,
-    );
-    inputTimeController.inputHrsController.text = hours.value.toString();
-    inputTimeController.inputMinutesController.text = minutes.value.toString();
-    inputTimeController.changePeriod(
-      meridiemIndex.value == 0 ? 'AM' : 'PM',
-    );
-  }
-
-  void updateMeridiem(int value) {
-    Utils.hapticFeedback();
-    meridiemIndex.value = value == 0 ? 0 : 1;
-    selectedTime.value = DateTime(
-      selectedTime.value.year,
-      selectedTime.value.month,
-      selectedTime.value.day,
-      inputTimeController.convert24(
-        hours.value,
-        meridiemIndex.value,
-      ),
-      minutes.value,
-    );
-    inputTimeController.inputHrsController.text = hours.value.toString();
-    inputTimeController.inputMinutesController.text = minutes.value.toString();
-    inputTimeController.changePeriod(
-      meridiemIndex.value == 0 ? 'AM' : 'PM',
-    );
-  }
-
   Future<List<UserModel?>> fetchUserDetailsForSharedUsers() async {
     List<UserModel?> userDetails = [];
 
@@ -233,8 +141,6 @@ class AddOrUpdateAlarmController extends GetxController {
   final RxInt guardianTimer = 0.obs;
   final RxString guardian = ''.obs;
   final RxBool isCall = false.obs;
-
-  late final InputTimeController inputTimeController;
 
   void toggleIsPlaying() {
     isPlaying.toggle();
@@ -760,9 +666,6 @@ class AddOrUpdateAlarmController extends GetxController {
   @override
   void onInit() async {
     super.onInit();
-    inputTimeController = Get.find<InputTimeController>();
-    settingsController = Get.find<SettingsController>();
-    themeController = Get.find<ThemeController>();
 
     profileTextEditingController.text = homeController.isProfileUpdate.value
         ? homeController.selectedProfile.value
@@ -1454,6 +1357,7 @@ class AddOrUpdateAlarmController extends GetxController {
     storage.writeProfile(profileModel.profileName);
     homeController.writeProfileName(profileModel.profileName);
   }
+}
 
   int orderedCountryCode(Country countryA, Country countryB) {
     // `??` for null safety of 'dialCode'
@@ -1462,4 +1366,3 @@ class AddOrUpdateAlarmController extends GetxController {
 
     return int.parse(dialCodeA).compareTo(int.parse(dialCodeB));
   }
-}
