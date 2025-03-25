@@ -18,6 +18,7 @@ import 'package:ultimate_alarm_clock/app/utils/utils.dart';
 
 import '../controllers/home_controller.dart';
 import 'notification_icon.dart';
+import 'dart:math' as math;
 
 class HomeView extends GetView<HomeController> {
   HomeView({Key? key}) : super(key: key);
@@ -78,50 +79,35 @@ class HomeView extends GetView<HomeController> {
                               child: FittedBox(
                                 fit: BoxFit.scaleDown,
                                 child: Column(
-                                  mainAxisAlignment: MainAxisAlignment
-                                      .center, // Center everything vertically
+                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
                                         Container(
                                           padding: EdgeInsets.only(
-                                            left: 25 *
-                                                controller.scalingFactor.value,
+                                            left: 32 * controller.scalingFactor.value,
                                           ),
                                           child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
+                                            crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
                                               Text(
                                                 'Next alarm'.tr,
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .displaySmall!
-                                                    .copyWith(
-                                                      color: themeController.primaryDisabledTextColor.value,
-                                                      fontSize: 16 *
-                                                          controller.scalingFactor
-                                                              .value,
-                                                    ),
+                                                style: Theme.of(context).textTheme.displaySmall!.copyWith(
+                                                  color: themeController.primaryDisabledTextColor.value,
+                                                  fontSize: math.max(18 * controller.scalingFactor.value, 16),
+                                                  fontWeight: FontWeight.w500,
+                                                ),
                                               ),
+                                              SizedBox(height: 8 * controller.scalingFactor.value),
                                               Obx(
                                                 () => Text(
                                                   controller.alarmTime.value.tr,
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .displaySmall!
-                                                      .copyWith(
-                                                        color: themeController.primaryTextColor.value
-                                                                .withOpacity(
-                                                                0.75,
-                                                              ),
-                                                        fontSize: 14 *
-                                                            controller
-                                                                .scalingFactor
-                                                                .value,
-                                                      ),
+                                                  style: Theme.of(context).textTheme.displaySmall!.copyWith(
+                                                    color: themeController.primaryTextColor.value.withOpacity(0.75),
+                                                    fontSize: math.max(16 * controller.scalingFactor.value, 14),
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
                                                 ),
                                               ),
                                             ],
@@ -130,12 +116,12 @@ class HomeView extends GetView<HomeController> {
                                         Row(
                                           children: [
                                             notificationIcon(controller),
+                                            SizedBox(width: 16 * controller.scalingFactor.value),
                                             Padding(
-                                              padding: const EdgeInsets.all(8.0),
+                                              padding: EdgeInsets.all(12.0 * controller.scalingFactor.value),
                                               child: InkWell(
                                                 onTap: () async {
-                                                  controller.isCalender.value =
-                                                      true;
+                                                  controller.isCalender.value = true;
                                                   Get.dialog(
                                                     await googleCalenderDialog(
                                                       controller,
@@ -146,92 +132,30 @@ class HomeView extends GetView<HomeController> {
                                                 },
                                                 child: SvgPicture.asset(
                                                   'assets/images/GC.svg',
-                                                  colorFilter:
-                                                      const ColorFilter.mode(
+                                                  colorFilter: const ColorFilter.mode(
                                                     kprimaryColor,
                                                     BlendMode.srcIn,
                                                   ),
-                                                  height: 30 *
-                                                      controller
-                                                          .scalingFactor.value,
-                                                  width: 30 *
-                                                      controller
-                                                          .scalingFactor.value,
+                                                  height: math.max(32 * controller.scalingFactor.value, 28),
+                                                  width: math.max(32 * controller.scalingFactor.value, 28),
                                                 ),
                                               ),
                                             ),
+                                            SizedBox(width: 16 * controller.scalingFactor.value),
                                             Obx(
                                               () => Visibility(
-                                                visible:
-                                                    controller.scalingFactor < 0.9
-                                                        ? false
-                                                        : true,
+                                                visible: controller.scalingFactor < 0.9 ? false : true,
                                                 child: IconButton(
                                                   onPressed: () {
                                                     Utils.hapticFeedback();
-                                                    Scaffold.of(context)
-                                                        .openEndDrawer();
+                                                    Scaffold.of(context).openEndDrawer();
                                                   },
-                                                  icon: const Icon(
+                                                  icon: Icon(
                                                     Icons.menu,
+                                                    size: math.max(30 * controller.scalingFactor.value, 27),
                                                   ),
-                                                  color: themeController.primaryTextColor.value
-                                                          .withOpacity(0.75),
-                                                  iconSize: 27 *
-                                                      controller.scalingFactor.value,
+                                                  color: themeController.primaryTextColor.value.withOpacity(0.75),
                                                 ),
-                                
-                                                //   PopupMenuButton(
-                                                //     // onPressed: () {
-                                                //     //   Utils.hapticFeedback();
-                                                //     //   Get.toNamed('/settings');
-                                                //     // },
-                                
-                                                //     icon: const Icon(Icons.more_vert),
-                                                //     color: themeController
-                                                //             .isLightMode.value
-                                                //         ? kLightSecondaryBackgroundColor
-                                                //         : ksecondaryBackgroundColor,
-                                                //     iconSize: 27 *
-                                                //         controller.scalingFactor.value,
-                                                //     itemBuilder: (context) {
-                                                //       return [
-                                                //         PopupMenuItem<String>(
-                                                //           onTap: () {
-                                                //             Utils.hapticFeedback();
-                                                //             Get.toNamed('/settings');
-                                                //           },
-                                                //           child: Text(
-                                                //             'Settings',
-                                                //             style: Theme.of(context)
-                                                //                 .textTheme
-                                                //                 .bodyMedium!
-                                                //                 .copyWith(
-                                                //                     color: themeController
-                                                //                             .isLightMode
-                                                //                             .value
-                                                //                         ? kLightPrimaryTextColor
-                                                //                         : kprimaryTextColor),
-                                                //           ),
-                                                //         ),
-                                                //         PopupMenuItem<String>(
-                                                //           value: 'option1',
-                                                //           child: Text(
-                                                //             'About',
-                                                //             style: Theme.of(context)
-                                                //                 .textTheme
-                                                //                 .bodyMedium!
-                                                //                 .copyWith(
-                                                //                     color: themeController
-                                                //                             .isLightMode
-                                                //                             .value
-                                                //                         ? kLightPrimaryTextColor
-                                                //                         : kprimaryTextColor),
-                                                //           ),
-                                                //         ),
-                                                //       ];
-                                                //     },
-                                                //   ),
                                               ),
                                             ),
                                           ],
@@ -260,8 +184,9 @@ class HomeView extends GetView<HomeController> {
                           builder: (context, constraints) {
                             return Center(
                               child: Column(
-                                mainAxisAlignment: MainAxisAlignment
-                                    .center, // Center everything vertically
+                                mainAxisAlignment:
+                                    MainAxisAlignment
+                                        .center, // Center everything vertically
                                 children: [
                                   Row(
                                     mainAxisAlignment:

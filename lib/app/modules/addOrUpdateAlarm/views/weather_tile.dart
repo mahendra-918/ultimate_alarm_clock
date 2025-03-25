@@ -97,30 +97,30 @@ class WeatherTile extends StatelessWidget {
                   backgroundColor:
                       themeController.secondaryBackgroundColor.value,
                   builder: (context) {
-                    return Center(
+                    return SingleChildScrollView(
                       child: Padding(
                         padding: const EdgeInsets.all(25.0),
                         child: Column(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
                               Icons.cloudy_snowing,
                               color: themeController.primaryTextColor.value,
-                              size: height * 0.1,
+                              size: height * 0.08,
                             ),
+                            const SizedBox(height: 16),
                             Text(
                               'Weather based cancellation'.tr,
                               textAlign: TextAlign.center,
                               style: Theme.of(context).textTheme.displayMedium,
                             ),
-                            Padding(
-                              padding: const EdgeInsets.only(top: 15.0),
-                              child: Text(
-                                'weatherDescription'.tr,
-                                style: Theme.of(context).textTheme.bodyMedium,
-                                textAlign: TextAlign.center,
-                              ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'weatherDescription'.tr,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                              textAlign: TextAlign.center,
                             ),
+                            const SizedBox(height: 24),
                             SizedBox(
                               width: width,
                               child: TextButton(

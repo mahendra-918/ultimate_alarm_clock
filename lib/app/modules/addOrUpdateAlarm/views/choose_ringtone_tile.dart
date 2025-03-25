@@ -197,37 +197,47 @@ class ChooseRingtoneTile extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      OutlinedButton(
-                        onPressed: () async {
-                          Utils.hapticFeedback();
-                          await AudioUtils.stopPreviewCustomSound();
-                          controller.isPlaying.value = false;
-                          controller.previousRingtone =
-                              controller.customRingtoneName.value;
-                          await controller.saveCustomRingtone();
-                        },
-                        child: Text(
-                          'Upload Ringtone'.tr,
-                          style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: OutlinedButton(
+                            onPressed: () async {
+                              Utils.hapticFeedback();
+                              await AudioUtils.stopPreviewCustomSound();
+                              controller.isPlaying.value = false;
+                              controller.previousRingtone =
+                                  controller.customRingtoneName.value;
+                              await controller.saveCustomRingtone();
+                            },
+                            child: Text(
+                              'Upload Ringtone'.tr,
+                              style: Theme.of(context).textTheme.bodyMedium!.copyWith(
                                     color: kprimaryColor,
                                   ),
+                            ),
+                          ),
                         ),
                       ),
-                      ElevatedButton(
-                        onPressed: () async {
-                          Utils.hapticFeedback();
-                          await AudioUtils.stopPreviewCustomSound();
-                          controller.isPlaying.value = false;
-                          Get.back();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: kprimaryColor,
-                        ),
-                        child: Text(
-                          'Done'.tr,
-                          style: Theme.of(context).textTheme.displaySmall!.copyWith(
-                                color: themeController.secondaryTextColor.value,
-                              ),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 8.0),
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              Utils.hapticFeedback();
+                              await AudioUtils.stopPreviewCustomSound();
+                              controller.isPlaying.value = false;
+                              Get.back();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: kprimaryColor,
+                            ),
+                            child: Text(
+                              'Done'.tr,
+                              style: Theme.of(context).textTheme.displaySmall!.copyWith(
+                                    color: themeController.secondaryTextColor.value,
+                                  ),
+                            ),
+                          ),
                         ),
                       ),
                     ],

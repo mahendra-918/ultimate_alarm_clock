@@ -183,22 +183,25 @@ class _TimerAnimatedCardState extends State<TimerAnimatedCard>
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Obx(
-                                  () => AnimatedContainer(
-                                    duration: Duration(seconds: 1),
-                                    child: Text(
-                                      '${Utils.formatMilliseconds(widget.timer.timerValue - widget.timer.timeElapsed)}',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .displayLarge!
-                                          .copyWith(
-                                            color: themeController.primaryTextColor.value,
-                                            fontSize: 44,
-                                          ),
+                                Expanded(
+                                  child: Obx(
+                                    () => AnimatedContainer(
+                                      duration: Duration(seconds: 1),
+                                      child: Text(
+                                        '${Utils.formatMilliseconds(widget.timer.timerValue - widget.timer.timeElapsed)}',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .displayLarge!
+                                            .copyWith(
+                                              color: themeController.primaryTextColor.value,
+                                              fontSize: Theme.of(context).textTheme.displayLarge!.fontSize! * 0.8,
+                                            ),
+                                      ),
                                     ),
                                   ),
                                 ),
                                 Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     GestureDetector(
                                       onTap: () {

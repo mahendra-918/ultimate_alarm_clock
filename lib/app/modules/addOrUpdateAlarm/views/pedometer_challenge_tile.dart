@@ -20,17 +20,24 @@ class PedometerChallenge extends StatelessWidget {
   Widget build(BuildContext context) {
     int numberOfSteps;
     bool isPedometerEnabled;
+    final double width = MediaQuery.of(context).size.width;
     return Obx(
       () => ListTile(
         title: Row(
           children: [
-            Text(
-              'Pedometer'.tr,
-              style: TextStyle(
-                color: themeController.primaryTextColor.value,
+            Expanded(
+              child: Text(
+                'Pedometer'.tr,
+                style: TextStyle(
+                  color: themeController.primaryTextColor.value,
+                  fontWeight: FontWeight.w500,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             IconButton(
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
               icon: Icon(
                 Icons.info_sharp,
                 size: 21,
@@ -68,30 +75,50 @@ class PedometerChallenge extends StatelessWidget {
                 children: [
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 10.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        NumberPicker(
-                          value: controller.numberOfSteps.value,
-                          minValue: 0,
-                          maxValue: 60,
-                          onChanged: (value) {
-                            Utils.hapticFeedback();
-                            if (value > 0) {
-                              controller.isPedometerEnabled.value = true;
-                            } else {
-                              controller.isPedometerEnabled.value = false;
-                            }
-                            controller.numberOfSteps.value = value;
-                          },
-                        ),
-                        Text(
-                          controller.numberOfSteps.value > 1
-                              ? 'steps'.tr
-                              : 'step'.tr,
-                        ),
-                      ],
+                    child: Container(
+                      width: width * 0.8,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: width * 0.3,
+                            child: NumberPicker(
+                              value: controller.numberOfSteps.value,
+                              minValue: 0,
+                              maxValue: 60,
+                              onChanged: (value) {
+                                Utils.hapticFeedback();
+                                if (value > 0) {
+                                  controller.isPedometerEnabled.value = true;
+                                } else {
+                                  controller.isPedometerEnabled.value = false;
+                                }
+                                controller.numberOfSteps.value = value;
+                              },
+                              selectedTextStyle: Theme.of(context).textTheme.displayMedium!.copyWith(
+                                color: themeController.primaryTextColor.value,
+                                fontSize: 24,
+                              ),
+                              textStyle: Theme.of(context).textTheme.displaySmall!.copyWith(
+                                color: themeController.primaryDisabledTextColor.value,
+                                fontSize: 20,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            controller.numberOfSteps.value > 1
+                                ? 'steps'.tr
+                                : 'step'.tr,
+                            style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                              color: themeController.primaryTextColor.value,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   InkWell(

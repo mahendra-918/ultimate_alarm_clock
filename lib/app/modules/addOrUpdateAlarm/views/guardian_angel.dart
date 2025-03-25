@@ -79,15 +79,18 @@ class GuardianAngel extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Obx(
-                () => Text(
-                  'Guardian Angel'.tr,
-                  style: TextStyle(
-                    color: themeController.primaryTextColor.value,
+              Expanded(
+                child: Obx(
+                  () => Text(
+                    'Guardian Angel'.tr,
+                    style: TextStyle(
+                      color: themeController.primaryTextColor.value,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
-              // Optionally add a small SizedBox for a minimal gap (if desired); set width to 4 or 0.
               const SizedBox(width: 4),
               Obx(
                 () => IconButton(
@@ -112,22 +115,15 @@ class GuardianAngel extends StatelessWidget {
               ),
             ],
           ),
-          trailing: Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Obx(
-                () {
-                  return Switch.adaptive(
-                    value: controller.isGuardian.value,
-                    activeColor: ksecondaryColor,
-                    onChanged: (value) async {
-                      Utils.hapticFeedback();
-                      controller.isGuardian.value = value;
-                    },
-                  );
-                },
-              ),
-            ],
+          trailing: Obx(
+            () => Switch.adaptive(
+              value: controller.isGuardian.value,
+              activeColor: ksecondaryColor,
+              onChanged: (value) async {
+                Utils.hapticFeedback();
+                controller.isGuardian.value = value;
+              },
+            ),
           ),
         ),
       ],

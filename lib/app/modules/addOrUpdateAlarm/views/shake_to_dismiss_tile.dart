@@ -24,17 +24,18 @@ class ShakeToDismiss extends StatelessWidget {
       () => ListTile(
         title: Row(
           children: [
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
+            Expanded(
               child: Text(
                 'Shake to dismiss'.tr,
                 style: TextStyle(
                   color: themeController.primaryTextColor.value,
                 ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             IconButton(
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
               icon: Icon(
                 Icons.info_sharp,
                 size: 21,
@@ -44,13 +45,9 @@ class ShakeToDismiss extends StatelessWidget {
                 Utils.showModal(
                   context: context,
                   title: 'Shake to dismiss'.tr,
-                  // description: 'You will have to shake your phone a set number'
-                  //     ' of times to dismiss the alarm'
-                  //     ' - no more lazy snoozing :)',
                   description: 'shakeDescription'.tr,
                   iconData: Icons.vibration_sharp,
-                  isLightMode:
-                      themeController.currentTheme.value == ThemeMode.light,
+                  isLightMode: themeController.currentTheme.value == ThemeMode.light,
                 );
               },
             ),
@@ -153,6 +150,7 @@ class ShakeToDismiss extends StatelessWidget {
                             ? themeController.primaryDisabledTextColor.value
                             : themeController.primaryTextColor.value,
                       ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               Icon(

@@ -45,14 +45,17 @@ class LocationTile extends StatelessWidget {
               PopupMenuItem<int>(
                 value: 0,
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Off',
-                      style: TextStyle(
-                        color: (controller.isLocationEnabled.value == true)
-                            ? themeController.primaryDisabledTextColor.value
-                            : themeController.primaryTextColor.value,
+                    Expanded(
+                      child: Text(
+                        'Off',
+                        style: TextStyle(
+                          color: (controller.isLocationEnabled.value == true)
+                              ? themeController.primaryDisabledTextColor.value
+                              : themeController.primaryTextColor.value,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     Radio(
@@ -73,14 +76,17 @@ class LocationTile extends StatelessWidget {
               PopupMenuItem<int>(
                 value: 1,
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Choose location',
-                      style: TextStyle(
-                        color: (controller.isLocationEnabled.value == false)
-                            ? themeController.primaryDisabledTextColor.value
-                            : themeController.primaryTextColor.value,
+                    Expanded(
+                      child: Text(
+                        'Choose location',
+                        style: TextStyle(
+                          color: (controller.isLocationEnabled.value == false)
+                              ? themeController.primaryDisabledTextColor.value
+                              : themeController.primaryTextColor.value,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     Icon(
@@ -102,50 +108,55 @@ class LocationTile extends StatelessWidget {
                 backgroundColor: themeController.secondaryBackgroundColor.value,
                 title: 'Set location to automatically cancel alarm!',
                 titleStyle: Theme.of(context).textTheme.bodyMedium,
-                content: Column(
-                  children: [
-                    SizedBox(
-                      height: height * 0.65,
-                      width: width * 0.92,
-                      child: FlutterMap(
-                        mapController: controller.mapController,
-                        options: MapOptions(
-                          onTap: (tapPosition, point) {
-                            controller.selectedPoint.value = point;
-                          },
-                          // screenSize: Size(width * 0.3, height * 0.8),
-                          center: controller.selectedPoint.value,
-                          zoom: 15,
-                        ),
-                        children: [
-                          TileLayer(
-                            urlTemplate:
-                                'https://{s}tile.openstreetmap.org/{z}/{x}/{y}.png',
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        height: height * 0.5,
+                        width: width * 0.8,
+                        child: FlutterMap(
+                          mapController: controller.mapController,
+                          options: MapOptions(
+                            onTap: (tapPosition, point) {
+                              controller.selectedPoint.value = point;
+                            },
+                            center: controller.selectedPoint.value,
+                            zoom: 15,
                           ),
-                          Obx(() => MarkerLayer(
-                              markers:
-                                  List<Marker>.from(controller.markersList))),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    TextButton(
-                      style: ButtonStyle(
-                        backgroundColor: MaterialStateProperty.all(kprimaryColor),
-                      ),
-                      child: Text(
-                        'Save',
-                        style: Theme.of(context).textTheme.displaySmall!.copyWith(
-                              color: themeController.secondaryTextColor.value,
+                          children: [
+                            TileLayer(
+                              urlTemplate:
+                                  'https://{s}tile.openstreetmap.org/{z}/{x}/{y}.png',
                             ),
+                            Obx(() => MarkerLayer(
+                                markers:
+                                    List<Marker>.from(controller.markersList))),
+                          ],
+                        ),
                       ),
-                      onPressed: () {
-                        Utils.hapticFeedback();
-                        Get.back();
-                        controller.isLocationEnabled.value = true;
-                      },
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: width * 0.8,
+                        child: TextButton(
+                          style: ButtonStyle(
+                            backgroundColor: MaterialStateProperty.all(kprimaryColor),
+                          ),
+                          child: Text(
+                            'Save',
+                            style: Theme.of(context).textTheme.displaySmall!.copyWith(
+                                  color: themeController.secondaryTextColor.value,
+                                ),
+                          ),
+                          onPressed: () {
+                            Utils.hapticFeedback();
+                            Get.back();
+                            controller.isLocationEnabled.value = true;
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
 
@@ -159,17 +170,19 @@ class LocationTile extends StatelessWidget {
         child: ListTile(
           title: Row(
             children: [
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
+              Expanded(
                 child: Text(
                   'Location Based'.tr,
                   style: TextStyle(
                     color: themeController.primaryTextColor.value,
+                    fontWeight: FontWeight.w500,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
                 icon: Icon(
                   Icons.info_sharp,
                   size: 21,
@@ -190,24 +203,31 @@ class LocationTile extends StatelessWidget {
             ],
           ),
           trailing: Obx(
-            () => Wrap(
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Text(
-                  controller.isLocationEnabled.value == false ? 'Off' : 'Enabled',
-                  style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                        color: (controller.isLocationEnabled.value == false)
-                            ? themeController.primaryDisabledTextColor.value
-                            : themeController.primaryTextColor.value,
-                      ),
-                ),
-                Icon(
-                  Icons.chevron_right,
-                  color: (controller.isLocationEnabled.value == false)
-                      ? themeController.primaryDisabledTextColor.value
-                      : themeController.primaryTextColor.value,
-                ),
-              ],
+            () => SizedBox(
+              width: width * 0.25,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Expanded(
+                    child: Text(
+                      controller.isLocationEnabled.value == false ? 'Off' : 'Enabled',
+                      style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                            color: (controller.isLocationEnabled.value == false)
+                                ? themeController.primaryDisabledTextColor.value
+                                : themeController.primaryTextColor.value,
+                            fontWeight: FontWeight.w500,
+                          ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right,
+                    color: (controller.isLocationEnabled.value == false)
+                        ? themeController.primaryDisabledTextColor.value
+                        : themeController.primaryTextColor.value,
+                  ),
+                ],
+              ),
             ),
           ),
         ),

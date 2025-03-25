@@ -184,37 +184,132 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                             },
                                             child: inputTimeController
                                                     .isTimePicker.value
-                                                ? SizedBox(
+                                                ? Container(
                                                     height: height * 0.15,
+                                                    width: width * 0.98,
                                                     child: LayoutBuilder(
                                                       builder: (context, constraints) {
                                                         final textTheme = Theme.of(context).textTheme;
-                                                        return Container(
-                                                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                                                          child: Row(
-                                                            mainAxisAlignment: MainAxisAlignment.center,
-                                                            crossAxisAlignment: CrossAxisAlignment.center,
-                                                            children: [
-                                                              Expanded(
-                                                                flex: 8,
+                                                        return Row(
+                                                          mainAxisAlignment: MainAxisAlignment.center,
+                                                          crossAxisAlignment: CrossAxisAlignment.center,
+                                                          children: [
+                                                            SizedBox(
+                                                              width: constraints.maxWidth * 0.25,
+                                                              child: Obx(() => NumberPicker(
+                                                                minValue: settingsController.is24HrsEnabled.value ? 0 : 1,
+                                                                maxValue: settingsController.is24HrsEnabled.value ? 23 : 12,
+                                                                value: controller.hours.value,
+                                                                onChanged: (value) {
+                                                                  Utils.hapticFeedback();
+                                                                  controller.hours.value = value;
+                                                                  int hourValue;
+                                                                  if (settingsController.is24HrsEnabled.value) {
+                                                                    hourValue = value;
+                                                                  } else {
+                                                                    hourValue = inputTimeController.convert24(
+                                                                      value,
+                                                                      controller.meridiemIndex.value,
+                                                                    );
+                                                                  }
+                                                                  controller.selectedTime.value = DateTime(
+                                                                    controller.selectedTime.value.year,
+                                                                    controller.selectedTime.value.month,
+                                                                    controller.selectedTime.value.day,
+                                                                    hourValue,
+                                                                    controller.selectedTime.value.minute,
+                                                                  );
+                                                                  inputTimeController.inputHrsController.text = controller.hours.value.toString();
+                                                                  inputTimeController.inputMinutesController.text = controller.minutes.value.toString();
+                                                                  if (!settingsController.is24HrsEnabled.value) {
+                                                                    inputTimeController.changePeriod(
+                                                                      controller.meridiemIndex.value == 0 ? 'AM' : 'PM',
+                                                                    );
+                                                                  }
+                                                                  inputTimeController.setTime();
+                                                                },
+                                                                infiniteLoop: true,
+                                                                zeroPad: true,
+                                                                selectedTextStyle: textTheme.displayLarge!.copyWith(
+                                                                  fontWeight: FontWeight.bold,
+                                                                  color: kprimaryColor,
+                                                                  fontSize: textTheme.displayLarge!.fontSize! * 0.8,
+                                                                ),
+                                                                textStyle: textTheme.displayMedium!.copyWith(
+                                                                  color: themeController.primaryDisabledTextColor.value,
+                                                                  fontSize: textTheme.displayMedium!.fontSize! * 0.7,
+                                                                ),
+                                                              )),
+                                                            ),
+                                                            Padding(
+                                                              padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                                              child: Text(
+                                                                ':',
+                                                                style: textTheme.displayLarge!.copyWith(
+                                                                  fontWeight: FontWeight.bold,
+                                                                  color: kprimaryColor,
+                                                                  fontSize: textTheme.displayLarge!.fontSize! * 0.8,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                            SizedBox(
+                                                              width: constraints.maxWidth * 0.25,
+                                                              child: Obx(() => NumberPicker(
+                                                                minValue: 0,
+                                                                maxValue: 59,
+                                                                value: controller.minutes.value,
+                                                                onChanged: (value) {
+                                                                  Utils.hapticFeedback();
+                                                                  controller.minutes.value = value;
+                                                                  controller.selectedTime.value = DateTime(
+                                                                    controller.selectedTime.value.year,
+                                                                    controller.selectedTime.value.month,
+                                                                    controller.selectedTime.value.day,
+                                                                    controller.selectedTime.value.hour,
+                                                                    value,
+                                                                  );
+                                                                  inputTimeController.inputHrsController.text = controller.hours.value.toString();
+                                                                  inputTimeController.inputMinutesController.text = controller.minutes.value.toString();
+                                                                  inputTimeController.setTime();
+                                                                },
+                                                                infiniteLoop: true,
+                                                                zeroPad: true,
+                                                                selectedTextStyle: textTheme.displayLarge!.copyWith(
+                                                                  fontWeight: FontWeight.bold,
+                                                                  color: kprimaryColor,
+                                                                  fontSize: textTheme.displayLarge!.fontSize! * 0.8,
+                                                                ),
+                                                                textStyle: textTheme.displayMedium!.copyWith(
+                                                                  color: themeController.primaryDisabledTextColor.value,
+                                                                  fontSize: textTheme.displayMedium!.fontSize! * 0.7,
+                                                                ),
+                                                              )),
+                                                            ),
+                                                            if (!settingsController.is24HrsEnabled.value) ...[
+                                                              Padding(
+                                                                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                                                child: Text(
+                                                                  ' ',
+                                                                  style: textTheme.displayLarge!.copyWith(
+                                                                    fontWeight: FontWeight.bold,
+                                                                    color: kprimaryColor,
+                                                                    fontSize: textTheme.displayLarge!.fontSize! * 0.8,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                              SizedBox(
+                                                                width: constraints.maxWidth * 0.18,
                                                                 child: Obx(() => NumberPicker(
-                                                                  minValue: settingsController.is24HrsEnabled.value ? 0 : 1,
-                                                                  maxValue: settingsController.is24HrsEnabled.value ? 23 : 12,
-                                                                  value: controller.hours.value,
+                                                                  minValue: 0,
+                                                                  maxValue: 1,
+                                                                  value: controller.meridiemIndex.value,
                                                                   onChanged: (value) {
                                                                     Utils.hapticFeedback();
-                                                                    controller.hours.value = value;
-
-                                                                    int hourValue;
-                                                                    if (settingsController.is24HrsEnabled.value) {
-                                                                      hourValue = value;
-                                                                    } else {
-                                                                      hourValue = inputTimeController.convert24(
-                                                                        value,
-                                                                        controller.meridiemIndex.value,
-                                                                      );
-                                                                    }
-
+                                                                    controller.meridiemIndex.value = value;
+                                                                    int hourValue = inputTimeController.convert24(
+                                                                      controller.hours.value,
+                                                                      value,
+                                                                    );
                                                                     controller.selectedTime.value = DateTime(
                                                                       controller.selectedTime.value.year,
                                                                       controller.selectedTime.value.month,
@@ -222,135 +317,31 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                                                       hourValue,
                                                                       controller.selectedTime.value.minute,
                                                                     );
-
-                                                                    inputTimeController.inputHrsController.text = controller.hours.value.toString();
-                                                                    inputTimeController.inputMinutesController.text = controller.minutes.value.toString();
-
-                                                                    if (!settingsController.is24HrsEnabled.value) {
-                                                                      inputTimeController.changePeriod(
-                                                                        controller.meridiemIndex.value == 0 ? 'AM' : 'PM',
-                                                                      );
-                                                                    }
-
-                                                                    inputTimeController.setTime();
-                                                                  },
-                                                                  infiniteLoop: true,
-                                                                  zeroPad: true,
-                                                                  selectedTextStyle: textTheme.displayLarge!.copyWith(
-                                                                    fontWeight: FontWeight.bold,
-                                                                    color: kprimaryColor,
-                                                                  ),
-                                                                  textStyle: textTheme.displayMedium!.copyWith(
-                                                                    color: themeController.primaryDisabledTextColor.value,
-                                                                  ),
-                                                                )),
-                                                              ),
-                                                              Expanded(
-                                                                flex: 1,
-                                                                child: Center(
-                                                                  child: Text(
-                                                                    ':',
-                                                                    style: textTheme.displayLarge!.copyWith(
-                                                                      fontWeight: FontWeight.bold,
-                                                                      color: themeController.primaryDisabledTextColor.value,
-                                                                    ),
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                              Expanded(
-                                                                flex: 8,
-                                                                child: Obx(() => NumberPicker(
-                                                                  minValue: 0,
-                                                                  maxValue: 59,
-                                                                  value: controller.minutes.value,
-                                                                  onChanged: (value) {
-                                                                    Utils.hapticFeedback();
-                                                                    controller.minutes.value = value;
-                                                                    controller.selectedTime.value = DateTime(
-                                                                      controller.selectedTime.value.year,
-                                                                      controller.selectedTime.value.month,
-                                                                      controller.selectedTime.value.day,
-                                                                      controller.selectedTime.value.hour,
-                                                                      controller.minutes.value,
-                                                                    );
                                                                     inputTimeController.inputHrsController.text = controller.hours.value.toString();
                                                                     inputTimeController.inputMinutesController.text = controller.minutes.value.toString();
                                                                     inputTimeController.changePeriod(
-                                                                      controller.meridiemIndex.value == 0 ? 'AM' : 'PM',
+                                                                      value == 0 ? 'AM' : 'PM',
                                                                     );
+                                                                    inputTimeController.setTime();
                                                                   },
                                                                   infiniteLoop: true,
-                                                                  zeroPad: true,
+                                                                  zeroPad: false,
+                                                                  textMapper: (numberText) {
+                                                                    return controller.meridiem[int.parse(numberText)].value;
+                                                                  },
                                                                   selectedTextStyle: textTheme.displayLarge!.copyWith(
                                                                     fontWeight: FontWeight.bold,
                                                                     color: kprimaryColor,
+                                                                    fontSize: 20,
                                                                   ),
                                                                   textStyle: textTheme.displayMedium!.copyWith(
                                                                     color: themeController.primaryDisabledTextColor.value,
+                                                                    fontSize: 16,
                                                                   ),
                                                                 )),
                                                               ),
-                                                              Obx(() => Visibility(
-                                                                visible: !settingsController.is24HrsEnabled.value,
-                                                                child: Expanded(
-                                                                  flex: 1,
-                                                                  child: Center(
-                                                                    child: Text(
-                                                                      ':',
-                                                                      style: textTheme.displayLarge!.copyWith(
-                                                                        fontWeight: FontWeight.bold,
-                                                                        color: themeController.primaryDisabledTextColor.value,
-                                                                      ),
-                                                                    ),
-                                                                  ),
-                                                                ),
-                                                              )),
-                                                              Obx(() => Visibility(
-                                                                visible: !settingsController.is24HrsEnabled.value,
-                                                                child: Expanded(
-                                                                  flex: 6,
-                                                                  child: NumberPicker(
-                                                                    minValue: 0,
-                                                                    maxValue: 1,
-                                                                    value: controller.meridiemIndex.value,
-                                                                    onChanged: (value) {
-                                                                      Utils.hapticFeedback();
-                                                                      value == 0
-                                                                          ? controller.meridiemIndex.value = 0
-                                                                          : controller.meridiemIndex.value = 1;
-                                                                      controller.selectedTime.value = DateTime(
-                                                                        controller.selectedTime.value.year,
-                                                                        controller.selectedTime.value.month,
-                                                                        controller.selectedTime.value.day,
-                                                                        inputTimeController.convert24(
-                                                                          controller.hours.value,
-                                                                          controller.meridiemIndex.value,
-                                                                        ),
-                                                                        controller.minutes.value,
-                                                                      );
-                                                                      inputTimeController.inputHrsController.text = controller.hours.value.toString();
-                                                                      inputTimeController.inputMinutesController.text = controller.minutes.value.toString();
-                                                                      inputTimeController.changePeriod(
-                                                                        controller.meridiemIndex.value == 0 ? 'AM' : 'PM',
-                                                                      );
-                                                                    },
-                                                                    textMapper: (numberText) {
-                                                                      return controller.meridiem[int.parse(numberText)].value;
-                                                                    },
-                                                                    selectedTextStyle: textTheme.displayLarge!.copyWith(
-                                                                      fontSize: textTheme.displayLarge!.fontSize! * 0.9,
-                                                                      fontWeight: FontWeight.bold,
-                                                                      color: kprimaryColor,
-                                                                    ),
-                                                                    textStyle: textTheme.displayMedium!.copyWith(
-                                                                      fontSize: textTheme.displayMedium!.fontSize! * 0.9,
-                                                                      color: themeController.primaryDisabledTextColor.value,
-                                                                    ),
-                                                                  ),
-                                                                ),
-                                                              )),
                                                             ],
-                                                          ),
+                                                          ],
                                                         );
                                                       },
                                                     ),

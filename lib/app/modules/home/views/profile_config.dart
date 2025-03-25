@@ -6,6 +6,7 @@ import 'package:ultimate_alarm_clock/app/data/models/profile_model.dart';
 import 'package:ultimate_alarm_clock/app/data/providers/isar_provider.dart';
 import 'package:ultimate_alarm_clock/app/modules/home/controllers/home_controller.dart';
 import 'package:ultimate_alarm_clock/app/modules/settings/controllers/theme_controller.dart';
+import 'dart:math' as math;
 
 import '../../../utils/constants.dart';
 
@@ -36,30 +37,28 @@ class _ProfileSelectState extends State<ProfileSelect> {
           children: [
             TextButton(
               onPressed: () async {
-                          controller.isProfile.value = true;
-                          controller.profileModel.value =
-                              (await IsarDb.getProfile(
-                                  controller.selectedProfile.value,))!;
-                          controller.isProfileUpdate.value = false;
-                          Get.toNamed(
-                            '/add-update-alarm',arguments: controller.genFakeAlarmModel(),
-                          );
-                        },
+                controller.isProfile.value = true;
+                controller.profileModel.value =
+                    (await IsarDb.getProfile(
+                        controller.selectedProfile.value,))!;
+                controller.isProfileUpdate.value = false;
+                Get.toNamed(
+                  '/add-update-alarm',arguments: controller.genFakeAlarmModel(),
+                );
+              },
               style: ButtonStyle(
-                backgroundColor: WidgetStateProperty.all(themeController.secondaryBackgroundColor.value),
-                foregroundColor: WidgetStateProperty.all(themeController.primaryColor.value),
-                shape: WidgetStateProperty.all(const CircleBorder()),
-                ),
-              child: Padding(padding: const EdgeInsets.all(2.0),
-                child: Icon(
-                  Icons.add,
-                  color: themeController.primaryColor.value,
-                  size: 30 * controller.scalingFactor.value,
-                ),
+                backgroundColor: MaterialStateProperty.all(themeController.secondaryBackgroundColor.value),
+                foregroundColor: MaterialStateProperty.all(themeController.primaryColor.value),
+                shape: MaterialStateProperty.all(const CircleBorder()),
+                padding: MaterialStateProperty.all(EdgeInsets.all(8 * controller.scalingFactor.value)),
+              ),
+              child: Icon(
+                Icons.add,
+                color: themeController.primaryColor.value,
+                size: math.max(24 * controller.scalingFactor.value, 20),
               ),
             ),
-            SizedBox(
-              width: Get.width * 0.8,
+            Expanded(
               child: StreamBuilder(
                 stream: IsarDb.getProfiles(),
                 builder: (context, snapshot) {
@@ -74,7 +73,7 @@ class _ProfileSelectState extends State<ProfileSelect> {
                       ),
                     );
                   }
-                  return SizedBox();
+                  return const SizedBox();
                 },
               ),
             )
@@ -87,7 +86,7 @@ class _ProfileSelectState extends State<ProfileSelect> {
       key: profile.profileName == controller.selectedProfile.value
           ? scrollKey
           : null,
-      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+      padding: EdgeInsets.symmetric(horizontal: 4.0 * controller.scalingFactor.value),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
         onTap: () {
@@ -96,8 +95,8 @@ class _ProfileSelectState extends State<ProfileSelect> {
         },
         child: Obx(() => Container(
               padding: EdgeInsets.symmetric(
-                horizontal: 18 * controller.scalingFactor.value,
-                vertical: 7 * controller.scalingFactor.value,
+                horizontal: math.max(12 * controller.scalingFactor.value, 8),
+                vertical: math.max(5 * controller.scalingFactor.value, 4),
               ),
               decoration: BoxDecoration(
                   color: profile.profileName == controller.selectedProfile.value
@@ -110,7 +109,7 @@ class _ProfileSelectState extends State<ProfileSelect> {
                       color: profile.profileName == controller.selectedProfile.value
                           ? themeController.secondaryBackgroundColor.value
                           : themeController.primaryDisabledTextColor.value,
-                      fontSize: 22 * controller.scalingFactor.value,
+                      fontSize: math.max(16 * controller.scalingFactor.value, 14),
                     ),
               ),
             ),),

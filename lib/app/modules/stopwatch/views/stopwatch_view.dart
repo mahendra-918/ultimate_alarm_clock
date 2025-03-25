@@ -45,170 +45,162 @@ class StopwatchView extends GetView<StopwatchController> {
             ],
           ),
         ),
-        body: Column(
-          children: [
-            Obx(
-              () => AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-                height: controller.hasFlags.value ? height * 0.1 : height * 0.3,
-              ),
-            ),
-            Obx(
-              () => Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        controller.result.split(':')[0],
-                        style: const TextStyle(
-                          fontSize: 50.0,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const Text(
-                    ':',
-                    style: TextStyle(
-                      fontSize: 50.0,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        controller.result.split(':')[1],
-                        style: const TextStyle(
-                          fontSize: 50.0,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const Text(
-                    ':',
-                    style: TextStyle(
-                      fontSize: 50.0,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        controller.result.split(':')[2],
-                        style: const TextStyle(
-                          fontSize: 50.0,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(
-              height: 10.0,
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        body: SingleChildScrollView(
+          child: SizedBox(
+            height: height,
+            child: Column(
               children: [
-                FloatingActionButton(
-                  heroTag: "flag",
-                  onPressed: controller.addFlag,
-                  child: Icon(
-                    Icons.flag,
-                    size: 33,
-                    color: themeController.secondaryTextColor.value,
+                Obx(
+                  () => AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                    height: controller.hasFlags.value ? height * 0.02 : height * 0.05,
                   ),
                 ),
-                FloatingActionButton(
-                  heroTag: "start",
-                  onPressed: controller.toggleTimer,
+                Expanded(
+                  flex: 3,
                   child: Obx(
-                    () => Icon(
-                      controller.isTimerPaused.value
-                          ? Icons.play_arrow_rounded
-                          : Icons.pause_rounded,
-                      size: 33,
+                    () => Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Center(
+                            child: Text(
+                              controller.result.split(':')[0],
+                              style: const TextStyle(
+                                fontSize: 45.0,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const Text(
+                          ':',
+                          style: TextStyle(
+                            fontSize: 45.0,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Expanded(
+                          child: Center(
+                            child: Text(
+                              controller.result.split(':')[1],
+                              style: const TextStyle(
+                                fontSize: 45.0,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const Text(
+                          ':',
+                          style: TextStyle(
+                            fontSize: 45.0,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Expanded(
+                          child: Center(
+                            child: Text(
+                              controller.result.split(':')[2],
+                              style: const TextStyle(
+                                fontSize: 45.0,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                // Reset button
-                FloatingActionButton(
-                  heroTag: "stop",
-                  onPressed: controller.resetTime,
-                  child: Icon(
-                    Icons.stop_rounded,
-                    size: 33,
+                Expanded(
+                  flex: 1,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      FloatingActionButton(
+                        heroTag: "flag",
+                        onPressed: controller.addFlag,
+                        child: Icon(
+                          Icons.flag,
+                          size: 33,
+                          color: themeController.secondaryTextColor.value,
+                        ),
+                      ),
+                      FloatingActionButton(
+                        heroTag: "start",
+                        onPressed: controller.toggleTimer,
+                        child: Obx(
+                          () => Icon(
+                            controller.isTimerPaused.value
+                                ? Icons.play_arrow_rounded
+                                : Icons.pause_rounded,
+                            size: 33,
+                          ),
+                        ),
+                      ),
+                      FloatingActionButton(
+                        heroTag: "stop",
+                        onPressed: controller.resetTime,
+                        child: Icon(
+                          Icons.stop_rounded,
+                          size: 33,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  flex: 4,
+                  child: Obx(
+                    () => ListView.builder(
+                      key: controller.listKey,
+                      itemCount: controller.flags.length,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      itemBuilder: (context, index) {
+                        final reversedIndex = controller.flags.length - 1 - index;
+                        return ListTile(
+                          minVerticalPadding: 0,
+                          title: Text(
+                            '${controller.flags[reversedIndex].number}',
+                            style: const TextStyle(
+                              fontSize: 32.0,
+                              fontWeight: FontWeight.bold,
+                              height: 1,
+                            ),
+                          ),
+                          trailing: Text(
+                            "+${DateFormat('mm:ss:SS').format(
+                              DateTime(0)
+                                  .add(controller.flags[reversedIndex].lapTime),
+                            )}",
+                            style: TextStyle(
+                              fontSize: 12.0,
+                              height: -0.5,
+                              color: themeController.primaryDisabledTextColor.value,
+                            ),
+                          ),
+                          subtitle: Text(
+                            DateFormat('mm:ss:SS').format(
+                              DateTime(0)
+                                  .add(controller.flags[reversedIndex].totalTime),
+                            ),
+                            style: TextStyle(
+                              fontSize: 14.0,
+                              color: themeController.primaryDisabledTextColor.value,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(
-              height: 10.0,
-            ),
-            Expanded(
-              child: Obx(
-                () => AnimatedList(
-                  key: controller.listKey, // Add this key to controller
-                  initialItemCount: controller.flags.length,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  itemBuilder: (context, index, animation) {
-                    final reversedIndex = controller.flags.length - 1 - index;
-                    return SlideTransition(
-                      position: animation.drive(
-                        Tween<Offset>(
-                          begin: const Offset(0, -0.3),
-                          end: Offset.zero,
-                        ).chain(CurveTween(curve: Curves.easeInOut)),
-                      ),
-                      child: ListTile(
-                        minVerticalPadding: 0,
-                        title: Text(
-                          '${controller.flags[reversedIndex].number}',
-                          style: const TextStyle(
-                            fontSize: 32.0,
-                            fontWeight: FontWeight.bold,
-                            height: 1,
-                          ),
-                        ),
-                        trailing: Text(
-                          "+${DateFormat('mm:ss:SS').format(
-                            DateTime(0)
-                                .add(controller.flags[reversedIndex].lapTime),
-                          )}",
-                          style: TextStyle(
-                            fontSize: 12.0,
-                            height: -0.5,
-                            color:
-                                themeController.primaryDisabledTextColor.value,
-                          ),
-                        ),
-                        subtitle: Text(
-                          DateFormat('mm:ss:SS').format(
-                            DateTime(0)
-                                .add(controller.flags[reversedIndex].totalTime),
-                          ),
-                          style: TextStyle(
-                            fontSize: 14.0,
-                            color:
-                                themeController.primaryDisabledTextColor.value,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(
-              height: 10.0,
-            ),
-          ],
+          ),
         ),
         endDrawer: buildEndDrawer(context));
   }

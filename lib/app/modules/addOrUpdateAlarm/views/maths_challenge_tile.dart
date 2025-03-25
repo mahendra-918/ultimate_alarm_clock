@@ -114,27 +114,47 @@ class MathsChallenge extends StatelessWidget {
                     ],
                   ),
                   Obx(
-                        () => Padding(
-                      padding: const EdgeInsets.only(bottom: 10.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          NumberPicker(
-                            value: controller.numMathsQuestions.value,
-                            minValue: 0,
-                            maxValue: 100,
-                            onChanged: (value) {
-                              Utils.hapticFeedback();
-                              controller.numMathsQuestions.value = value;
-                            },
-                          ),
-                          Text(
-                            controller.numMathsQuestions.value > 1
-                                ? 'questions'.tr
-                                : 'question'.tr,
-                          ),
-                        ],
+                    () => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10.0),
+                      child: Container(
+                        width: width * 0.8,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: width * 0.3,
+                              child: NumberPicker(
+                                value: controller.numMathsQuestions.value,
+                                minValue: 0,
+                                maxValue: 100,
+                                onChanged: (value) {
+                                  Utils.hapticFeedback();
+                                  controller.numMathsQuestions.value = value;
+                                },
+                                selectedTextStyle: Theme.of(context).textTheme.displayMedium!.copyWith(
+                                  color: themeController.primaryTextColor.value,
+                                  fontSize: 24,
+                                ),
+                                textStyle: Theme.of(context).textTheme.displaySmall!.copyWith(
+                                  color: themeController.primaryDisabledTextColor.value,
+                                  fontSize: 20,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              controller.numMathsQuestions.value > 1
+                                  ? 'questions'.tr
+                                  : 'question'.tr,
+                              style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                                color: themeController.primaryTextColor.value,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),

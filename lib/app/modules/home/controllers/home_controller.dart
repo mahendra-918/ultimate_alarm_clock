@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
 import 'package:googleapis/calendar/v3.dart' as CalendarApi;
@@ -282,6 +283,17 @@ class HomeController extends GetxController {
         showQuotePopup(quote);
       }
     }
+
+    // Initialize scaling factor with a reasonable maximum
+    scalingFactor.value = math.min(MediaQuery.of(Get.context!).textScaleFactor, 1.5);
+    
+    // Add listener for text scale changes
+    ever(scalingFactor, (value) {
+      // Ensure scaling factor doesn't exceed maximum
+      if (value > 1.5) {
+        scalingFactor.value = 1.5;
+      }
+    });
   }
 
   refreshUpcomingAlarms() async {
@@ -825,5 +837,11 @@ class HomeController extends GetxController {
         guardian: profileModel.value.guardian,
         isCall: profileModel.value.isCall,
         ringOn: false);
+  }
+
+  void updateScalingFactor() {
+    final textScaleFactor = MediaQuery.of(Get.context!).textScaleFactor;
+    // Limit the maximum scaling factor to prevent layout issues
+    scalingFactor.value = math.min(textScaleFactor, 1.5);
   }
 }
