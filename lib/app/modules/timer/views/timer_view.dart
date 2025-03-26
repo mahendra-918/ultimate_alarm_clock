@@ -215,7 +215,6 @@ class TimerView extends GetView<TimerController> {
 
   void timerSelector(BuildContext context, double width, double height) {
     showDialog(
-      
       context: context,
       barrierDismissible: true,
       builder: (BuildContext context) {
@@ -557,7 +556,7 @@ class TimerView extends GetView<TimerController> {
                                           height: height * 0.008,
                                         ),
                                         SizedBox(
-                                          width: width * 0.2,
+                                          width: width * 0.18,
                                           child: TextField(
                                             onChanged: (_) {
                                               inputTimeController
@@ -628,7 +627,7 @@ class TimerView extends GetView<TimerController> {
                                           height: height * 0.008,
                                         ),
                                         SizedBox(
-                                          width: width * 0.2,
+                                          width: width * 0.18,
                                           child: TextField(
                                             onChanged: (_) {
                                               inputTimeController
@@ -699,7 +698,7 @@ class TimerView extends GetView<TimerController> {
                                           height: height * 0.008,
                                         ),
                                         SizedBox(
-                                          width: width * 0.2,
+                                          width: width * 0.18,
                                           child: TextField(
                                             onChanged: (_) {
                                               inputTimeController
@@ -785,6 +784,7 @@ class TimerView extends GetView<TimerController> {
                                 controller.hours.value = 0;
                                 controller.minutes.value = 1;
                                 controller.seconds.value = 0;
+                                inputTimeController.setTextFieldTimerTime(); 
 
                                 Get.back();
                               },
@@ -818,7 +818,7 @@ class TimerView extends GetView<TimerController> {
             Visibility(
               visible: controller.timerList.length > 2,
               child: Positioned(
-                top: calculateTopPosition(),
+                top: 60,
                 child: Material(
                   elevation: 5.0,
                   color: Colors.transparent,
@@ -864,13 +864,4 @@ class TimerView extends GetView<TimerController> {
       },
     );
   }
-  double calculateTopPosition() {
-  final RenderBox? renderBox = dialogKey.currentContext?.findRenderObject() as RenderBox?;
-  if (renderBox != null) {
-    
-    final position = renderBox.localToGlobal(Offset.zero);
-    return position.dy - 100;
-  }
-  return 160; 
-}
 }

@@ -23,12 +23,10 @@ class SnoozeDurationTile extends StatelessWidget {
       () => InkWell(
         onTap: () {
           Utils.hapticFeedback();
-          // storing the values
           duration = controller.snoozeDuration.value;
           Get.defaultDialog(
             onWillPop: () async {
               Get.back();
-              // presetting the value to it's initial state
               controller.snoozeDuration.value = duration;
               return true;
             },
@@ -36,11 +34,12 @@ class SnoozeDurationTile extends StatelessWidget {
             backgroundColor: themeController.secondaryBackgroundColor.value,
             title: 'Select duration'.tr,
             titleStyle: Theme.of(context).textTheme.displaySmall,
-            content: SizedBox(
-              height: MediaQuery.of(context).size.height * 0.3,
-              child: Obx(
-                () => Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+            content: SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.5,
+                ),
+                child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Padding(
@@ -49,22 +48,25 @@ class SnoozeDurationTile extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          NumberPicker(
-                            value: controller.snoozeDuration.value <= 0
-                                ? 1
-                                : controller.snoozeDuration
-                                    .value, // Handle 0 or negative values
-                            minValue: 1,
-                            maxValue: 1440,
-                            onChanged: (value) {
-                              Utils.hapticFeedback();
-                              controller.snoozeDuration.value = value;
-                            },
+                          Obx(
+                            () => NumberPicker(
+                              value: controller.snoozeDuration.value <= 0
+                                  ? 1
+                                  : controller.snoozeDuration.value,
+                              minValue: 1,
+                              maxValue: 60,
+                              onChanged: (value) {
+                                Utils.hapticFeedback();
+                                controller.snoozeDuration.value = value;
+                              },
+                            ),
                           ),
-                          Text(
-                            controller.snoozeDuration.value > 1
-                                ? 'minutes'.tr
-                                : 'minute'.tr,
+                          Obx(
+                            () => Text(
+                              controller.snoozeDuration.value > 1
+                                  ? 'minutes'.tr
+                                  : 'minute'.tr,
+                            ),
                           ),
                         ],
                       ),
@@ -85,7 +87,8 @@ class SnoozeDurationTile extends StatelessWidget {
                               .textTheme
                               .displaySmall!
                               .copyWith(
-                                color: themeController.secondaryTextColor.value,
+                                color:
+                                    themeController.secondaryTextColor.value,
                               ),
                         ),
                       ),
@@ -93,7 +96,6 @@ class SnoozeDurationTile extends StatelessWidget {
                   ],
                 ),
               ),
-              // ),
             ),
           );
         },
