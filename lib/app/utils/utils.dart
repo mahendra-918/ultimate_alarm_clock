@@ -668,53 +668,56 @@ class Utils {
           : ksecondaryBackgroundColor,
       builder: (context) {
         return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(25.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                Icon(
-                  iconData,
-                  color:
-                      isLightMode ? kLightPrimaryTextColor : kprimaryTextColor,
-                  size: MediaQuery.of(context).size.height * 0.1,
-                ),
-                Text(
-                  title.tr,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.displayMedium,
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 15.0),
-                  child: Text(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(25.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    iconData,
+                    color:
+                        isLightMode ? kLightPrimaryTextColor : kprimaryTextColor,
+                    size: MediaQuery.of(context).size.height * 0.1,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    title.tr,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.displayMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
                     description.tr,
                     style: Theme.of(context).textTheme.bodyMedium,
                     textAlign: TextAlign.center,
                   ),
-                ),
-                SizedBox(
-                  width: MediaQuery.of(context).size.width,
-                  child: TextButton(
-                    style: ButtonStyle(
-                      backgroundColor: MaterialStateProperty.all(
-                        kprimaryColor,
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: MediaQuery.of(context).size.width,
+                    child: TextButton(
+                      style: ButtonStyle(
+                        backgroundColor: MaterialStateProperty.all(
+                          kprimaryColor,
+                        ),
+                      ),
+                      onPressed: () {
+                        Utils.hapticFeedback();
+                        Get.back();
+                      },
+                      child: Text(
+                        'Understood'.tr,
+                        style: Theme.of(context).textTheme.displaySmall!.copyWith(
+                              color: isLightMode
+                                  ? kLightSecondaryTextColor
+                                  : ksecondaryTextColor,
+                            ),
                       ),
                     ),
-                    onPressed: () {
-                      Utils.hapticFeedback();
-                      Get.back();
-                    },
-                    child: Text(
-                      'Understood'.tr,
-                      style: Theme.of(context).textTheme.displaySmall!.copyWith(
-                            color: isLightMode
-                                ? kLightPrimaryTextColor
-                                : ksecondaryTextColor,
-                          ),
-                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );

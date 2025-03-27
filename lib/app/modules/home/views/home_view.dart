@@ -83,49 +83,52 @@ class HomeView extends GetView<HomeController> {
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Container(
-                                        padding: EdgeInsets.only(
-                                          left: 25 *
-                                              controller.scalingFactor.value,
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'Next alarm'.tr,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .displaySmall!
-                                                  .copyWith(
-                                                    color: themeController.primaryDisabledTextColor.value,
-                                                    fontSize: 16 *
-                                                        controller.scalingFactor
-                                                            .value,
-                                                  ),
-                                            ),
-                                            Obx(
-                                              () => Text(
-                                                controller.alarmTime.value.tr,
+                                      Expanded(
+                                        child: Container(
+                                          padding: EdgeInsets.only(
+                                            left: 25 *
+                                                controller.scalingFactor.value,
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'Next alarm'.tr,
                                                 style: Theme.of(context)
                                                     .textTheme
                                                     .displaySmall!
                                                     .copyWith(
-                                                      color: themeController.primaryTextColor.value
-                                                              .withOpacity(
-                                                              0.75,
-                                                            ),
-                                                      fontSize: 14 *
-                                                          controller
-                                                              .scalingFactor
+                                                      color: themeController.primaryDisabledTextColor.value,
+                                                      fontSize: 16 *
+                                                          controller.scalingFactor
                                                               .value,
                                                     ),
                                               ),
-                                            ),
-                                          ],
+                                              Obx(
+                                                () => Text(
+                                                  controller.alarmTime.value.tr,
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .displaySmall!
+                                                      .copyWith(
+                                                        color: themeController.primaryTextColor.value
+                                                                .withOpacity(
+                                                                0.75,
+                                                              ),
+                                                        fontSize: 14 *
+                                                            controller
+                                                                .scalingFactor
+                                                                .value,
+                                                      ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ),
                                       Row(
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
                                           notificationIcon(controller),
                                           Padding(
@@ -149,10 +152,10 @@ class HomeView extends GetView<HomeController> {
                                                   kprimaryColor,
                                                   BlendMode.srcIn,
                                                 ),
-                                                height: 30 *
+                                                width: 24 *
                                                     controller
                                                         .scalingFactor.value,
-                                                width: 30 *
+                                                height: 24 *
                                                     controller
                                                         .scalingFactor.value,
                                               ),
@@ -160,76 +163,18 @@ class HomeView extends GetView<HomeController> {
                                           ),
                                           Obx(
                                             () => Visibility(
-                                              visible:
-                                                  controller.scalingFactor < 0.9
-                                                      ? false
-                                                      : true,
+                                              visible: controller.scalingFactor.value >= 0.9,
                                               child: IconButton(
                                                 onPressed: () {
                                                   Utils.hapticFeedback();
-                                                  Scaffold.of(context)
-                                                      .openEndDrawer();
+                                                  Scaffold.of(context).openEndDrawer();
                                                 },
-                                                icon: const Icon(
+                                                icon: Icon(
                                                   Icons.menu,
+                                                  color: themeController.primaryTextColor.value.withOpacity(0.75),
+                                                  size: 27 * controller.scalingFactor.value,
                                                 ),
-                                                color: themeController.primaryTextColor.value
-                                                        .withOpacity(0.75),
-                                                iconSize: 27 *
-                                                    controller.scalingFactor.value,
                                               ),
-
-                                              //   PopupMenuButton(
-                                              //     // onPressed: () {
-                                              //     //   Utils.hapticFeedback();
-                                              //     //   Get.toNamed('/settings');
-                                              //     // },
-
-                                              //     icon: const Icon(Icons.more_vert),
-                                              //     color: themeController
-                                              //             .isLightMode.value
-                                              //         ? kLightSecondaryBackgroundColor
-                                              //         : ksecondaryBackgroundColor,
-                                              //     iconSize: 27 *
-                                              //         controller.scalingFactor.value,
-                                              //     itemBuilder: (context) {
-                                              //       return [
-                                              //         PopupMenuItem<String>(
-                                              //           onTap: () {
-                                              //             Utils.hapticFeedback();
-                                              //             Get.toNamed('/settings');
-                                              //           },
-                                              //           child: Text(
-                                              //             'Settings',
-                                              //             style: Theme.of(context)
-                                              //                 .textTheme
-                                              //                 .bodyMedium!
-                                              //                 .copyWith(
-                                              //                     color: themeController
-                                              //                             .isLightMode
-                                              //                             .value
-                                              //                         ? kLightPrimaryTextColor
-                                              //                         : kprimaryTextColor),
-                                              //           ),
-                                              //         ),
-                                              //         PopupMenuItem<String>(
-                                              //           value: 'option1',
-                                              //           child: Text(
-                                              //             'About',
-                                              //             style: Theme.of(context)
-                                              //                 .textTheme
-                                              //                 .bodyMedium!
-                                              //                 .copyWith(
-                                              //                     color: themeController
-                                              //                             .isLightMode
-                                              //                             .value
-                                              //                         ? kLightPrimaryTextColor
-                                              //                         : kprimaryTextColor),
-                                              //           ),
-                                              //         ),
-                                              //       ];
-                                              //     },
-                                              //   ),
                                             ),
                                           ),
                                         ],

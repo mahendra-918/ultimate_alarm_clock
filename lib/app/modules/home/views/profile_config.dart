@@ -36,45 +36,44 @@ class _ProfileSelectState extends State<ProfileSelect> {
           children: [
             TextButton(
               onPressed: () async {
-                          controller.isProfile.value = true;
-                          controller.profileModel.value =
-                              (await IsarDb.getProfile(
-                                  controller.selectedProfile.value,))!;
-                          controller.isProfileUpdate.value = false;
-                          Get.toNamed(
-                            '/add-update-alarm',arguments: controller.genFakeAlarmModel(),
-                          );
-                        },
+                controller.isProfile.value = true;
+                controller.profileModel.value =
+                    (await IsarDb.getProfile(
+                        controller.selectedProfile.value,))!;
+                controller.isProfileUpdate.value = false;
+                Get.toNamed(
+                  '/add-update-alarm',arguments: controller.genFakeAlarmModel(),
+                );
+              },
               style: ButtonStyle(
                 backgroundColor: WidgetStateProperty.all(themeController.secondaryBackgroundColor.value),
                 foregroundColor: WidgetStateProperty.all(themeController.primaryColor.value),
                 shape: WidgetStateProperty.all(const CircleBorder()),
-                ),
-              child: Padding(padding: const EdgeInsets.all(2.0),
-                child: Icon(
-                  Icons.add,
-                  color: themeController.primaryColor.value,
-                  size: 30 * controller.scalingFactor.value,
-                ),
+                padding: MaterialStateProperty.all(const EdgeInsets.all(8.0)),
+              ),
+              child: Icon(
+                Icons.add,
+                color: themeController.primaryColor.value,
+                size: 30 * controller.scalingFactor.value,
               ),
             ),
-            SizedBox(
-              width: Get.width * 0.8,
+            const SizedBox(width: 8),
+            Expanded(
               child: StreamBuilder(
                 stream: IsarDb.getProfiles(),
                 builder: (context, snapshot) {
-                  if (snapshot.hasData){
+                  if (snapshot.hasData) {
                     final profiles = snapshot.data;
                     return SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: profiles!
-                                  .map((e) => profileCapsule(e))
-                                  .toList(),
+                            .map((e) => profileCapsule(e))
+                            .toList(),
                       ),
                     );
                   }
-                  return SizedBox();
+                  return const SizedBox();
                 },
               ),
             )

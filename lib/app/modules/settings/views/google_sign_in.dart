@@ -171,104 +171,73 @@ class GoogleSignIn extends StatelessWidget {
                       context: context,
                       backgroundColor: themeController.secondaryBackgroundColor.value,
                       builder: (context) {
-                        return Padding(
-                          padding: const EdgeInsets.all(25.0),
+                        return Container(
+                          height: MediaQuery.of(context).size.height * 0.7,
                           child: Column(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
-                              Text(
-                                'Why do I have to sign in with Google?'.tr,
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.displayMedium,
-                              ),
-                              Column(
-                                children: [
-                                  Text(
-                                    // 'Signing in is optional. It'
-                                    // ' is only required for the'
-                                    // ' functionalities that use'
-                                    // ' cloud services to work such as:',
-                                    'Sign-inDescription'.tr,
-                                    textAlign: TextAlign.justify,
-                                  ),
-                                  const SizedBox(
-                                    height: 5,
-                                  ),
-                                  Text(
-                                    'Shared Alarm'.tr,
-                                    style:
-                                    Theme.of(context).textTheme.displaySmall,
-                                  ),
-                                  Text(
-                                    // 'Collaborate with friends, family members,'
-                                    // ' or colleagues to ensure that they'
-                                    // ' wake up on time using shared alarms.',
-                                    'CollabDescription'.tr,
-                                    textAlign: TextAlign.justify,
-                                  ),
-                                  const SizedBox(
-                                    height: 5,
-                                  ),
-                                  Text(
-                                    'Syncing Across Devices'.tr,
-                                    style:
-                                    Theme.of(context).textTheme.displaySmall,
-                                  ),
-                                  Text(
-                                    // 'Access your alarms across multiple devices'
-                                    // ' where the alarms are updated in'
-                                    // ' real-time.',
-                                    'AccessMultiple'.tr,
-                                    textAlign: TextAlign.justify,
-                                  ),
-                                  const SizedBox(
-                                    height: 5,
-                                  ),
-                                  Text(
-                                    'Your privacy'.tr,
-                                    style:
-                                    Theme.of(context).textTheme.displaySmall,
-                                  ),
-                                  Text(
-                                    // 'We do not access,  use or sell any'
-                                    // ' information, which you can verify by'
-                                    // ' inspecting the source code.',
-                                    'NoAccessInfo'.tr,
-                                    textAlign: TextAlign.justify,
-                                  ),
-                                  const SizedBox(
-                                    height: 10,
-                                  ),
-                                  Text(
-                                    // 'All access is limited exclusively to'
-                                    // ' provide the functionalities described'
-                                    // ' above.',
-                                    'LimitedAccess'.tr,
-                                    textAlign: TextAlign.justify,
-                                  ),
-                                ],
-                              ),
-                              SizedBox(
-                                width: width,
-                                child: TextButton(
-                                  style: ButtonStyle(
-                                    backgroundColor: MaterialStateProperty.all(
-                                      kprimaryColor,
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: themeController.primaryTextColor.value.withOpacity(0.1),
                                     ),
                                   ),
-                                  onPressed: () {
-                                    Utils.hapticFeedback();
-                                    Get.back();
-                                  },
-                                  child: Text(
-                                    'Understood'.tr,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .displaySmall!
-                                        .copyWith(
-                                          color: themeController
-                                                      .secondaryTextColor.value,
-                                        ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        'Why do I have to sign in with Google?'.tr,
+                                        style: Theme.of(context).textTheme.titleLarge,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: Icon(Icons.close),
+                                      onPressed: () => Navigator.pop(context),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Expanded(
+                                child: SingleChildScrollView(
+                                  padding: const EdgeInsets.all(25.0),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        'Why do I have to sign in with Google?'.tr,
+                                        textAlign: TextAlign.center,
+                                        style: Theme.of(context).textTheme.displayMedium,
+                                      ),
+                                      const SizedBox(height: 20),
+                                      Text(
+                                        'Sign-inDescription'.tr,
+                                        textAlign: TextAlign.justify,
+                                      ),
+                                      const SizedBox(height: 20),
+                                      Text(
+                                        'Shared Alarm'.tr,
+                                        style: Theme.of(context).textTheme.displaySmall,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'CollabDescription'.tr,
+                                        textAlign: TextAlign.justify,
+                                      ),
+                                      const SizedBox(height: 20),
+                                      Text(
+                                        'Syncing Across Devices'.tr,
+                                        style: Theme.of(context).textTheme.displaySmall,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'SyncDescription'.tr,
+                                        textAlign: TextAlign.justify,
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),

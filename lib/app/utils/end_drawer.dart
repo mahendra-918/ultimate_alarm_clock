@@ -42,9 +42,9 @@ Widget buildEndDrawer(BuildContext context) {
                     flex: 3,
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        SizedBox(
-                          width: Get.width * 0.5,
+                        Expanded(
                           child: Text(
                             'Ultimate Alarm Clock'.tr,
                             softWrap: true,
@@ -58,19 +58,16 @@ Widget buildEndDrawer(BuildContext context) {
                                 ),
                           ),
                         ),
-                        SizedBox(
-                          width: Get.width * 0.5,
-                          child: Text(
-                            'v0.2.1'.tr,
-                            softWrap: true,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge!
-                                .copyWith(
-                                  color: themeController.primaryTextColor.value,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                          ),
+                        Text(
+                          'v0.2.1'.tr,
+                          softWrap: true,
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge!
+                              .copyWith(
+                                color: themeController.primaryTextColor.value,
+                                fontWeight: FontWeight.bold,
+                              ),
                         ),
                       ],
                     ),
