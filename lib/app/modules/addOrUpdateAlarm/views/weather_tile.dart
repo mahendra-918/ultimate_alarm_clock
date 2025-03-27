@@ -70,21 +70,19 @@ class WeatherTile extends StatelessWidget {
           );
         },
         title: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: FittedBox(
-                alignment: Alignment.centerLeft,
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  'Weather Condition'.tr,
-                  style: TextStyle(
-                    color: themeController.primaryTextColor.value,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+            Text(
+              'Weather Condition'.tr,
+              style: TextStyle(
+                color: themeController.primaryTextColor.value,
               ),
             ),
+            const SizedBox(width: 4),
             IconButton(
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
               icon: Icon(
                 Icons.info_sharp,
                 size: 21,

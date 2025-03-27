@@ -245,12 +245,15 @@ class RepeatTile extends StatelessWidget {
           onTap: () {
             Utils.hapticFeedback();
             _storeOrPreset(repeatDays, controller.repeatDays);
-
-            controller.setIsCustomSelected(!controller.isCustomSelected.value);
+            
+            // Remove the immediate checkbox toggle
             Get.defaultDialog(
               onWillPop: () async {
-                // presetting values to initial state
-                _storeOrPreset(controller.repeatDays, repeatDays);
+                // presetting values to initial state if no days were selected
+                if (!controller.repeatDays.contains(true)) {
+                  _storeOrPreset(controller.repeatDays, repeatDays);
+                  controller.setIsCustomSelected(false);
+                }
                 return true;
               },
               titlePadding: const EdgeInsets.symmetric(vertical: 20),
@@ -305,6 +308,8 @@ class RepeatTile extends StatelessWidget {
                         ElevatedButton(
                           onPressed: () {
                             Utils.hapticFeedback();
+                            // Set custom selected based on whether any days are selected
+                            controller.setIsCustomSelected(controller.repeatDays.contains(true));
                             Get.back();
                           },
                           style: ElevatedButton.styleFrom(
@@ -345,10 +350,93 @@ class RepeatTile extends StatelessWidget {
                   value: controller.isCustomSelected.value,
                   onChanged: (value) {
                     Utils.hapticFeedback();
-                    controller.setIsCustomSelected(value!);
-
-                    // Update repeatDays based on isCustomSelected value
-                    _storeOrPreset(controller.repeatDays, repeatDays);
+                    // Open the dialog instead of immediately setting the value
+                    _storeOrPreset(repeatDays, controller.repeatDays);
+                    Get.defaultDialog(
+                      onWillPop: () async {
+                        // presetting values to initial state if no days were selected
+                        if (!controller.repeatDays.contains(true)) {
+                          _storeOrPreset(controller.repeatDays, repeatDays);
+                          controller.setIsCustomSelected(false);
+                        }
+                        return true;
+                      },
+                      titlePadding: const EdgeInsets.symmetric(vertical: 20),
+                      backgroundColor: themeController.secondaryBackgroundColor.value,
+                      title: 'Days of the week'.tr,
+                      titleStyle: TextStyle(
+                        color: themeController.primaryTextColor.value,
+                      ),
+                      content: Column(
+                        children: [
+                          dayTile(
+                            dayIndex: 0,
+                            dayName: 'Monday'.tr,
+                            context: context,
+                          ),
+                          dayTile(
+                            dayIndex: 1,
+                            dayName: 'Tuesday'.tr,
+                            context: context,
+                          ),
+                          dayTile(
+                            dayIndex: 2,
+                            dayName: 'Wednesday'.tr,
+                            context: context,
+                          ),
+                          dayTile(
+                            dayIndex: 3,
+                            dayName: 'Thursday'.tr,
+                            context: context,
+                          ),
+                          dayTile(
+                            dayIndex: 4,
+                            dayName: 'Friday'.tr,
+                            context: context,
+                          ),
+                          dayTile(
+                            dayIndex: 5,
+                            dayName: 'Saturday'.tr,
+                            context: context,
+                          ),
+                          dayTile(
+                            dayIndex: 6,
+                            dayName: 'Sunday'.tr,
+                            context: context,
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 10.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                ElevatedButton(
+                                  onPressed: () {
+                                    Utils.hapticFeedback();
+                                    // Set custom selected based on whether any days are selected
+                                    controller.setIsCustomSelected(controller.repeatDays.contains(true));
+                                    Get.back();
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: kprimaryColor,
+                                  ),
+                                  child: Text(
+                                    'Done'.tr,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .displaySmall!
+                                        .copyWith(
+                                          color:
+                                              themeController.secondaryTextColor.value,
+                                        ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
                   },
                 ),
               ],

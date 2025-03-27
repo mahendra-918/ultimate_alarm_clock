@@ -49,27 +49,30 @@ class NoteTile extends StatelessWidget {
               style: Theme.of(context).textTheme.bodyLarge,
               cursorColor: themeController.primaryTextColor.value.withOpacity(0.75),
               decoration: InputDecoration(
+                filled: true,
+                fillColor: themeController.primaryBackgroundColor.value,
                 enabledBorder: OutlineInputBorder(
                   borderSide: BorderSide(
-                    color: themeController.primaryTextColor.value.withOpacity(0.75),
-                    width: width*0.01,
+                    color: themeController.primaryTextColor.value.withOpacity(0.1),
+                    width: 1.0,
                   ),
-                  borderRadius: const BorderRadius.all(Radius.circular(12)),
+                  borderRadius: const BorderRadius.all(Radius.circular(8)),
                 ),
                 border: OutlineInputBorder(
                   borderSide: BorderSide(
-                    color: themeController.primaryTextColor.value.withOpacity(0.75),
-                    width: width*0.01,
+                    color: themeController.primaryTextColor.value.withOpacity(0.1),
+                    width: 1.0,
                   ),
-                  borderRadius: const BorderRadius.all(Radius.circular(12)),
+                  borderRadius: const BorderRadius.all(Radius.circular(8)),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderSide: BorderSide(
-                    color: themeController.primaryTextColor.value.withOpacity(0.75),
-                    width: width*0.01,
+                    color: kprimaryColor,
+                    width: 1.5,
                   ),
-                  borderRadius: const BorderRadius.all(Radius.circular(12)),
+                  borderRadius: const BorderRadius.all(Radius.circular(8)),
                 ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 hintText: 'Enter a note'.tr,
                 hintStyle: Theme.of(context).textTheme.bodyLarge!.copyWith(
                       color: themeController.primaryDisabledTextColor.value,

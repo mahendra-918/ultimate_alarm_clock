@@ -316,10 +316,12 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                                                 fontSize: controller
                                                                         .homeController
                                                                         .scalingFactor *
-                                                                    20,
+                                                                    25,
+                                                                fontWeight: FontWeight.w400,
                                                                 color: themeController
-                                                                    .primaryDisabledTextColor
-                                                                    .value,
+                                                                    .primaryTextColor
+                                                                    .value
+                                                                    .withOpacity(0.3),
                                                               ),
                                                         ),
                                                         Padding(
@@ -427,10 +429,12 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                                                 fontSize: controller
                                                                         .homeController
                                                                         .scalingFactor *
-                                                                    20,
+                                                                    25,
+                                                                fontWeight: FontWeight.w400,
                                                                 color: themeController
-                                                                    .primaryDisabledTextColor
-                                                                    .value,
+                                                                    .primaryTextColor
+                                                                    .value
+                                                                    .withOpacity(0.3),
                                                               ),
                                                         ),
                                                         Visibility(
@@ -574,8 +578,9 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                                                       .getFontSize(
                                                                           context),
                                                                   color: themeController
-                                                                      .primaryDisabledTextColor
-                                                                      .value,
+                                                                      .primaryTextColor
+                                                                      .value
+                                                                      .withOpacity(0.5),
                                                                 ),
                                                           ),
                                                         ),

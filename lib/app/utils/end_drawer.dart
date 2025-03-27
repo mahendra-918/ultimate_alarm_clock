@@ -41,32 +41,35 @@ Widget buildEndDrawer(BuildContext context) {
                   Flexible(
                     flex: 3,
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Expanded(
-                          child: Text(
-                            'Ultimate Alarm Clock'.tr,
-                            softWrap: true,
-                            style: Theme.of(context)
-                                .textTheme
-                                .displayMedium!
-                                .copyWith(
-                                  color: themeController
-                                      .primaryBackgroundColor.value,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              'Ultimate Alarm Clock'.tr,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .displayMedium!
+                                  .copyWith(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 966,
+                                  ),
+                            ),
                           ),
                         ),
+                        const SizedBox(height: 4),
                         Text(
                           'v0.2.1'.tr,
-                          softWrap: true,
                           style: Theme.of(context)
                               .textTheme
-                              .titleLarge!
+                              .titleMedium!
                               .copyWith(
-                                color: themeController.primaryTextColor.value,
-                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500,
                               ),
                         ),
                       ],
