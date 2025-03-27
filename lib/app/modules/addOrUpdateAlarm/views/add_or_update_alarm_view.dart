@@ -291,6 +291,7 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                                           infiniteLoop: true,
                                                           itemWidth:
                                                               width * 0.17,
+                                                          itemHeight: 60,
                                                           zeroPad: true,
                                                           selectedTextStyle:
                                                               Theme.of(context)
@@ -401,6 +402,7 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                                           infiniteLoop: true,
                                                           itemWidth:
                                                               width * 0.17,
+                                                          itemHeight: 60,
                                                           zeroPad: true,
                                                           selectedTextStyle:
                                                               Theme.of(context)
@@ -547,6 +549,7 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                                             },
                                                             itemWidth:
                                                                 width * 0.2,
+                                                            itemHeight: 60,
                                                             selectedTextStyle:
                                                                 Theme.of(
                                                                         context)

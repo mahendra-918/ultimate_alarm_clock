@@ -290,11 +290,9 @@ class TimerView extends GetView<TimerController> {
                               ? Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   crossAxisAlignment: CrossAxisAlignment.center,
-                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     // Hours Picker
-                                    SizedBox(
-                                      width: width * 0.17,
+                                    Expanded(
                                       child: Column(
                                         mainAxisAlignment:
                                             MainAxisAlignment.center,
@@ -325,7 +323,7 @@ class TimerView extends GetView<TimerController> {
                                                   .setTextFieldTimerTime();
                                             },
                                             infiniteLoop: true,
-                                            itemWidth: width * 0.17,
+                                            itemWidth: width * 0.15,
                                             zeroPad: true,
                                             selectedTextStyle: Theme.of(context)
                                                 .textTheme
@@ -382,14 +380,13 @@ class TimerView extends GetView<TimerController> {
                                             ),
                                       ),
                                     ),
-                                    SizedBox(
-                                      width: width * 0.17,
+                                    Expanded(
                                       child: Column(
                                         mainAxisAlignment:
                                             MainAxisAlignment.center,
                                         children: [
                                           Text(
-                                            'Minutes',
+                                            'Min',
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .displaySmall!
@@ -413,7 +410,7 @@ class TimerView extends GetView<TimerController> {
                                                   .setTextFieldTimerTime();
                                             },
                                             infiniteLoop: true,
-                                            itemWidth: width * 0.17,
+                                            itemWidth: width * 0.15,
                                             zeroPad: true,
                                             selectedTextStyle: Theme.of(context)
                                                 .textTheme
@@ -470,14 +467,13 @@ class TimerView extends GetView<TimerController> {
                                             ),
                                       ),
                                     ),
-                                    SizedBox(
-                                      width: width * 0.17,
+                                    Expanded(
                                       child: Column(
                                         mainAxisAlignment:
                                             MainAxisAlignment.center,
                                         children: [
                                           Text(
-                                            'Seconds',
+                                            'Sec',
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .displaySmall!
@@ -501,7 +497,7 @@ class TimerView extends GetView<TimerController> {
                                                   .setTextFieldTimerTime();
                                             },
                                             infiniteLoop: true,
-                                            itemWidth: width * 0.17,
+                                            itemWidth: width * 0.15,
                                             zeroPad: true,
                                             selectedTextStyle: Theme.of(context)
                                                 .textTheme
@@ -622,7 +618,7 @@ class TimerView extends GetView<TimerController> {
                                           MainAxisAlignment.center,
                                       children: [
                                         Text(
-                                          'Minutes',
+                                          'Min',
                                           style: Theme.of(context)
                                               .textTheme
                                               .displaySmall!
@@ -693,7 +689,7 @@ class TimerView extends GetView<TimerController> {
                                           MainAxisAlignment.center,
                                       children: [
                                         Text(
-                                          'Sec',
+                                          'Min',
                                           style: Theme.of(context)
                                               .textTheme
                                               .displaySmall!
@@ -715,12 +711,12 @@ class TimerView extends GetView<TimerController> {
                                                   .setTimerTime();
                                             },
                                             decoration: const InputDecoration(
-                                              hintText: 'SS',
+                                              hintText: 'MM',
                                               border: InputBorder.none,
                                             ),
                                             textAlign: TextAlign.center,
                                             controller: inputTimeController
-                                                .inputSecondsControllerTimer,
+                                                .inputMinutesControllerTimer,
                                             keyboardType: TextInputType.number,
                                             inputFormatters: [
                                               FilteringTextInputFormatter.allow(
