@@ -97,82 +97,87 @@ class HomeView extends GetView<HomeController> {
                                             constraints: BoxConstraints(
                                               maxHeight: height / 10,
                                             ),
-                                            child: Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              mainAxisAlignment: MainAxisAlignment.start,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  'Next alarm'.tr,
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .displaySmall!
-                                                      .copyWith(
-                                                        color: themeController.primaryDisabledTextColor.value,
-                                                        fontSize: 13 *
-                                                            controller.scalingFactor
-                                                                .value,
-                                                      ),
-                                                ),
-                                                SizedBox(height: 1),
-                                                Obx(
-                                                  () => Text(
-                                                    controller.alarmTime.value.tr,
+                                            child: SingleChildScrollView(
+                                              physics: NeverScrollableScrollPhysics(),
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'Next alarm'.tr,
                                                     style: Theme.of(context)
                                                         .textTheme
                                                         .displaySmall!
                                                         .copyWith(
-                                                          color: themeController.primaryTextColor.value
-                                                                  .withOpacity(
-                                                                  0.75,
-                                                                ),
-                                                          fontSize: 11 *
-                                                              controller
-                                                                  .scalingFactor
+                                                          color: themeController.primaryDisabledTextColor.value,
+                                                          fontSize: 14 *
+                                                              controller.scalingFactor
                                                                   .value,
                                                         ),
                                                   ),
-                                                ),
-                                              ],
+                                                  SizedBox(height: 0.5),
+                                                  Obx(
+                                                    () => Text(
+                                                      controller.alarmTime.value.tr,
+                                                      style: Theme.of(context)
+                                                          .textTheme
+                                                          .displaySmall!
+                                                          .copyWith(
+                                                            color: themeController.primaryTextColor.value
+                                                                    .withOpacity(
+                                                                    0.75,
+                                                                  ),
+                                                            fontSize: 14 *
+                                                                controller
+                                                                    .scalingFactor
+                                                                    .value,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
                                             ),
                                           ),
                                         ),
                                         Container(
+                                          padding: EdgeInsets.only(
+                                            right: 16 * controller.scalingFactor.value,
+                                          ),
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
+                                            mainAxisAlignment: MainAxisAlignment.start,
                                             children: [
                                               notificationIcon(controller),
-                                              Padding(
-                                                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                                                child: InkWell(
-                                                  onTap: () async {
-                                                    controller.isCalender.value =
-                                                        true;
-                                                    Get.dialog(
-                                                      await googleCalenderDialog(
-                                                        controller,
-                                                        themeController,
-                                                        context,
-                                                      ),
-                                                    );
-                                                  },
-                                                  child: SvgPicture.asset(
-                                                    'assets/images/GC.svg',
-                                                    colorFilter:
-                                                        const ColorFilter.mode(
-                                                      kprimaryColor,
-                                                      BlendMode.srcIn,
+                                              SizedBox(width: 16 * controller.scalingFactor.value),
+                                              InkWell(
+                                                onTap: () async {
+                                                  controller.isCalender.value =
+                                                      true;
+                                                  Get.dialog(
+                                                    await googleCalenderDialog(
+                                                      controller,
+                                                      themeController,
+                                                      context,
                                                     ),
-                                                    width: 24 *
-                                                        controller
-                                                            .scalingFactor.value,
-                                                    height: 24 *
-                                                        controller
-                                                            .scalingFactor.value,
+                                                  );
+                                                },
+                                                child: SvgPicture.asset(
+                                                  'assets/images/GC.svg',
+                                                  colorFilter:
+                                                      const ColorFilter.mode(
+                                                    kprimaryColor,
+                                                    BlendMode.srcIn,
                                                   ),
+                                                  width: 24 *
+                                                      controller
+                                                          .scalingFactor.value,
+                                                  height: 24 *
+                                                      controller
+                                                          .scalingFactor.value,
                                                 ),
                                               ),
+                                              SizedBox(width: 16 * controller.scalingFactor.value),
                                               Obx(
                                                 () => Visibility(
                                                   visible: controller.scalingFactor.value >= 0.9,
@@ -432,7 +437,7 @@ class HomeView extends GetView<HomeController> {
                 children: [
                   Padding(
                     padding:
-                        EdgeInsets.only(bottom: controller.scalingFactor * 20),
+                        EdgeInsets.only(bottom: controller.scalingFactor * 10),
                     child: const ProfileSelect(),
                   ),
                   Expanded(

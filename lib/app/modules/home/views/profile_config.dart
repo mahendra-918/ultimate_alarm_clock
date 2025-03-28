@@ -54,10 +54,10 @@ class _ProfileSelectState extends State<ProfileSelect> {
               child: Icon(
                 Icons.add,
                 color: themeController.primaryColor.value,
-                size: 30 * controller.scalingFactor.value,
+                size: 22 * controller.scalingFactor.value,
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Expanded(
               child: StreamBuilder(
                 stream: IsarDb.getProfiles(),
@@ -95,8 +95,8 @@ class _ProfileSelectState extends State<ProfileSelect> {
         },
         child: Obx(() => Container(
               padding: EdgeInsets.symmetric(
-                horizontal: 18 * controller.scalingFactor.value,
-                vertical: 7 * controller.scalingFactor.value,
+                horizontal: 12 * controller.scalingFactor.value,
+                vertical: 5 * controller.scalingFactor.value,
               ),
               decoration: BoxDecoration(
                   color: profile.profileName == controller.selectedProfile.value
@@ -109,7 +109,7 @@ class _ProfileSelectState extends State<ProfileSelect> {
                       color: profile.profileName == controller.selectedProfile.value
                           ? themeController.secondaryBackgroundColor.value
                           : themeController.primaryDisabledTextColor.value,
-                      fontSize: 22 * controller.scalingFactor.value,
+                      fontSize: 16 * controller.scalingFactor.value,
                     ),
               ),
             ),),
