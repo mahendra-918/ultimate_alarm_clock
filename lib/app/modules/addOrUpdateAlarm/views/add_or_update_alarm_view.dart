@@ -293,6 +293,9 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                                               width * 0.17,
                                                           itemHeight: 60,
                                                           zeroPad: true,
+                                                          textMapper: (numberText) {
+                                                            return numberText.padLeft(2, '0');
+                                                          },
                                                           selectedTextStyle:
                                                               Theme.of(context)
                                                                   .textTheme
@@ -317,11 +320,11 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                                                         .homeController
                                                                         .scalingFactor *
                                                                     25,
-                                                                fontWeight: FontWeight.w400,
+                                                                fontWeight: FontWeight.w600,
                                                                 color: themeController
                                                                     .primaryTextColor
                                                                     .value
-                                                                    .withOpacity(0.3),
+                                                                    .withOpacity(0.8),
                                                               ),
                                                         ),
                                                         Padding(
@@ -430,11 +433,11 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                                                         .homeController
                                                                         .scalingFactor *
                                                                     25,
-                                                                fontWeight: FontWeight.w400,
+                                                                fontWeight: FontWeight.w500,
                                                                 color: themeController
                                                                     .primaryTextColor
                                                                     .value
-                                                                    .withOpacity(0.3),
+                                                                    .withOpacity(0.7),
                                                               ),
                                                         ),
                                                         Visibility(
