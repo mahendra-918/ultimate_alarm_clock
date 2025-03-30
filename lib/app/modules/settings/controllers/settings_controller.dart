@@ -78,8 +78,28 @@ class SettingsController extends GetxController {
       userModel.value = await _secureStorageProvider.retrieveUserModel();
     }
     _loadPreference();
-    // Load developer mode setting
-    isDevMode.value = Get.find<SharedPreferences>().getBool('isDevMode') ?? false;
+    
+    // Load developer mode setting from GetStorage
+    bool devModeFromStorage = await storage.readDevMode();
+    
+    // Try to get from SharedPreferences as fallback
+    try {
+      // Get SharedPreferences instance from GetX
+      final prefs = Get.find<SharedPreferences>();
+      bool? devModeFromPrefs = prefs.getBool('isDevMode');
+      
+      // If value exists in SharedPreferences but not in GetStorage, migrate it
+      if (devModeFromPrefs != null && !devModeFromStorage) {
+        await storage.writeDevMode(devModeFromPrefs);
+        devModeFromStorage = devModeFromPrefs;
+      }
+    } catch (e) {
+      // SharedPreferences not available, continue with GetStorage value
+      debugPrint('SharedPreferences not available: $e');
+    }
+    
+    // Set the value
+    isDevMode.value = devModeFromStorage;
   }
 
   // Logins user using GoogleSignIn
@@ -263,7 +283,18 @@ class SettingsController extends GetxController {
 
   void toggleDevMode(bool value) {
     isDevMode.value = value;
-    // Save to shared preferences
-    Get.find<SharedPreferences>().setBool('isDevMode', value);
+    
+    // Save to GetStorage
+    final storage = Get.find<GetStorageProvider>();
+    storage.writeDevMode(value);
+    
+    // Also save to SharedPreferences if available
+    try {
+      final prefs = Get.find<SharedPreferences>();
+      prefs.setBool('isDevMode', value);
+    } catch (e) {
+      // SharedPreferences not available, continue with GetStorage
+      debugPrint('SharedPreferences not available when toggling dev mode: $e');
+    }
   }
 }

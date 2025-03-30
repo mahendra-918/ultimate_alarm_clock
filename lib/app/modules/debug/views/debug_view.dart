@@ -77,30 +77,96 @@ class DebugView extends GetView<DebugController> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: controller.themeController.secondaryBackgroundColor.value,
-        title: Text(
-          'Alarm History'.tr,
-          style: Theme.of(context).textTheme.titleLarge!.copyWith(
-                color: controller.themeController.primaryTextColor.value,
-              ),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Alarm History'.tr,
+              style: Theme.of(context).textTheme.titleLarge!.copyWith(
+                    color: controller.themeController.primaryTextColor.value,
+                  ),
+            ),
+            const SizedBox(width: 8),
+            Obx(() => controller.isDevMode.value 
+              ? Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'DEV',
+                    style: TextStyle(
+                      color: Colors.orange,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                )
+              : const SizedBox.shrink()
+            ),
+          ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.developer_mode),
+            icon: Obx(() => Icon(
+              Icons.developer_mode,
+              color: controller.isDevMode.value ? Colors.orange : null,
+            )),
             onPressed: controller.toggleDevMode,
+            tooltip: 'Developer Mode'.tr,
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: controller.fetchLogs,
+            tooltip: 'Refresh'.tr,
           ),
           IconButton(
             icon: const Icon(Icons.delete),
             onPressed: controller.clearLogs,
+            tooltip: 'Clear History'.tr,
           ),
         ],
       ),
       backgroundColor: controller.themeController.primaryBackgroundColor.value,
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => controller.forceRefreshLogs(),
+                    icon: const Icon(Icons.refresh, color: Colors.white),
+                    label: Text('Force Refresh'.tr, style: const TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kprimaryColor,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => controller.createTestLog(),
+                    icon: const Icon(Icons.add_circle, color: Colors.white),
+                    label: Text('Create Test Log'.tr, style: const TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -243,27 +309,16 @@ class DebugView extends GetView<DebugController> {
                     itemCount: controller.filteredLogs.length,
                     itemBuilder: (context, index) {
                       final log = controller.filteredLogs[index];
-                      final logTime = DateTime.fromMillisecondsSinceEpoch(log['LogTime']);
+                      final logTime = DateTime.fromMillisecondsSinceEpoch(log['LogTime'] ?? DateTime.now().millisecondsSinceEpoch);
                       final formattedTime = Utils.getFormattedDate(logTime);
                       final formattedHour = logTime.hour.toString().padLeft(2, '0');
                       final formattedMinute = logTime.minute.toString().padLeft(2, '0');
-                      final logLevelColor = controller.getLogLevelColor(log['Status']);
-                      final status = log['Status'];
-                      final logType = log['LogType'];
-                      final logMsg = log['Message'];
+                      final status = log['Status'] as String? ?? 'UNKNOWN';
+                      final logLevelColor = controller.getLogLevelColor(status);
+                      final logType = log['LogType'] as String? ?? log['Type'] as String? ?? 'NORMAL';
+                      final logMsg = log['Message'] as String? ?? 'No message available';
                       final hasRung = log['HasRung'] == 1;
-                      final alarmID = log['AlarmID'];
-
-                      print('Debug - Log Entry:');
-                      print('Message: $logMsg');
-                      print('AlarmID: $alarmID');
-                      print('HasRung: $hasRung');
-                      print('Status: $status');
-                      print('LogType: $logType');
-
-                      if(!controller.settingsController.isDevMode.value && logType == 'DEV') {
-                        return const SizedBox.shrink();
-                      }
+                      final alarmID = log['AlarmID'] as String?;
 
                       return Column(
                         children: [
@@ -303,22 +358,75 @@ class DebugView extends GetView<DebugController> {
                                         ]
                                       ),
                                     ),
-                                    Icon(
-                                      logMsg.toLowerCase().contains('alarm deleted') 
-                                          ? Icons.delete_forever
-                                          : status == 'SUCCESS'
-                                              ? Icons.check_circle 
-                                              : (status=='WARNING'
-                                                  ? Icons.info
-                                                  : Icons.error),
-                                      color: logMsg.toLowerCase().contains('alarm deleted')
-                                          ? Colors.red
-                                          : status == 'SUCCESS'
-                                              ? Colors.green
-                                              : (status=='WARNING'
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          logMsg.toLowerCase().contains('deleted') 
+                                              ? Icons.delete_forever
+                                              : logMsg.toLowerCase().contains('created')
+                                                  ? Icons.add_circle
+                                                  : logMsg.toLowerCase().contains('updated')
+                                                      ? Icons.edit
+                                                      : logMsg.toLowerCase().contains('ringing') || 
+                                                        logMsg.toLowerCase().contains('went off') || 
+                                                        logMsg.toLowerCase().contains('rang')
+                                                          ? Icons.alarm_on
+                                                          : logMsg.toLowerCase().contains('scheduled')
+                                                              ? Icons.schedule
+                                                              : status.toLowerCase() == 'error'
+                                                                  ? Icons.error
+                                                                  : status.toLowerCase() == 'warning'
+                                                                      ? Icons.warning
+                                                                      : Icons.check_circle,
+                                          color: logMsg.toLowerCase().contains('deleted')
+                                              ? Colors.red
+                                              : logMsg.toLowerCase().contains('ringing') || 
+                                                logMsg.toLowerCase().contains('went off') || 
+                                                logMsg.toLowerCase().contains('rang')
                                                   ? Colors.orange
-                                                  : Colors.red),
-                                    )
+                                                  : status.toLowerCase() == 'error'
+                                                      ? Colors.red
+                                                      : status.toLowerCase() == 'warning'
+                                                          ? Colors.orange
+                                                          : logMsg.toLowerCase().contains('scheduled')
+                                                              ? Colors.blue
+                                                              : Colors.green,
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.delete_outline,
+                                            size: 18,
+                                          ),
+                                          color: Colors.red,
+                                          onPressed: () {
+                                            showDialog(
+                                              context: context,
+                                              builder: (context) => AlertDialog(
+                                                title: Text('Delete Log Entry?'),
+                                                content: Text('Are you sure you want to delete this log entry?'),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () => Navigator.of(context).pop(),
+                                                    child: Text('Cancel'),
+                                                  ),
+                                                  TextButton(
+                                                    onPressed: () {
+                                                      Navigator.of(context).pop();
+                                                      controller.deleteLog(log);
+                                                    },
+                                                    child: Text(
+                                                      'Delete',
+                                                      style: TextStyle(color: Colors.red),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          },
+                                          tooltip: 'Delete log entry',
+                                        ),
+                                      ],
+                                    ),
                                   ],
                                 ),
                               ),

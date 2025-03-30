@@ -5,6 +5,8 @@ import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:numberpicker/numberpicker.dart';
 import 'package:ultimate_alarm_clock/app/data/models/alarm_model.dart';
+import 'package:ultimate_alarm_clock/app/data/providers/firestore_provider.dart';
+import 'package:ultimate_alarm_clock/app/data/providers/isar_provider.dart' as isar_db;
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/controllers/input_time_controller.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/alarm_id_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/alarm_offset_tile.dart';
@@ -1179,11 +1181,57 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                 if (controller.alarmRecord.value.alarmID ==
                                     '') {
                                   await controller.createAlarm(alarmRecord);
+                                  
+                                  // Direct log creation for new alarm
+                                  try {
+                                    // Create direct log entry for better visibility
+                                    String details = "Alarm directly saved for ${alarmRecord.alarmTime}";
+                                    if (alarmRecord.label.isNotEmpty) {
+                                      details += " - ${alarmRecord.label}";
+                                    }
+                                    
+                                    // Add to history database directly
+                                    final isar = await isar_db.IsarDb();
+                                    await isar.insertLog(
+                                      details,
+                                      status: isar_db.Status.success,
+                                      type: isar_db.LogType.normal,
+                                      hasRung: 0,
+                                      alarmID: alarmRecord.alarmID,
+                                    );
+                                    
+                                    debugPrint('Direct log entry created for new alarm');
+                                  } catch (logError) {
+                                    debugPrint('Error creating direct log: $logError');
+                                  }
                                 } else {
                                   AlarmModel updatedAlarmModel =
                                       controller.updatedAlarmModel();
                                   await controller
                                       .updateAlarm(updatedAlarmModel);
+                                      
+                                  // Direct log creation for updated alarm
+                                  try {
+                                    // Create direct log entry for better visibility
+                                    String details = "Alarm directly updated for ${updatedAlarmModel.alarmTime}";
+                                    if (updatedAlarmModel.label.isNotEmpty) {
+                                      details += " - ${updatedAlarmModel.label}";
+                                    }
+                                    
+                                    // Add to history database directly
+                                    final isar = await isar_db.IsarDb();
+                                    await isar.insertLog(
+                                      details,
+                                      status: isar_db.Status.success,
+                                      type: isar_db.LogType.normal,
+                                      hasRung: 0,
+                                      alarmID: updatedAlarmModel.alarmID,
+                                    );
+                                    
+                                    debugPrint('Direct log entry created for updated alarm');
+                                  } catch (logError) {
+                                    debugPrint('Error creating direct log: $logError');
+                                  }
                                 }
                               } catch (e) {
                                 debugPrint(e.toString());

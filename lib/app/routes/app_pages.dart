@@ -94,6 +94,7 @@ class AppPages {
       name: _Paths.ALARM_HISTORY,
       page: () => DebugView(),
       binding: DebugBinding(),
+      transition: Transition.fadeIn,
     ),
   ];
 }

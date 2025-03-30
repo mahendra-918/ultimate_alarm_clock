@@ -83,26 +83,114 @@ class IsarDb {
   }
 
   Future<Database?> setAlarmLogs() async {
-    Database? db;
-    final dir = await getDatabasesPath();
-    db = await openDatabase(
-      '$dir/AlarmLogs.db',
-      version: 1,
-      onCreate: (Database db, int version) async {
-        await db.execute('''
-          CREATE TABLE LOG (
-            LogID INTEGER PRIMARY KEY AUTOINCREMENT,  
-            LogTime DATETIME NOT NULL,            
-            Status TEXT CHECK(Status IN ('ERROR', 'SUCCESS', 'WARNING')) NOT NULL,
-            LogType TEXT CHECK(LogType IN ('DEV', 'NORMAL')) NOT NULL,
-            Message TEXT NOT NULL,
-            HasRung INTEGER DEFAULT 0,
-            AlarmID TEXT
-          )
-        ''');
-      },
-    );
-    return db;
+    try {
+      final dir = await getDatabasesPath();
+      debugPrint('Database directory: $dir');
+      final dbPath = '$dir/AlarmLogs.db';
+      debugPrint('Attempting to open or create logs database at: $dbPath');
+      
+      // Try to create the database with more explicit error handling
+      Database? db = await openDatabase(
+        dbPath,
+        version: 1,
+        onCreate: (Database db, int version) async {
+          debugPrint('Creating alarm logs table - this should happen on first run');
+          try {
+            await db.execute('''
+              CREATE TABLE LOG (
+                LogID INTEGER PRIMARY KEY AUTOINCREMENT,  
+                LogTime DATETIME NOT NULL,            
+                Status TEXT CHECK(Status IN ('ERROR', 'SUCCESS', 'WARNING')) NOT NULL,
+                LogType TEXT CHECK(LogType IN ('DEV', 'NORMAL')) NOT NULL,
+                Message TEXT NOT NULL,
+                HasRung INTEGER DEFAULT 0,
+                AlarmID TEXT
+              )
+            ''');
+            
+            // Test the table was created by inserting a record
+            final testId = await db.insert(
+              'LOG',
+              {
+                'LogTime': DateTime.now().millisecondsSinceEpoch,
+                'Status': 'SUCCESS',
+                'LogType': 'NORMAL',
+                'Message': 'Log system initialized',
+                'HasRung': 0,
+                'AlarmID': '',
+              },
+            );
+            
+            debugPrint('Test record inserted with ID: $testId');
+          } catch (e) {
+            debugPrint('Error creating logs table: $e');
+            // Try to handle specific SQL errors here
+          }
+        },
+        onOpen: (db) async {
+          // Check if table exists
+          try {
+            final tables = await db.query('sqlite_master', 
+                where: "type = 'table' AND name = 'LOG'");
+            
+            if (tables.isEmpty) {
+              debugPrint('LOG table not found! Attempting to create it.');
+              await db.execute('''
+                CREATE TABLE IF NOT EXISTS LOG (
+                  LogID INTEGER PRIMARY KEY AUTOINCREMENT,  
+                  LogTime DATETIME NOT NULL,            
+                  Status TEXT CHECK(Status IN ('ERROR', 'SUCCESS', 'WARNING')) NOT NULL,
+                  LogType TEXT CHECK(LogType IN ('DEV', 'NORMAL')) NOT NULL,
+                  Message TEXT NOT NULL,
+                  HasRung INTEGER DEFAULT 0,
+                  AlarmID TEXT
+                )
+              ''');
+            } else {
+              debugPrint('LOG table exists with structure: ${tables.first}');
+              
+              // Count the records
+              final count = Sqflite.firstIntValue(
+                  await db.rawQuery('SELECT COUNT(*) FROM LOG'));
+              debugPrint('Current log count: $count');
+            }
+          } catch (e) {
+            debugPrint('Error checking LOG table: $e');
+          }
+        },
+      );
+      
+      return db;
+    } catch (e) {
+      debugPrint('Critical error opening database: $e');
+      // Try a fallback location if possible
+      try {
+        final dir = await getApplicationDocumentsDirectory();
+        final dbPath = '${dir.path}/AlarmLogsBackup.db';
+        debugPrint('Attempting fallback database at: $dbPath');
+        
+        return await openDatabase(
+          dbPath,
+          version: 1,
+          onCreate: (Database db, int version) async {
+            await db.execute('''
+              CREATE TABLE LOG (
+                LogID INTEGER PRIMARY KEY AUTOINCREMENT,  
+                LogTime DATETIME NOT NULL,            
+                Status TEXT CHECK(Status IN ('ERROR', 'SUCCESS', 'WARNING')) NOT NULL,
+                LogType TEXT CHECK(LogType IN ('DEV', 'NORMAL')) NOT NULL,
+                Message TEXT NOT NULL,
+                HasRung INTEGER DEFAULT 0,
+                AlarmID TEXT
+              )
+            ''');
+          },
+        );
+      } catch (fallbackError) {
+        debugPrint('Even fallback database failed: $fallbackError');
+        return null;
+      }
+    }
   }
 
   void _onCreate(Database db, int version) async {
@@ -195,41 +283,256 @@ class IsarDb {
         debugPrint('Failed to initialize database for logs');
         return -1;
       }
+      
+      // Trim message if too long (SQLite has limits)
+      String trimmedMsg = msg;
+      if (trimmedMsg.length > 500) {
+        trimmedMsg = trimmedMsg.substring(0, 497) + '...';
+      }
+      
+      // Ensure alarmID is not null
+      String safeAlarmID = alarmID.isEmpty ? '' : alarmID;
+      
       String st = status.toString();
       String t = type.toString();
+      
+      // Print the exact values we're inserting for debugging
+      debugPrint('Inserting log with Status: $st, LogType: $t, Message: $trimmedMsg, HasRung: $hasRung, AlarmID: $safeAlarmID');
+      
       final result = await db.insert(
         'LOG',
         {
           'LogTime': DateTime.now().millisecondsSinceEpoch,
           'Status': st,
           'LogType': t,
-          'Message': msg,
+          'Message': trimmedMsg,
           'HasRung': hasRung,
-          'AlarmID': alarmID,
+          'AlarmID': safeAlarmID,
         },
       );
-      debugPrint('Successfully inserted log: $msg with AlarmID: $alarmID');
+      
+      // Add a small delay to ensure the database write completes
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+      debugPrint('Successfully inserted log with ID: $result, Message: $trimmedMsg, AlarmID: $safeAlarmID');
+      
       return result;
     } catch (e) {
       debugPrint('Error inserting log: $e');
-      return -1;
+      // Try one more time with a simplified message
+      try {
+        final db = await setAlarmLogs();
+        if (db == null) return -1;
+        
+        final result = await db.insert(
+          'LOG',
+          {
+            'LogTime': DateTime.now().millisecondsSinceEpoch,
+            'Status': status.toString(),
+            'LogType': type.toString(),
+            'Message': 'Alarm operation (details unavailable)',
+            'HasRung': hasRung,
+            'AlarmID': alarmID.isEmpty ? '' : alarmID,
+          },
+        );
+        
+        debugPrint('Successfully inserted fallback log: $result');
+        return result;
+      } catch (fallbackError) {
+        debugPrint('Even fallback log insert failed: $fallbackError');
+        return -1;
+      }
     }
   }
 
   // Fetch all log entries
   Future<List<Map<String, dynamic>>> getLogs() async {
     try {
+      debugPrint('Attempting to fetch logs from database...');
       final db = await setAlarmLogs();
       if (db == null) {
         debugPrint('Failed to initialize database for logs');
         return [];
       }
-      final logs = await db.query('LOG');
-      debugPrint('Successfully retrieved ${logs.length} logs');
-      return logs;
+      
+      // Verify the database is actually open
+      if (!db.isOpen) {
+        debugPrint('Warning: Database not open, trying to reopen...');
+        try {
+          final dir = await getDatabasesPath();
+          final dbPath = '$dir/AlarmLogs.db';
+          final reopenedDb = await openDatabase(dbPath);
+          if (!reopenedDb.isOpen) {
+            debugPrint('Failed to reopen database!');
+            return [];
+          }
+          debugPrint('Successfully reopened database');
+          
+          // Try to access the logs
+          final logs = await reopenedDb.query('LOG');
+          debugPrint('Successfully retrieved ${logs.length} logs after reopening');
+          return logs;
+        } catch (e) {
+          debugPrint('Error reopening database: $e');
+          return [];
+        }
+      }
+      
+      // If we get here, the database should be open
+      try {
+        // First check if the LOG table exists
+        final tables = await db.query('sqlite_master', 
+            where: "type = 'table' AND name = 'LOG'");
+        
+        if (tables.isEmpty) {
+          debugPrint('LOG table not found! Creating it now...');
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS LOG (
+              LogID INTEGER PRIMARY KEY AUTOINCREMENT,  
+              LogTime DATETIME NOT NULL,            
+              Status TEXT CHECK(Status IN ('ERROR', 'SUCCESS', 'WARNING')) NOT NULL,
+              LogType TEXT CHECK(LogType IN ('DEV', 'NORMAL')) NOT NULL,
+              Message TEXT NOT NULL,
+              HasRung INTEGER DEFAULT 0,
+              AlarmID TEXT
+            )
+          ''');
+          
+          // Insert a test entry to verify the table was created successfully
+          final testId = await db.insert(
+            'LOG',
+            {
+              'LogTime': DateTime.now().millisecondsSinceEpoch,
+              'Status': Status.success.toString(),
+              'LogType': LogType.normal.toString(),
+              'Message': 'Log system initialized',
+              'HasRung': 0,
+              'AlarmID': '',
+            },
+          );
+          
+          debugPrint('Created LOG table and inserted test entry with ID: $testId');
+          
+          // Return the single test log
+          return [
+            {
+              'LogID': testId,
+              'LogTime': DateTime.now().millisecondsSinceEpoch,
+              'Status': Status.success.toString(),
+              'LogType': LogType.normal.toString(),
+              'Message': 'Log system initialized',
+              'HasRung': 0,
+              'AlarmID': '',
+            }
+          ];
+        }
+        
+        // Table exists, so query the logs
+        final logs = await db.query('LOG');
+        debugPrint('Successfully retrieved ${logs.length} logs');
+        
+        if (logs.isEmpty) {
+          debugPrint('No logs found in the database - creating a test entry');
+          final testId = await db.insert(
+            'LOG',
+            {
+              'LogTime': DateTime.now().millisecondsSinceEpoch,
+              'Status': Status.success.toString(),
+              'LogType': LogType.normal.toString(),
+              'Message': 'No logs found - creating initial log entry',
+              'HasRung': 0,
+              'AlarmID': '',
+            },
+          );
+          
+          debugPrint('Created test log entry with ID: $testId');
+          
+          // Return the single test log
+          return [
+            {
+              'LogID': testId,
+              'LogTime': DateTime.now().millisecondsSinceEpoch,
+              'Status': Status.success.toString(),
+              'LogType': LogType.normal.toString(),
+              'Message': 'No logs found - creating initial log entry',
+              'HasRung': 0,
+              'AlarmID': '',
+            }
+          ];
+        }
+        
+        return logs;
+      } catch (e) {
+        debugPrint('Error querying logs: $e');
+        
+        // Try to create the table anyway as a last resort
+        try {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS LOG (
+              LogID INTEGER PRIMARY KEY AUTOINCREMENT,  
+              LogTime DATETIME NOT NULL,            
+              Status TEXT CHECK(Status IN ('ERROR', 'SUCCESS', 'WARNING')) NOT NULL,
+              LogType TEXT CHECK(LogType IN ('DEV', 'NORMAL')) NOT NULL,
+              Message TEXT NOT NULL,
+              HasRung INTEGER DEFAULT 0,
+              AlarmID TEXT
+            )
+          ''');
+          
+          debugPrint('Created LOG table as a fallback');
+          return [];
+        } catch (e2) {
+          debugPrint('Failed even creating fallback table: $e2');
+          return [];
+        }
+      }
     } catch (e) {
-      debugPrint('Error retrieving logs: $e');
-      return [];
+      debugPrint('Critical error retrieving logs: $e');
+      // Create an in-memory database as a last resort
+      try {
+        final tempDb = await openDatabase(':memory:');
+        await tempDb.execute('''
+          CREATE TABLE LOG (
+            LogID INTEGER PRIMARY KEY AUTOINCREMENT,  
+            LogTime DATETIME NOT NULL,            
+            Status TEXT CHECK(Status IN ('ERROR', 'SUCCESS', 'WARNING')) NOT NULL,
+            LogType TEXT CHECK(LogType IN ('DEV', 'NORMAL')) NOT NULL,
+            Message TEXT NOT NULL,
+            HasRung INTEGER DEFAULT 0,
+            AlarmID TEXT
+          )
+        ''');
+        
+        // Insert a fallback entry
+        final testId = await tempDb.insert(
+          'LOG',
+          {
+            'LogTime': DateTime.now().millisecondsSinceEpoch,
+            'Status': Status.warning.toString(),
+            'LogType': LogType.normal.toString(),
+            'Message': 'FALLBACK LOG: Database error occurred',
+            'HasRung': 0,
+            'AlarmID': '',
+          },
+        );
+        
+        debugPrint('Created in-memory fallback log with ID: $testId');
+        
+        return [
+          {
+            'LogID': testId,
+            'LogTime': DateTime.now().millisecondsSinceEpoch,
+            'Status': Status.warning.toString(),
+            'LogType': LogType.normal.toString(),
+            'Message': 'FALLBACK LOG: Database error occurred',
+            'HasRung': 0,
+            'AlarmID': '',
+          }
+        ];
+      } catch (e2) {
+        debugPrint('Even in-memory database failed: $e2');
+        return [];
+      }
     }
   }
 
@@ -248,20 +551,106 @@ class IsarDb {
     }
   }
 
+  Future<bool> deleteLog(int logId) async {
+    try {
+      debugPrint('Deleting log with LogID: $logId');
+      final db = await setAlarmLogs();
+      if (db == null) {
+        debugPrint('Failed to initialize database for logs');
+        return false;
+      }
+      
+      final rowsAffected = await db.delete(
+        'LOG',
+        where: 'LogID = ?',
+        whereArgs: [logId],
+      );
+      
+      final success = rowsAffected > 0;
+      debugPrint(success 
+          ? 'Successfully deleted log with LogID: $logId' 
+          : 'No log found with LogID: $logId');
+      
+      return success;
+    } catch (e) {
+      debugPrint('Error deleting log: $e');
+      return false;
+    }
+  }
+
   static Future<AlarmModel> addAlarm(AlarmModel alarmRecord) async {
-    final isarProvider = IsarDb();
-    final sql = await IsarDb().getAlarmSQLiteDatabase();
-    final db = await isarProvider.db;
-    await db.writeTxn(() async {
-      await db.alarmModels.put(alarmRecord);
-    });
-    final sqlmap = alarmRecord.toSQFliteMap();
-    print(sqlmap);
-    await sql!.insert('alarms', sqlmap);
-    await IsarDb().insertLog('Alarm created ${alarmRecord.alarmTime}', status: Status.success, type: LogType.normal, alarmID: alarmRecord.alarmID);
-    List a = await IsarDb().getLogs();
-    print(a);
-    return alarmRecord;
+    debugPrint('ADDING ALARM: ${alarmRecord.alarmID}, time: ${alarmRecord.alarmTime}');
+    
+    try {
+      final isarProvider = IsarDb();
+      final sql = await IsarDb().getAlarmSQLiteDatabase();
+      if (sql == null) {
+        debugPrint('ERROR: SQLite database is null!');
+        throw Exception('SQLite database is null');
+      }
+      
+      final db = await isarProvider.db;
+      await db.writeTxn(() async {
+        await db.alarmModels.put(alarmRecord);
+        debugPrint('Successfully added alarm to Isar DB');
+      });
+      
+      final sqlmap = alarmRecord.toSQFliteMap();
+      debugPrint('Alarm SQLite map: $sqlmap');
+      
+      final sqlResult = await sql.insert('alarms', sqlmap);
+      debugPrint('Successfully added alarm to SQLite DB with result: $sqlResult');
+      
+      // Generate a more detailed log message
+      String details = "Alarm created for ${alarmRecord.alarmTime}";
+      if (alarmRecord.label.isNotEmpty) {
+        details += " - ${alarmRecord.label}";
+      }
+      
+      // Add day information if it's a repeating alarm
+      if (alarmRecord.days.contains(true)) {
+        List<String> dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        List<String> activeDays = [];
+        for (int i = 0; i < alarmRecord.days.length; i++) {
+          if (alarmRecord.days[i]) {
+            activeDays.add(dayNames[i]);
+          }
+        }
+        if (activeDays.isNotEmpty) {
+          details += " on ${activeDays.join(", ")}";
+        }
+      }
+      
+      // Log insertion
+      final logResult = await IsarDb().insertLog(
+        details,
+        status: Status.success,
+        type: LogType.normal,
+        alarmID: alarmRecord.alarmID,
+      );
+      
+      debugPrint('Added log entry with ID: $logResult, message: $details');
+      
+      // Verify logs were added
+      final logs = await IsarDb().getLogs();
+      debugPrint('Current logs: ${logs.length}');
+      if (logs.isNotEmpty) {
+        debugPrint('Latest log: ${logs.first}');
+      } else {
+        debugPrint('WARNING: No logs found after insertion!');
+      }
+      
+      return alarmRecord;
+    } catch (e) {
+      debugPrint('Error in addAlarm: $e');
+      // Try to log the error
+      await IsarDb().insertLog(
+        'Failed to add alarm: $e',
+        status: Status.error,
+        type: LogType.normal,
+      );
+      rethrow;
+    }
   }
 
   static Future<ProfileModel> addProfile(ProfileModel profileModel) async {
@@ -342,6 +731,80 @@ class IsarDb {
     print('checkEmpty ${alarms[0].alarmID} ${alarms.isNotEmpty}');
 
     return alarms.isNotEmpty;
+  }
+
+  static Future<AlarmModel?> getAlarmByID(String alarmID) async {
+    try {
+      final isarProvider = IsarDb();
+      final db = await isarProvider.db;
+      final alarm = await db.alarmModels.where().filter().alarmIDEqualTo(alarmID).findFirst();
+      if (alarm == null) {
+        // Try to find in SQLite if not found in Isar
+        final sql = await IsarDb().getAlarmSQLiteDatabase();
+        if (sql != null) {
+          final results = await sql.query(
+            'alarms',
+            where: 'alarmID = ?',
+            whereArgs: [alarmID],
+          );
+          if (results.isNotEmpty) {
+            // Convert SQLite record to AlarmModel
+            final firstMap = results.first;
+            final model = AlarmModel(
+              alarmTime: '',
+              alarmID: '',
+              ownerId: '',
+              ownerName: '',
+              lastEditedUserId: '',
+              mutexLock: false,
+              days: [],
+              intervalToAlarm: 0,
+              isActivityEnabled: false,
+              minutesSinceMidnight: 0,
+              isLocationEnabled: false,
+              isSharedAlarmEnabled: false,
+              isWeatherEnabled: false,
+              location: '',
+              weatherTypes: [],
+              isMathsEnabled: false,
+              mathsDifficulty: 0,
+              numMathsQuestions: 0,
+              isShakeEnabled: false,
+              shakeTimes: 0,
+              isQrEnabled: false,
+              qrValue: '',
+              isPedometerEnabled: false,
+              numberOfSteps: 0,
+              activityInterval: 0,
+              mainAlarmTime: '',
+              label: '',
+              isOneTime: false,
+              snoozeDuration: 0,
+              gradient: 0,
+              ringtoneName: '',
+              note: '',
+              deleteAfterGoesOff: false,
+              showMotivationalQuote: false,
+              volMax: 0,
+              volMin: 0,
+              activityMonitor: 0,
+              alarmDate: '',
+              ringOn: false,
+              profile: '',
+              isGuardian: false,
+              guardianTimer: 0,
+              guardian: '',
+              isCall: false,
+            ).fromMapSQFlite(firstMap);
+            return model;
+          }
+        }
+      }
+      return alarm;
+    } catch (e) {
+      debugPrint('Error getting alarm by ID: $e');
+      return null;
+    }
   }
 
   static Future<AlarmModel> getLatestAlarm(
@@ -450,17 +913,6 @@ class IsarDb {
     final isarProvider = IsarDb();
     final db = await isarProvider.db;
     return db.alarmModels.get(id);
-  }
-
-  static Future<AlarmModel?> getAlarmByID(String alarmID) async {
-    final isarProvider = IsarDb();
-    final db = await isarProvider.db;
-    final alarms = await db.alarmModels
-        .where()
-        .filter()
-        .alarmIDEqualTo(alarmID)
-        .findAll();
-    return alarms.isNotEmpty ? alarms.first : null;
   }
 
   static getAlarms(String name) async* {

@@ -126,14 +126,27 @@ class HomeView extends GetView<HomeController> {
                                         ),
                                       ),
                                       Row(
+                                        mainAxisAlignment: MainAxisAlignment.end,
                                         children: [
                                           notificationIcon(controller),
+                                          IconButton(
+                                            onPressed: () {
+                                              Utils.hapticFeedback();
+                                              Get.toNamed('/alarm-history');
+                                            },
+                                            icon: Icon(
+                                              Icons.history,
+                                              color: themeController.primaryTextColor.value.withOpacity(0.75),
+                                              size: 24 * controller.scalingFactor.value,
+                                            ),
+                                            tooltip: 'Alarm History'.tr,
+                                            padding: const EdgeInsets.all(4),
+                                          ),
                                           Padding(
-                                            padding: const EdgeInsets.all(8.0),
+                                            padding: const EdgeInsets.symmetric(horizontal: 4.0),
                                             child: InkWell(
                                               onTap: () async {
-                                                controller.isCalender.value =
-                                                    true;
+                                                controller.isCalender.value = true;
                                                 Get.dialog(
                                                   await googleCalenderDialog(
                                                     controller,
@@ -144,92 +157,28 @@ class HomeView extends GetView<HomeController> {
                                               },
                                               child: SvgPicture.asset(
                                                 'assets/images/GC.svg',
-                                                colorFilter:
-                                                    const ColorFilter.mode(
+                                                colorFilter: const ColorFilter.mode(
                                                   kprimaryColor,
                                                   BlendMode.srcIn,
                                                 ),
-                                                height: 30 *
-                                                    controller
-                                                        .scalingFactor.value,
-                                                width: 30 *
-                                                    controller
-                                                        .scalingFactor.value,
+                                                height: 24 * controller.scalingFactor.value,
+                                                width: 24 * controller.scalingFactor.value,
                                               ),
                                             ),
                                           ),
                                           Obx(
                                             () => Visibility(
-                                              visible:
-                                                  controller.scalingFactor < 0.9
-                                                      ? false
-                                                      : true,
+                                              visible: controller.scalingFactor < 0.9 ? false : true,
                                               child: IconButton(
                                                 onPressed: () {
                                                   Utils.hapticFeedback();
-                                                  Scaffold.of(context)
-                                                      .openEndDrawer();
+                                                  Scaffold.of(context).openEndDrawer();
                                                 },
-                                                icon: const Icon(
-                                                  Icons.menu,
-                                                ),
-                                                color: themeController.primaryTextColor.value
-                                                        .withOpacity(0.75),
-                                                iconSize: 27 *
-                                                    controller.scalingFactor.value,
+                                                icon: const Icon(Icons.menu),
+                                                color: themeController.primaryTextColor.value.withOpacity(0.75),
+                                                iconSize: 24 * controller.scalingFactor.value,
+                                                padding: const EdgeInsets.all(4),
                                               ),
-
-                                              //   PopupMenuButton(
-                                              //     // onPressed: () {
-                                              //     //   Utils.hapticFeedback();
-                                              //     //   Get.toNamed('/settings');
-                                              //     // },
-
-                                              //     icon: const Icon(Icons.more_vert),
-                                              //     color: themeController
-                                              //             .isLightMode.value
-                                              //         ? kLightSecondaryBackgroundColor
-                                              //         : ksecondaryBackgroundColor,
-                                              //     iconSize: 27 *
-                                              //         controller.scalingFactor.value,
-                                              //     itemBuilder: (context) {
-                                              //       return [
-                                              //         PopupMenuItem<String>(
-                                              //           onTap: () {
-                                              //             Utils.hapticFeedback();
-                                              //             Get.toNamed('/settings');
-                                              //           },
-                                              //           child: Text(
-                                              //             'Settings',
-                                              //             style: Theme.of(context)
-                                              //                 .textTheme
-                                              //                 .bodyMedium!
-                                              //                 .copyWith(
-                                              //                     color: themeController
-                                              //                             .isLightMode
-                                              //                             .value
-                                              //                         ? kLightPrimaryTextColor
-                                              //                         : kprimaryTextColor),
-                                              //           ),
-                                              //         ),
-                                              //         PopupMenuItem<String>(
-                                              //           value: 'option1',
-                                              //           child: Text(
-                                              //             'About',
-                                              //             style: Theme.of(context)
-                                              //                 .textTheme
-                                              //                 .bodyMedium!
-                                              //                 .copyWith(
-                                              //                     color: themeController
-                                              //                             .isLightMode
-                                              //                             .value
-                                              //                         ? kLightPrimaryTextColor
-                                              //                         : kprimaryTextColor),
-                                              //           ),
-                                              //         ),
-                                              //       ];
-                                              //     },
-                                              //   ),
                                             ),
                                           ),
                                         ],

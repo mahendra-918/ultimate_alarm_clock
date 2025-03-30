@@ -52,4 +52,12 @@ class GetStorageProvider {
     String profile = await _getStorage.read('profile') ?? 'Default';
     return profile;
   }
+
+  Future<void> writeDevMode(bool isDevMode) async {
+    await _getStorage.write('isDevMode', isDevMode);
+  }
+
+  Future<bool> readDevMode() async {
+    return _getStorage.read('isDevMode') ?? false;
+  }
 }

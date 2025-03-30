@@ -14,7 +14,8 @@ import 'package:ultimate_alarm_clock/app/data/models/profile_model.dart';
 import 'package:ultimate_alarm_clock/app/data/models/user_model.dart';
 import 'package:ultimate_alarm_clock/app/data/providers/firestore_provider.dart';
 import 'package:ultimate_alarm_clock/app/data/providers/get_storage_provider.dart';
-import 'package:ultimate_alarm_clock/app/data/providers/isar_provider.dart';
+import 'package:ultimate_alarm_clock/app/data/providers/isar_provider.dart' as isar_db;
+import 'package:ultimate_alarm_clock/app/data/providers/stand_alone_logs.dart';
 import 'package:ultimate_alarm_clock/app/data/providers/secure_storage_provider.dart';
 import 'package:ultimate_alarm_clock/app/data/models/ringtone_model.dart';
 import 'package:ultimate_alarm_clock/app/modules/home/controllers/home_controller.dart';
@@ -25,6 +26,7 @@ import 'package:ultimate_alarm_clock/app/utils/constants.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl_phone_number_input/src/models/country_model.dart';
 import '../../settings/controllers/settings_controller.dart';
+import '../../debug/controllers/debug_controller.dart';
 
 class AddOrUpdateAlarmController extends GetxController {
   final labelController = TextEditingController();
@@ -414,18 +416,121 @@ class AddOrUpdateAlarmController extends GetxController {
   }
 
   createAlarm(AlarmModel alarmData) async {
-    if (isSharedAlarmEnabled.value == true) {
-      alarmRecord.value =
-          await FirestoreDb.addAlarm(userModel.value, alarmData);
-    } else {
-      alarmRecord.value = await IsarDb.addAlarm(alarmData);
-    }
+    debugPrint("Creating alarm with ID: ${alarmData.alarmID}");
+    
+    try {
+      if (isSharedAlarmEnabled.value == true) {
+        alarmRecord.value =
+            await FirestoreDb.addAlarm(userModel.value, alarmData);
+      } else {
+        alarmRecord.value = await isar_db.IsarDb.addAlarm(alarmData);
+      }
+      
+      // Add an extra detailed log entry for better visibility in alarm history
+      String details = "Alarm Scheduled for ${alarmData.alarmTime}";
+      if (alarmData.label.isNotEmpty) {
+        details += " - ${alarmData.label}";
+      }
+      
+      if (alarmData.days.contains(true)) {
+        List<String> dayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+        List<String> activeDays = [];
+        for (int i = 0; i < alarmData.days.length; i++) {
+          if (alarmData.days[i]) {
+            activeDays.add(dayNames[i]);
+          }
+        }
+        if (activeDays.isNotEmpty) {
+          details += " on ${activeDays.join(", ")}";
+        }
+      }
+      
+      // Add details about challenges if any
+      List<String> challenges = [];
+      if (alarmData.isMathsEnabled) challenges.add("Math");
+      if (alarmData.isShakeEnabled) challenges.add("Shake");
+      if (alarmData.isQrEnabled) challenges.add("QR");
+      if (alarmData.isPedometerEnabled) challenges.add("Steps");
+      if (alarmData.isLocationEnabled) challenges.add("Location");
+      
+      if (challenges.isNotEmpty) {
+        details += " with ${challenges.join(", ")} challenge${challenges.length > 1 ? 's' : ''}";
+      }
+      
+      debugPrint("Adding log entry: $details");
+      
+      // Try both logging systems to ensure logs are recorded
+      
+      // 1. Log using IsarDb
+      try {
+        final isarLogResult = await isar_db.IsarDb().insertLog(
+          details,
+          status: isar_db.Status.success, 
+          type: isar_db.LogType.normal,
+          hasRung: 0,
+          alarmID: alarmData.alarmID,
+        );
+        
+        debugPrint("IsarDb log entry added with result: $isarLogResult");
+      } catch (isarLogError) {
+        debugPrint("Error adding log to IsarDb: $isarLogError");
+      }
+      
+      // 2. Log using StandaloneLogsProvider as backup
+      try {
+        final standaloneProvider = StandaloneLogsProvider();
+        final standaloneLogResult = await standaloneProvider.insertLog(
+          details,
+          status: 'SUCCESS',
+          type: 'NORMAL',
+          hasRung: 0,
+          alarmID: alarmData.alarmID,
+        );
+        
+        debugPrint("Standalone log entry added with result: $standaloneLogResult");
+      } catch (standaloneLogError) {
+        debugPrint("Error adding log to standalone provider: $standaloneLogError");
+      }
+      
+      // 3. Force refresh logs in debug controller if it exists
+      try {
+        final debugController = Get.find<DebugController>();
+        debugController.fetchLogs();
+        debugPrint("Refreshed logs in debug controller");
+      } catch (e) {
+        debugPrint("Debug controller not found or refresh failed: $e");
+      }
 
-    Future.delayed(const Duration(seconds: 1), () {
-      showToast(
-        alarmRecord: alarmData,
-      );
-    });
+      Future.delayed(const Duration(seconds: 1), () {
+        showToast(
+          alarmRecord: alarmData,
+        );
+      });
+    } catch (e) {
+      debugPrint("Error creating alarm: $e");
+      
+      // Log error using both methods
+      try {
+        await isar_db.IsarDb().insertLog(
+          "Error creating alarm: $e",
+          status: isar_db.Status.error,
+          type: isar_db.LogType.normal,
+        );
+      } catch (logError) {
+        debugPrint("Error logging to IsarDb: $logError");
+      }
+      
+      try {
+        final standaloneProvider = StandaloneLogsProvider();
+        await standaloneProvider.insertLog(
+          "Error creating alarm: $e",
+          status: 'ERROR',
+          type: 'NORMAL',
+        );
+      } catch (standaloneLogError) {
+        debugPrint("Error logging to standalone provider: $standaloneLogError");
+      }
+    }
   }
 
   showQRDialog() {
@@ -628,39 +733,159 @@ class AddOrUpdateAlarmController extends GetxController {
   }
 
   updateAlarm(AlarmModel alarmData) async {
-    // Adding the ID's so it can update depending on the db
-    if (isSharedAlarmEnabled.value == true) {
-      // Making sure the alarm wasn't suddenly updated to be an
-      // online (shared) alarm
-      if (await IsarDb.doesAlarmExist(alarmRecord.value.alarmID) == false) {
-        alarmData.firestoreId = alarmRecord.value.firestoreId;
-        await FirestoreDb.updateAlarm(alarmRecord.value.ownerId, alarmData);
+    debugPrint("Updating alarm with ID: ${alarmData.alarmID}");
+    
+    try {
+      // Adding the ID's so it can update depending on the db
+      if (isSharedAlarmEnabled.value == true) {
+        // Making sure the alarm wasn't suddenly updated to be an
+        // online (shared) alarm
+        if (await isar_db.IsarDb.doesAlarmExist(alarmRecord.value.alarmID) == false) {
+          alarmData.firestoreId = alarmRecord.value.firestoreId;
+          await FirestoreDb.updateAlarm(alarmRecord.value.ownerId, alarmData);
+          
+          // Log the update
+          String details = "Alarm Updated - ${alarmData.alarmTime}";
+          if (alarmData.label.isNotEmpty) {
+            details += " - ${alarmData.label}";
+          }
+          
+          // Try both logging systems
+          try {
+            await isar_db.IsarDb().insertLog(
+              details,
+              status: isar_db.Status.success,
+              type: isar_db.LogType.normal,
+              hasRung: 0,
+              alarmID: alarmData.alarmID,
+            );
+          } catch (isarLogError) {
+            debugPrint("Error adding log to IsarDb: $isarLogError");
+          }
+          
+          try {
+            final standaloneProvider = StandaloneLogsProvider();
+            await standaloneProvider.insertLog(
+              details,
+              status: 'SUCCESS',
+              type: 'NORMAL',
+              hasRung: 0,
+              alarmID: alarmData.alarmID,
+            );
+          } catch (standaloneLogError) {
+            debugPrint("Error adding log to standalone provider: $standaloneLogError");
+          }
+        } else {
+          // Deleting alarm on IsarDB to ensure no duplicate entry
+          await isar_db.IsarDb.deleteAlarm(alarmRecord.value.isarId);
+          createAlarm(alarmData);
+        }
       } else {
-        // Deleting alarm on IsarDB to ensure no duplicate entry
-        await IsarDb.deleteAlarm(alarmRecord.value.isarId);
-        createAlarm(alarmData);
+        // Making sure the alarm wasn't suddenly updated to be an offline alarm
+        debugPrint('Updating offline alarm: ${alarmRecord.value.alarmID}');
+        if (await isar_db.IsarDb.doesAlarmExist(alarmRecord.value.alarmID) == true) {
+          alarmData.isarId = alarmRecord.value.isarId;
+          await isar_db.IsarDb.updateAlarm(alarmData);
+          
+          // Log the update
+          String details = "Alarm Updated - ${alarmData.alarmTime}";
+          if (alarmData.label.isNotEmpty) {
+            details += " - ${alarmData.label}";
+          }
+          
+          if (alarmData.days.contains(true)) {
+            List<String> dayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+            List<String> activeDays = [];
+            for (int i = 0; i < alarmData.days.length; i++) {
+              if (alarmData.days[i]) {
+                activeDays.add(dayNames[i]);
+              }
+            }
+            if (activeDays.isNotEmpty) {
+              details += " on ${activeDays.join(", ")}";
+            }
+          }
+          
+          debugPrint("Adding log entry for update: $details");
+          
+          // Try both logging systems
+          try {
+            await isar_db.IsarDb().insertLog(
+              details,
+              status: isar_db.Status.success,
+              type: isar_db.LogType.normal,
+              hasRung: 0,
+              alarmID: alarmData.alarmID,
+            );
+            debugPrint("IsarDb log entry added for update");
+          } catch (isarLogError) {
+            debugPrint("Error adding log to IsarDb: $isarLogError");
+          }
+          
+          try {
+            final standaloneProvider = StandaloneLogsProvider();
+            final standaloneLogResult = await standaloneProvider.insertLog(
+              details,
+              status: 'SUCCESS',
+              type: 'NORMAL',
+              hasRung: 0,
+              alarmID: alarmData.alarmID,
+            );
+            debugPrint("Standalone log entry added with result: $standaloneLogResult");
+          } catch (standaloneLogError) {
+            debugPrint("Error adding log to standalone provider: $standaloneLogError");
+          }
+          
+          // Force refresh logs in debug controller if it exists
+          try {
+            final debugController = Get.find<DebugController>();
+            debugController.fetchLogs();
+            debugPrint("Refreshed logs in debug controller after update");
+          } catch (e) {
+            debugPrint("Debug controller not found or refresh failed after update: $e");
+          }
+        } else {
+          // Deleting alarm on firestore to ensure no duplicate entry
+          await FirestoreDb.deleteAlarm(
+            userModel.value,
+            alarmRecord.value.firestoreId!,
+          );
+          createAlarm(alarmData);
+        }
       }
-    } else {
-      // Making sure the alarm wasn't suddenly updated to be an offline alarm
-      print('aid = ${alarmRecord.value.alarmID}');
-      if (await IsarDb.doesAlarmExist(alarmRecord.value.alarmID) == true) {
-        alarmData.isarId = alarmRecord.value.isarId;
-        await IsarDb.updateAlarm(alarmData);
-      } else {
-        // Deleting alarm on firestore to ensure no duplicate entry
-        await FirestoreDb.deleteAlarm(
-          userModel.value,
-          alarmRecord.value.firestoreId!,
+
+      Future.delayed(const Duration(seconds: 1), () {
+        showToast(
+          alarmRecord: alarmData,
         );
-        createAlarm(alarmData);
+      });
+    } catch (e) {
+      debugPrint("Error updating alarm: $e");
+      
+      // Log error using both methods
+      try {
+        await isar_db.IsarDb().insertLog(
+          "Error updating alarm: $e",
+          status: isar_db.Status.error,
+          type: isar_db.LogType.normal,
+          alarmID: alarmData.alarmID,
+        );
+      } catch (logError) {
+        debugPrint("Error logging to IsarDb: $logError");
+      }
+      
+      try {
+        final standaloneProvider = StandaloneLogsProvider();
+        await standaloneProvider.insertLog(
+          "Error updating alarm: $e",
+          status: 'ERROR',
+          type: 'NORMAL',
+          alarmID: alarmData.alarmID,
+        );
+      } catch (standaloneLogError) {
+        debugPrint("Error logging to standalone provider: $standaloneLogError");
       }
     }
-
-    Future.delayed(const Duration(seconds: 1), () {
-      showToast(
-        alarmRecord: alarmData,
-      );
-    });
   }
 
   @override
@@ -683,7 +908,7 @@ class AddOrUpdateAlarmController extends GetxController {
       userName.value = userModel.value!.fullName;
       lastEditedUserId.value = userModel.value!.id;
     }
-    IsarDb.loadDefaultRingtones();
+    isar_db.IsarDb.loadDefaultRingtones();
 
     // listens to the userModel declared in homeController and updates on signup event
     homeController.userModel.stream.listen((UserModel? user) {
@@ -1155,7 +1380,7 @@ class AddOrUpdateAlarmController extends GetxController {
             customRingtoneName: previousRingtone,
             counterUpdate: CounterUpdate.decrement,
           );
-          await IsarDb.addCustomRingtone(customRingtone);
+          await isar_db.IsarDb.addCustomRingtone(customRingtone);
         }
       }
     } catch (e) {
@@ -1166,7 +1391,7 @@ class AddOrUpdateAlarmController extends GetxController {
   Future<List<String>> getAllCustomRingtoneNames() async {
     try {
       List<RingtoneModel> customRingtones =
-          await IsarDb.getAllCustomRingtones();
+          await isar_db.IsarDb.getAllCustomRingtones();
 
       return customRingtones
           .map((customRingtone) => customRingtone.ringtoneName)
@@ -1184,14 +1409,14 @@ class AddOrUpdateAlarmController extends GetxController {
     try {
       int customRingtoneId = AudioUtils.fastHash(ringtoneName);
       RingtoneModel? customRingtone =
-          await IsarDb.getCustomRingtone(customRingtoneId: customRingtoneId);
+          await isar_db.IsarDb.getCustomRingtone(customRingtoneId: customRingtoneId);
 
       if (customRingtone != null) {
         int currentCounterOfUsage = customRingtone.currentCounterOfUsage;
 
         if (currentCounterOfUsage == 0) {
           customRingtoneNames.removeAt(ringtoneIndex);
-          await IsarDb.deleteCustomRingtone(ringtoneId: customRingtoneId);
+          await isar_db.IsarDb.deleteCustomRingtone(ringtoneId: customRingtoneId);
 
           final documentsDirectory = await getApplicationDocumentsDirectory();
           final ringtoneFilePath =
@@ -1346,18 +1571,17 @@ class AddOrUpdateAlarmController extends GetxController {
 
     if (homeController.isProfileUpdate.value) {
       var profileId =
-          await IsarDb.profileId(homeController.selectedProfile.value);
+          await isar_db.IsarDb.profileId(homeController.selectedProfile.value);
       print(profileId);
       if (profileId != 'null') profileModel.isarId = profileId;
       print(profileModel.isarId);
-      await IsarDb.updateAlarmProfiles(profileTextEditingController.text);
+      await isar_db.IsarDb.updateAlarmProfiles(profileTextEditingController.text);
     }
-    await IsarDb.addProfile(profileModel);
+    await isar_db.IsarDb.addProfile(profileModel);
     homeController.selectedProfile.value = profileModel.profileName;
     storage.writeProfile(profileModel.profileName);
     homeController.writeProfileName(profileModel.profileName);
   }
-}
 
   int orderedCountryCode(Country countryA, Country countryB) {
     // `??` for null safety of 'dialCode'
@@ -1366,3 +1590,91 @@ class AddOrUpdateAlarmController extends GetxController {
 
     return int.parse(dialCodeA).compareTo(int.parse(dialCodeB));
   }
+
+  deleteAlarm() async {
+    try {
+      if (alarmRecord.value.firestoreId != null &&
+          alarmRecord.value.firestoreId!.isNotEmpty) {
+        await FirestoreDb.deleteAlarm(
+            userModel.value, alarmRecord.value.firestoreId!);
+      } else {
+        await isar_db.IsarDb.deleteAlarm(alarmRecord.value.isarId);
+      }
+      
+      // Log the deletion
+      String details = "Alarm Deleted - ${alarmRecord.value.alarmTime}";
+      if (alarmRecord.value.label.isNotEmpty) {
+        details += " - ${alarmRecord.value.label}";
+      }
+      
+      debugPrint("Logging alarm deletion: $details");
+      
+      // Try both logging systems
+      try {
+        await isar_db.IsarDb().insertLog(
+          details,
+          status: isar_db.Status.success,
+          type: isar_db.LogType.normal,
+          hasRung: 0,
+          alarmID: alarmRecord.value.alarmID,
+        );
+        debugPrint("IsarDb log entry added for deletion");
+      } catch (isarLogError) {
+        debugPrint("Error adding deletion log to IsarDb: $isarLogError");
+      }
+      
+      try {
+        final standaloneProvider = StandaloneLogsProvider();
+        final standaloneLogResult = await standaloneProvider.insertLog(
+          details,
+          status: 'SUCCESS',
+          type: 'NORMAL',
+          hasRung: 0,
+          alarmID: alarmRecord.value.alarmID,
+        );
+        debugPrint("Standalone log entry added for deletion with result: $standaloneLogResult");
+      } catch (standaloneLogError) {
+        debugPrint("Error adding deletion log to standalone provider: $standaloneLogError");
+      }
+      
+      // Force refresh logs in debug controller if it exists
+      try {
+        final debugController = Get.find<DebugController>();
+        debugController.fetchLogs();
+        debugPrint("Refreshed logs in debug controller after deletion");
+      } catch (e) {
+        debugPrint("Debug controller not found or refresh failed after deletion: $e");
+      }
+      
+      Future.delayed(const Duration(seconds: 1), () {
+        Get.back();
+      });
+    } catch (e) {
+      debugPrint("Error deleting alarm: $e");
+      
+      // Log error using both methods
+      try {
+        await isar_db.IsarDb().insertLog(
+          "Error deleting alarm: $e",
+          status: isar_db.Status.error,
+          type: isar_db.LogType.normal,
+          alarmID: alarmRecord.value.alarmID,
+        );
+      } catch (logError) {
+        debugPrint("Error logging deletion error to IsarDb: $logError");
+      }
+      
+      try {
+        final standaloneProvider = StandaloneLogsProvider();
+        await standaloneProvider.insertLog(
+          "Error deleting alarm: $e",
+          status: 'ERROR',
+          type: 'NORMAL',
+          alarmID: alarmRecord.value.alarmID,
+        );
+      } catch (standaloneLogError) {
+        debugPrint("Error logging deletion error to standalone provider: $standaloneLogError");
+      }
+    }
+  }
+}

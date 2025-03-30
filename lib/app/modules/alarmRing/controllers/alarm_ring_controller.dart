@@ -184,6 +184,38 @@ class AlarmControlController extends GetxController {
       isPreviewMode.value = false;
     }
 
+    // Log the alarm details when it rings for better history view
+    if (!isPreviewMode.value) {
+      String details = "Alarm is ringing - Time: ${currentlyRingingAlarm.value.alarmTime}";
+      
+      // Add label info if available
+      if (currentlyRingingAlarm.value.label.isNotEmpty) {
+        details += ", Label: ${currentlyRingingAlarm.value.label}";
+      }
+      
+      // Add challenge info
+      List<String> enabledChallenges = [];
+      if (currentlyRingingAlarm.value.isMathsEnabled) enabledChallenges.add("Math");
+      if (currentlyRingingAlarm.value.isShakeEnabled) enabledChallenges.add("Shake");
+      if (currentlyRingingAlarm.value.isQrEnabled) enabledChallenges.add("QR");
+      if (currentlyRingingAlarm.value.isPedometerEnabled) enabledChallenges.add("Pedometer");
+      if (currentlyRingingAlarm.value.isLocationEnabled) enabledChallenges.add("Location");
+      if (currentlyRingingAlarm.value.isWeatherEnabled) enabledChallenges.add("Weather");
+      
+      if (enabledChallenges.isNotEmpty) {
+        details += ", Challenges: ${enabledChallenges.join(', ')}";
+      }
+      
+      // Log detailed alarm info to the database for history
+      await IsarDb().insertLog(
+        details,
+        status: Status.success,
+        type: LogType.normal,
+        hasRung: 1,
+        alarmID: currentlyRingingAlarm.value.alarmID,
+      );
+    }
+
     print('hwyooo ${currentlyRingingAlarm.value.isGuardian}');
     if (currentlyRingingAlarm.value.isGuardian) {
       guardianTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -199,8 +231,6 @@ class AlarmControlController extends GetxController {
         }
       });
     }
-
-
 
     showButton.value = true;
     initialVolume = await FlutterVolumeController.getVolume(
@@ -234,48 +264,6 @@ class AlarmControlController extends GetxController {
     });
 
     startTimer();
-    // if (Get.arguments == null) {
-    //   currentlyRingingAlarm.value = await getCurrentlyRingingAlarm();
-    //   showButton.value = true;
-    //   // If the alarm is set to NEVER repeat, then it will
-    //   // be chosen as the next alarm to ring by default as
-    //   // it would ring the next day
-    //   if (currentlyRingingAlarm.value.days
-    //       .every((element) => element == false)) {
-    //     currentlyRingingAlarm.value.isEnabled = false;
-    //
-    //     if (currentlyRingingAlarm.value.isSharedAlarmEnabled == false) {
-    //       IsarDb.updateAlarm(currentlyRingingAlarm.value);
-    //     } else {
-    //       FirestoreDb.updateAlarm(
-    //         currentlyRingingAlarm.value.ownerId,
-    //         currentlyRingingAlarm.value,
-    //       );
-    //     }
-    //   } else if (currentlyRingingAlarm.value.isOneTime == true) {
-    //     // If the alarm has to repeat on one day, but ring just once, we will
-    //     // keep seting its days to false until it will never ring
-    //     int currentDay = DateTime.now().weekday - 1;
-    //     currentlyRingingAlarm.value.days[currentDay] = false;
-    //
-    //     if (currentlyRingingAlarm.value.days
-    //         .every((element) => element == false)) {
-    //       currentlyRingingAlarm.value.isEnabled = false;
-    //     }
-    //
-    //     if (currentlyRingingAlarm.value.isSharedAlarmEnabled == false) {
-    //       IsarDb.updateAlarm(currentlyRingingAlarm.value);
-    //     } else {
-    //       FirestoreDb.updateAlarm(
-    //         currentlyRingingAlarm.value.ownerId,
-    //         currentlyRingingAlarm.value,
-    //       );
-    //     }
-    //   }
-    // } else {
-    //   currentlyRingingAlarm.value = Get.arguments;
-    //   showButton.value = true;
-    // }
 
     AudioUtils.playAlarm(alarmRecord: currentlyRingingAlarm.value);
 
