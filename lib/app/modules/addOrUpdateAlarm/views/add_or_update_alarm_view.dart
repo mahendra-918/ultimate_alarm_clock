@@ -26,6 +26,7 @@ import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/shake_to
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/shared_alarm_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/shared_users_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/snooze_duration_tile.dart';
+import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/timezone_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/weather_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/settings/controllers/settings_controller.dart';
 import 'package:ultimate_alarm_clock/app/modules/settings/controllers/theme_controller.dart';
@@ -896,6 +897,13 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                       ScreenActivityTile(
                                         controller: controller,
                                         themeController: themeController,
+                                      ),
+                                      Divider(
+                                        color: themeController
+                                            .primaryDisabledTextColor.value,
+                                      ),
+                                      TimezoneTile(
+                                        controller: controller,
                                       ),
                                       Divider(
                                         color: themeController

@@ -54,6 +54,11 @@ class ProfileModel {
   late int guardianTimer;
   late String guardian;
   late bool isCall;
+  // Timezone fields
+  late bool useLocalTimezone;
+  late String timezoneId;
+  late String timezoneName;
+  late bool showDualTime;
   @ignore
   Map? offsetDetails;
 
@@ -101,7 +106,11 @@ class ProfileModel {
       required this.isGuardian,
       required this.guardianTimer,
       required this.guardian,
-      required this.isCall});
+      required this.isCall,
+      this.useLocalTimezone = true,
+      this.timezoneId = 'device_local',
+      this.timezoneName = 'Device Local',
+      this.showDualTime = false});
 
   ProfileModel.fromDocumentSnapshot({
     required firestore.DocumentSnapshot documentSnapshot,
@@ -274,7 +283,11 @@ class ProfileModel {
       'guardianTimer': profileRecord.guardianTimer,
       'guardian': profileRecord.guardian,
       'isCall': profileRecord.isCall,
-      'ringOn': profileRecord.ringOn
+      'ringOn': profileRecord.ringOn,
+      'useLocalTimezone': profileRecord.useLocalTimezone,
+      'timezoneId': profileRecord.timezoneId,
+      'timezoneName': profileRecord.timezoneName,
+      'showDualTime': profileRecord.showDualTime
     };
 
     if (profileRecord.isSharedAlarmEnabled) {

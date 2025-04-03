@@ -59,6 +59,13 @@ class AlarmModel {
   late int guardianTimer;
   late String guardian;
   late bool isCall;
+  
+  // Timezone fields
+  late bool useLocalTimezone;
+  late String timezoneId;
+  late String timezoneName;
+  late bool showDualTime;
+  
   @ignore
   Map? offsetDetails;
 
@@ -109,7 +116,11 @@ class AlarmModel {
       required this.isGuardian,
       required this.guardianTimer,
       required this.guardian,
-      required this.isCall});
+      required this.isCall,
+      this.useLocalTimezone = true,
+      this.timezoneId = 'device_local',
+      this.timezoneName = 'Device Local',
+      this.showDualTime = false});
 
   AlarmModel.fromDocumentSnapshot({
     required firestore.DocumentSnapshot documentSnapshot,
@@ -179,6 +190,12 @@ class AlarmModel {
     guardianTimer = documentSnapshot['guardianTimer'];
     guardian = documentSnapshot['guardian'];
     isCall = documentSnapshot['isCall'];
+    
+    // Set the timezone fields with defaults if they don't exist
+    useLocalTimezone = documentSnapshot['useLocalTimezone'] ?? true;
+    timezoneId = documentSnapshot['timezoneId'] ?? 'device_local';
+    timezoneName = documentSnapshot['timezoneName'] ?? 'Device Local';
+    showDualTime = documentSnapshot['showDualTime'] ?? false;
   }
 
   AlarmModel fromMapSQFlite(Map<String, dynamic> map) {
@@ -231,6 +248,10 @@ class AlarmModel {
       guardian: map['guardian'],
       isCall: map['isCall'] == 1,
       ringOn: map['ringOn'] == 1,
+      useLocalTimezone: map['useLocalTimezone'] == 1,
+      timezoneId: map['timezoneId'],
+      timezoneName: map['timezoneName'],
+      showDualTime: map['showDualTime'] == 1,
     );
   }
 
@@ -283,6 +304,10 @@ class AlarmModel {
       'guardianTimer': guardianTimer,
       'guardian': guardian,
       'isCall': isCall ? 1 : 0,
+      'useLocalTimezone': useLocalTimezone ? 1 : 0,
+      'timezoneId': timezoneId,
+      'timezoneName': timezoneName,
+      'showDualTime': showDualTime ? 1 : 0,
     };
   }
 
@@ -395,7 +420,11 @@ class AlarmModel {
       'guardianTimer': alarmRecord.guardianTimer,
       'guardian': alarmRecord.guardian,
       'isCall': alarmRecord.isCall,
-      'ringOn': alarmRecord.ringOn
+      'ringOn': alarmRecord.ringOn,
+      'useLocalTimezone': alarmRecord.useLocalTimezone,
+      'timezoneId': alarmRecord.timezoneId,
+      'timezoneName': alarmRecord.timezoneName,
+      'showDualTime': alarmRecord.showDualTime
     };
 
     if (alarmRecord.isSharedAlarmEnabled) {

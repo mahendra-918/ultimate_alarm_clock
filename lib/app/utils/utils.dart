@@ -830,4 +830,46 @@ class Utils {
     final width = MediaQuery.of(context).size.width;
     return width < 360 ? 14 : 30;
   }
+
+  /// Calculates the local time equivalent for a time in a specific timezone
+  /// This is a simplified version - for a real implementation you would use a timezone library 
+  static String getLocalTimeForTimezone(String timeString, String timezoneId, String timezoneName) {
+    // Parse the time string
+    final timeParts = timeString.split(':');
+    final hour = int.parse(timeParts[0]);
+    final minute = int.parse(timeParts[1]);
+    
+    // In a real implementation, this would use a timezone library to convert the time
+    // This is a simplified example that uses hardcoded offsets for demonstration
+    Map<String, int> timezoneOffsets = {
+      'America/New_York': -5,     // EST
+      'America/Chicago': -6,      // CST
+      'America/Denver': -7,       // MST
+      'America/Los_Angeles': -8,  // PST
+      'Europe/London': 0,         // GMT
+      'Europe/Paris': 1,          // CET
+      'Asia/Tokyo': 9,            // JST
+      'Asia/Shanghai': 8,         // CST
+      'Asia/Kolkata': 5,          // IST
+      'Australia/Sydney': 10,     // AEST
+    };
+    
+    // Get the target timezone's offset (default to 0 if not found)
+    final targetOffset = timezoneOffsets[timezoneId] ?? 0;
+    
+    // Get the local timezone offset in hours (simplified)
+    final localOffset = DateTime.now().timeZoneOffset.inHours;
+    
+    // Calculate the time difference
+    final diff = localOffset - targetOffset;
+    
+    // Apply the difference to get local time
+    var localHour = (hour + diff) % 24;
+    if (localHour < 0) localHour += 24;
+    
+    // Format the local time
+    final localTimeOfDay = TimeOfDay(hour: localHour, minute: minute);
+    
+    return 'Local: ${timeOfDayToString(localTimeOfDay)}';
+  }
 }
