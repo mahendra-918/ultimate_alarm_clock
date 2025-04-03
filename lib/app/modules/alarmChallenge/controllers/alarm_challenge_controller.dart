@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:pedometer/pedometer.dart';
+// import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shake/shake.dart';
 import 'package:ultimate_alarm_clock/app/data/models/alarm_model.dart';
@@ -41,7 +41,7 @@ class AlarmChallengeController extends GetxController {
   int initialSteps = 0;
   bool shouldProcessStepCount = false;
 
-  late Stream<StepCount> _stepCountStream;
+  // late Stream<StepCount> _stepCountStream;
 
   void onButtonPressed(String buttonText) {
     displayValue.value += buttonText;
@@ -69,13 +69,11 @@ class AlarmChallengeController extends GetxController {
     mathsAnswer = mathsProblemDetails[1];
   }
 
-  void onStepCount(StepCount event) {
+  // Commented out due to pedometer dependency issues
+  void onStepCount(/* StepCount */ dynamic event) {
+    // Implementation disabled due to pedometer dependency issues
     if (shouldProcessStepCount) {
-      if (initialSteps == 0) {
-        initialSteps = event.steps;
-      } else {
-        stepsCount.value = event.steps - initialSteps;
-      }
+      // Functionality disabled
     }
   }
 
@@ -169,11 +167,12 @@ class AlarmChallengeController extends GetxController {
 
         shouldProcessStepCount = true;
 
-        _stepCountStream = Pedometer.stepCountStream;
+        // Pedometer functionality disabled
+        // _stepCountStream = Pedometer.stepCountStream;
 
         isPedometerOngoing.listen((value) {
           if (value == Status.ongoing) {
-            _stepCountStream.listen(onStepCount).onError(onStepCountError);
+            // _stepCountStream.listen(onStepCount).onError(onStepCountError);
           }
         });
 

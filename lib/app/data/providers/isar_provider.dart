@@ -8,6 +8,8 @@ import 'package:ultimate_alarm_clock/app/data/models/alarm_model.dart';
 import 'package:ultimate_alarm_clock/app/data/models/profile_model.dart';
 import 'package:ultimate_alarm_clock/app/data/models/ringtone_model.dart';
 import 'package:ultimate_alarm_clock/app/data/models/saved_emails.dart';
+import 'package:ultimate_alarm_clock/app/data/models/smart_home_action_model.dart';
+import 'package:ultimate_alarm_clock/app/data/models/smart_home_device_model.dart';
 import 'package:ultimate_alarm_clock/app/data/models/timer_model.dart';
 import 'package:ultimate_alarm_clock/app/data/providers/firestore_provider.dart';
 import 'package:ultimate_alarm_clock/app/data/providers/get_storage_provider.dart';
@@ -181,6 +183,8 @@ class IsarDb {
           TimerModelSchema,
           ProfileModelSchema,
           Saved_EmailsSchema,
+          SmartHomeDeviceModelSchema,
+          SmartHomeActionModelSchema,
         ],
         directory: dir.path,
         inspector: true,
@@ -771,6 +775,163 @@ class IsarDb {
           },
         ]);
       });
+    }
+  }
+  
+  // Smart Home Device methods
+  static Future<SmartHomeDeviceModel> addSmartHomeDevice(SmartHomeDeviceModel device) async {
+    try {
+      final isarProvider = IsarDb();
+      final db = await isarProvider.db;
+      
+      await db.writeTxn(() async {
+        await db.smartHomeDeviceModels.put(device);
+      });
+      
+      return device;
+    } catch (e) {
+      debugPrint('Error adding smart home device: $e');
+      rethrow;
+    }
+  }
+  
+  static Future<List<SmartHomeDeviceModel>> getSmartHomeDevices() async {
+    try {
+      final isarProvider = IsarDb();
+      final db = await isarProvider.db;
+      
+      return await db.smartHomeDeviceModels.where().findAll();
+    } catch (e) {
+      debugPrint('Error getting smart home devices: $e');
+      return [];
+    }
+  }
+  
+  static Future<SmartHomeDeviceModel?> getSmartHomeDevice(String deviceId) async {
+    try {
+      final isarProvider = IsarDb();
+      final db = await isarProvider.db;
+      
+      return await db.smartHomeDeviceModels
+          .where()
+          .filter()
+          .deviceIdEqualTo(deviceId)
+          .findFirst();
+    } catch (e) {
+      debugPrint('Error getting smart home device: $e');
+      return null;
+    }
+  }
+  
+  static Future<void> deleteSmartHomeDevice(String deviceId) async {
+    try {
+      final isarProvider = IsarDb();
+      final db = await isarProvider.db;
+      
+      final device = await getSmartHomeDevice(deviceId);
+      if (device != null) {
+        await db.writeTxn(() async {
+          await db.smartHomeDeviceModels.delete(device.id);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error deleting smart home device: $e');
+    }
+  }
+  
+  // Smart Home Action methods
+  static Future<SmartHomeActionModel> addSmartHomeAction(SmartHomeActionModel action) async {
+    try {
+      final isarProvider = IsarDb();
+      final db = await isarProvider.db;
+      
+      await db.writeTxn(() async {
+        await db.smartHomeActionModels.put(action);
+      });
+      
+      return action;
+    } catch (e) {
+      debugPrint('Error adding smart home action: $e');
+      rethrow;
+    }
+  }
+  
+  static Future<List<SmartHomeActionModel>> getSmartHomeActionsByAlarm(String alarmId) async {
+    try {
+      final isarProvider = IsarDb();
+      final db = await isarProvider.db;
+      
+      return await db.smartHomeActionModels
+          .where()
+          .filter()
+          .alarmIdEqualTo(alarmId)
+          .findAll();
+    } catch (e) {
+      debugPrint('Error getting smart home actions by alarm: $e');
+      return [];
+    }
+  }
+  
+  static Future<List<SmartHomeActionModel>> getSmartHomeActionsByDevice(String deviceId) async {
+    try {
+      final isarProvider = IsarDb();
+      final db = await isarProvider.db;
+      
+      return await db.smartHomeActionModels
+          .where()
+          .filter()
+          .deviceIdEqualTo(deviceId)
+          .findAll();
+    } catch (e) {
+      debugPrint('Error getting smart home actions by device: $e');
+      return [];
+    }
+  }
+  
+  static Future<void> deleteSmartHomeAction(int actionId) async {
+    try {
+      final isarProvider = IsarDb();
+      final db = await isarProvider.db;
+      
+      await db.writeTxn(() async {
+        await db.smartHomeActionModels.delete(actionId);
+      });
+    } catch (e) {
+      debugPrint('Error deleting smart home action: $e');
+    }
+  }
+  
+  static Future<void> deleteSmartHomeActionsByAlarm(String alarmId) async {
+    try {
+      final isarProvider = IsarDb();
+      final db = await isarProvider.db;
+      
+      final actions = await getSmartHomeActionsByAlarm(alarmId);
+      
+      await db.writeTxn(() async {
+        for (final action in actions) {
+          await db.smartHomeActionModels.delete(action.id);
+        }
+      });
+    } catch (e) {
+      debugPrint('Error deleting smart home actions by alarm: $e');
+    }
+  }
+  
+  static Future<void> deleteSmartHomeActionsByDevice(String deviceId) async {
+    try {
+      final isarProvider = IsarDb();
+      final db = await isarProvider.db;
+      
+      final actions = await getSmartHomeActionsByDevice(deviceId);
+      
+      await db.writeTxn(() async {
+        for (final action in actions) {
+          await db.smartHomeActionModels.delete(action.id);
+        }
+      });
+    } catch (e) {
+      debugPrint('Error deleting smart home actions by device: $e');
     }
   }
 }

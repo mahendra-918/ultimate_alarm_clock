@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart' as firestore;
 
 import 'package:isar/isar.dart';
+import 'package:ultimate_alarm_clock/app/data/models/smart_home_action_model.dart';
 import 'package:ultimate_alarm_clock/app/data/models/user_model.dart';
 import 'package:ultimate_alarm_clock/app/utils/utils.dart';
 
@@ -59,6 +60,10 @@ class AlarmModel {
   late int guardianTimer;
   late String guardian;
   late bool isCall;
+  // Smart home integration fields
+  late bool isSmartHomeEnabled;
+  @ignore
+  List<String>? smartHomeActionIds; // IDs of associated smart home actions
   @ignore
   Map? offsetDetails;
 
@@ -109,7 +114,9 @@ class AlarmModel {
       required this.isGuardian,
       required this.guardianTimer,
       required this.guardian,
-      required this.isCall});
+      required this.isCall,
+      this.isSmartHomeEnabled = false,
+      this.smartHomeActionIds});
 
   AlarmModel.fromDocumentSnapshot({
     required firestore.DocumentSnapshot documentSnapshot,
@@ -338,6 +345,10 @@ class AlarmModel {
     guardian = alarmData['guardian'];
     isCall = alarmData['isCall'];
     ringOn = alarmData['ringOn'];
+    isSmartHomeEnabled = alarmData['isSmartHomeEnabled'] ?? false;
+    smartHomeActionIds = alarmData['smartHomeActionIds'] != null
+        ? List<String>.from(alarmData['smartHomeActionIds'])
+        : null;
   }
 
   AlarmModel.fromJson(String alarmData, UserModel? user) {
@@ -395,7 +406,9 @@ class AlarmModel {
       'guardianTimer': alarmRecord.guardianTimer,
       'guardian': alarmRecord.guardian,
       'isCall': alarmRecord.isCall,
-      'ringOn': alarmRecord.ringOn
+      'ringOn': alarmRecord.ringOn,
+      'isSmartHomeEnabled': alarmRecord.isSmartHomeEnabled,
+      'smartHomeActionIds': alarmRecord.smartHomeActionIds
     };
 
     if (alarmRecord.isSharedAlarmEnabled) {

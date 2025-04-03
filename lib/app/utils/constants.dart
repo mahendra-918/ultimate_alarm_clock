@@ -23,7 +23,7 @@ const Color ksecondaryColor = Color(0xffB8E9C4);
 const Color kprimaryBackgroundColor = Color(0xff16171c);
 const Color ksecondaryBackgroundColor = Color(0xff1c1f26);
 const Color kprimaryTextColor = Colors.white;
-const Color ksecondaryTextColor = Colors.black;
+const Color ksecondaryTextColor = Color(0xffACACAC);
 const Color kprimaryDisabledTextColor = Color(0xff595f6b);
 
 // Light Theme Color Palette
