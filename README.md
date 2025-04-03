@@ -35,7 +35,7 @@ Issue: [#562](https://github.com/CCExtractor/ultimate_alarm_clock/issues/562), P
 
 ### 3) Profile Switcher and Alarm/Profile Sharing
 
-Effortlessly manage and share custom alarm profiles for different days and occasions, ensuring only the active profile’s alarms are prioritized. Alarms and profiles can now be shared with other users using their emails. In-app notifications for received alarms and profiles with the option to either accept or reject them.
+Effortlessly manage and share custom alarm profiles for different days and occasions, ensuring only the active profile's alarms are prioritized. Alarms and profiles can now be shared with other users using their emails. In-app notifications for received alarms and profiles with the option to either accept or reject them.
 Issue: [#591](https://github.com/CCExtractor/ultimate_alarm_clock/issues/591), Pull-Request: [#584](https://github.com/CCExtractor/ultimate_alarm_clock/pull/584)
 
 ### 4) Google Calendar Integration and Date-based Scheduling
@@ -50,7 +50,7 @@ Issue: [#592](https://github.com/CCExtractor/ultimate_alarm_clock/issues/592), P
 
 ### 6) Anti-disturbance
 
-Automatically dismiss alarms if the user’s screen is on for more than X minutes, indicating they are busy and don’t need the alarm.”
+Automatically dismiss alarms if the user's screen is on for more than X minutes, indicating they are busy and don't need the alarm."
 Issue: [#572](https://github.com/CCExtractor/ultimate_alarm_clock/issues/572), Pull-Request: [#574](https://github.com/CCExtractor/ultimate_alarm_clock/pull/574)
 
 ### 7) Open-meteo integration and weather fetch logic shift to Kotlin, Location access notification
@@ -65,10 +65,18 @@ Issue: [#564](https://github.com/CCExtractor/ultimate_alarm_clock/issues/564), P
 
 ### 9) Ringtones
 
-“Added 5 new royalty-free ringtones and fixed related bugs, including erratic ringtone preview behaviour.”
+"Added 5 new royalty-free ringtones and fixed related bugs, including erratic ringtone preview behaviour."
 Issue: [#595](https://github.com/CCExtractor/ultimate_alarm_clock/issues/595), Pull-Request: [#596](https://github.com/CCExtractor/ultimate_alarm_clock/pull/596)
 
-### 10) UI and bug fixes
+### 10) Sunrise Alarm
+
+The Sunrise Alarm feature gradually brightens your screen before the alarm goes off, mimicking a natural sunrise to wake you up gently. Set a duration of up to 60 minutes for the screen to gradually brighten before your alarm sounds, and choose from various ambient sounds like forest, ocean, rain, or white noise to accompany the visual effect for a more natural waking experience.
+This feature is perfect for:
+- Light sleepers who prefer gentle awakening
+- Creating a more natural morning routine
+- Reducing morning grogginess by aligning with your body's circadian rhythm
+
+### 11) UI and bug fixes
 
 - Fixed Scheduling logic for weekday scheduling.
 - Fixed Several Controller errors throughout different PRs.

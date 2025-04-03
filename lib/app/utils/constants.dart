@@ -16,6 +16,16 @@ enum WeatherKeyState { add, update, saveAdded, saveUpdated }
 
 enum CounterUpdate { increment, decrement }
 
+// Ambient sound types for sunrise alarm
+const List<String> ambientSoundTypes = [
+  'None',
+  'Birds Chirping',
+  'Gentle Waves',
+  'Forest Ambience',
+  'Light Rain',
+  'Wind Chimes'
+];
+
 const Color kprimaryColor = Color(0xffAFFC41);
 
 // Dark Theme Color Palette

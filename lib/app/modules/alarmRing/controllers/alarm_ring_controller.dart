@@ -19,6 +19,7 @@ import 'package:ultimate_alarm_clock/app/data/providers/isar_provider.dart';
 import 'package:ultimate_alarm_clock/app/data/providers/secure_storage_provider.dart';
 import 'package:ultimate_alarm_clock/app/modules/settings/controllers/settings_controller.dart';
 import 'package:ultimate_alarm_clock/app/modules/settings/controllers/theme_controller.dart';
+import 'package:ultimate_alarm_clock/app/services/sunrise_alarm_service.dart';
 import 'package:ultimate_alarm_clock/app/utils/audio_utils.dart';
 import 'package:ultimate_alarm_clock/app/utils/constants.dart';
 
@@ -314,6 +315,14 @@ class AlarmControlController extends GetxController {
       snoozeDisabled.value = true;
     }
 
+    // Start sunrise alarm if enabled
+    if (currentlyRingingAlarm.value.isSunriseEnabled && !isPreviewMode.value) {
+      await SunriseAlarmService.instance.startSunrise(
+        durationMinutes: currentlyRingingAlarm.value.sunriseDuration,
+        ambientSoundType: currentlyRingingAlarm.value.ambientSoundType,
+      );
+    }
+
     print('hwyooo ${currentlyRingingAlarm.value.isGuardian}');
     if (currentlyRingingAlarm.value.isGuardian) {
       guardianTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -397,6 +406,12 @@ class AlarmControlController extends GetxController {
     isAlarmActive = false;
     String ringtoneName = currentlyRingingAlarm.value.ringtoneName;
     AudioUtils.stopAlarm(ringtoneName: ringtoneName);
+    
+    // Stop the sunrise alarm if it's active
+    if (currentlyRingingAlarm.value.isSunriseEnabled) {
+      await SunriseAlarmService.instance.stopSunrise();
+    }
+    
     await FlutterVolumeController.setVolume(
       initialVolume,
       stream: AudioStream.alarm,

@@ -70,6 +70,10 @@ class AlarmModel {
   late bool smartSnoozeEnabled;
   late int smartSnoozeDecrement;
   late int minSmartSnoozeDuration;
+  // Sunrise alarm fields
+  late bool isSunriseEnabled;
+  late int sunriseDuration;
+  late String ambientSoundType;
   @ignore
   List<Map<String, dynamic>> snoozeHistory = [];
   @ignore
@@ -132,6 +136,9 @@ class AlarmModel {
       this.smartSnoozeEnabled = false,
       this.smartSnoozeDecrement = 1,
       this.minSmartSnoozeDuration = 1,
+      this.isSunriseEnabled = false,
+      this.sunriseDuration = 10,
+      this.ambientSoundType = 'None',
       this.snoozeHistory = const []});
 
   AlarmModel.fromDocumentSnapshot({
@@ -216,6 +223,11 @@ class AlarmModel {
     smartSnoozeDecrement = documentSnapshot['smartSnoozeDecrement'] ?? 1;
     minSmartSnoozeDuration = documentSnapshot['minSmartSnoozeDuration'] ?? 1;
     
+    // Set the sunrise alarm fields with defaults if they don't exist
+    isSunriseEnabled = documentSnapshot['isSunriseEnabled'] ?? false;
+    sunriseDuration = documentSnapshot['sunriseDuration'] ?? 10;
+    ambientSoundType = documentSnapshot['ambientSoundType'] ?? 'None';
+    
     // Parse snooze history if it exists
     if (documentSnapshot['snoozeHistory'] != null) {
       snoozeHistory = List<Map<String, dynamic>>.from(documentSnapshot['snoozeHistory']);
@@ -272,6 +284,14 @@ class AlarmModel {
       guardian: map['guardian'],
       isCall: map['isCall'] == 1,
       ringOn: map['ringOn'] == 1,
+      maxSnoozeCount: map['maxSnoozeCount'] ?? 0,
+      currentSnoozeCount: map['currentSnoozeCount'] ?? 0,
+      smartSnoozeEnabled: map['smartSnoozeEnabled'] == 1,
+      smartSnoozeDecrement: map['smartSnoozeDecrement'] ?? 1,
+      minSmartSnoozeDuration: map['minSmartSnoozeDuration'] ?? 1,
+      isSunriseEnabled: map['isSunriseEnabled'] == 1,
+      sunriseDuration: map['sunriseDuration'] ?? 10,
+      ambientSoundType: map['ambientSoundType'] ?? 'None',
     );
   }
 
@@ -333,6 +353,9 @@ class AlarmModel {
       'smartSnoozeEnabled': smartSnoozeEnabled ? 1 : 0,
       'smartSnoozeDecrement': smartSnoozeDecrement,
       'minSmartSnoozeDuration': minSmartSnoozeDuration,
+      'isSunriseEnabled': isSunriseEnabled ? 1 : 0,
+      'sunriseDuration': sunriseDuration,
+      'ambientSoundType': ambientSoundType,
       'snoozeHistory': snoozeHistory
     };
   }
@@ -388,6 +411,18 @@ class AlarmModel {
     guardianTimer = alarmData['guardianTimer'];
     guardian = alarmData['guardian'];
     isCall = alarmData['isCall'];
+    
+    // Enhanced snooze fields with defaults if they don't exist
+    maxSnoozeCount = alarmData['maxSnoozeCount'] ?? 0;
+    currentSnoozeCount = alarmData['currentSnoozeCount'] ?? 0;
+    smartSnoozeEnabled = alarmData['smartSnoozeEnabled'] ?? false;
+    smartSnoozeDecrement = alarmData['smartSnoozeDecrement'] ?? 1;
+    minSmartSnoozeDuration = alarmData['minSmartSnoozeDuration'] ?? 1;
+    
+    // Sunrise alarm fields with defaults if they don't exist
+    isSunriseEnabled = alarmData['isSunriseEnabled'] ?? false;
+    sunriseDuration = alarmData['sunriseDuration'] ?? 10;
+    ambientSoundType = alarmData['ambientSoundType'] ?? 'None';
   }
 
   AlarmModel.fromJson(String alarmData, UserModel? user) {
@@ -455,6 +490,9 @@ class AlarmModel {
       'smartSnoozeEnabled': alarmRecord.smartSnoozeEnabled ? 1 : 0,
       'smartSnoozeDecrement': alarmRecord.smartSnoozeDecrement,
       'minSmartSnoozeDuration': alarmRecord.minSmartSnoozeDuration,
+      'isSunriseEnabled': alarmRecord.isSunriseEnabled ? 1 : 0,
+      'sunriseDuration': alarmRecord.sunriseDuration,
+      'ambientSoundType': alarmRecord.ambientSoundType,
       'snoozeHistory': alarmRecord.snoozeHistory
     };
 

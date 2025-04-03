@@ -37,6 +37,8 @@ dependencies:
   vibration: ^1.8.1
   file_picker: ^6.1.1
   audioplayers: ^5.2.1
+  just_audio: ^0.9.44
+  flutter_overlay_window: ^0.4.5
   sensors_plus: ^1.4.1
   rxdart: ^0.27.7
   flutter:
@@ -101,3 +103,4 @@ flutter:
   assets:
     - assets/images/
     - assets/ringtones/
+    - assets/sounds/

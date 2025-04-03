@@ -19,6 +19,7 @@ import 'package:ultimate_alarm_clock/app/data/providers/secure_storage_provider.
 import 'package:ultimate_alarm_clock/app/data/models/ringtone_model.dart';
 import 'package:ultimate_alarm_clock/app/modules/home/controllers/home_controller.dart';
 import 'package:ultimate_alarm_clock/app/modules/settings/controllers/theme_controller.dart';
+import 'package:ultimate_alarm_clock/app/services/sunrise_alarm_service.dart';
 import 'package:ultimate_alarm_clock/app/utils/audio_utils.dart';
 import 'package:ultimate_alarm_clock/app/utils/utils.dart';
 import 'package:ultimate_alarm_clock/app/utils/constants.dart';
@@ -116,6 +117,11 @@ class AddOrUpdateAlarmController extends GetxController {
 
   final RxInt hours = 0.obs, minutes = 0.obs, meridiemIndex = 0.obs;
   final List<RxString> meridiem = ['AM'.obs, 'PM'.obs];
+
+  // Sunrise alarm properties
+  final RxBool isSunriseEnabled = false.obs;
+  final RxInt sunriseDuration = 10.obs; // in minutes
+  final RxString ambientSoundType = 'None'.obs;
 
   Future<List<UserModel?>> fetchUserDetailsForSharedUsers() async {
     List<UserModel?> userDetails = [];
@@ -1023,77 +1029,88 @@ class AddOrUpdateAlarmController extends GetxController {
   }
 
   AlarmModel updatedAlarmModel() {
-    String ownerId = '';
-    String ownerName = '';
-
-    // if alarmRecord is null or alarmRecord.ownerId is null,
-    // then assign the current logged-in user as the owner.
-
-    if (alarmRecord.value.ownerId.isEmpty) {
-      ownerId = userId.value;
-      ownerName = userName.value;
-    } else {
-      ownerId = alarmRecord.value.ownerId;
-      ownerName = alarmRecord.value.ownerName;
-    }
-    return AlarmModel(
-      snoozeDuration: snoozeDuration.value,
-      maxSnoozeCount: maxSnoozeCount.value,
-      smartSnoozeEnabled: smartSnoozeEnabled.value,
-      smartSnoozeDecrement: smartSnoozeDecrement.value,
-      minSmartSnoozeDuration: minSmartSnoozeDuration.value,
-      volMax: volMax.value,
-      volMin: volMin.value,
-      gradient: gradient.value,
+    AlarmModel alarmRecord = AlarmModel(
+      alarmTime: Utils.timeOfDayToString(
+        TimeOfDay.fromDateTime(
+          selectedTime.value,
+        ),
+      ),
+      alarmID: this.alarmRecord.value.alarmID,
+      lastEditedUserId: this.alarmRecord.value.lastEditedUserId,
+      mutexLock: this.alarmRecord.value.mutexLock,
+      ownerName: this.alarmRecord.value.ownerName,
+      ownerId: this.alarmRecord.value.ownerId,
+      useLocalTimezone: true,
+      timezoneId: 'device_local',
+      timezoneName: 'Device Local',
+      sharedUserIds: this.alarmRecord.value.sharedUserIds,
+      offsetDetails: this.alarmRecord.value.offsetDetails,
+      minutesSinceMidnight: Utils.timeOfDayToInt(TimeOfDay.fromDateTime(
+        selectedTime.value,
+      )),
       label: label.value,
-      isOneTime: isOneTime.value,
-      deleteAfterGoesOff: deleteAfterGoesOff.value,
-      mainAlarmTime:
-          Utils.timeOfDayToString(TimeOfDay.fromDateTime(selectedTime.value)),
-      offsetDetails: offsetDetails,
-      sharedUserIds: sharedUserIds,
-      lastEditedUserId: lastEditedUserId.value,
-      mutexLock: mutexLock.value,
-      alarmID: alarmID,
-      ownerId: ownerId,
-      ownerName: ownerName,
-      activityInterval: activityInterval.value * 60000,
-      days: repeatDays.toList(),
-      alarmTime:
-          Utils.timeOfDayToString(TimeOfDay.fromDateTime(selectedTime.value)),
-      intervalToAlarm:
-          Utils.getMillisecondsToAlarm(DateTime.now(), selectedTime.value),
-      isActivityEnabled: isActivityenabled.value,
-      minutesSinceMidnight:
-          Utils.timeOfDayToInt(TimeOfDay.fromDateTime(selectedTime.value)),
+      intervalToAlarm: Utils.getMillisecondsToAlarm(
+        DateTime.now(),
+        selectedTime.value,
+      ),
+      
+      isMathsEnabled: isMathsEnabled.value,
+      mathsDifficulty: mathsDifficulty.value.index,
+      numMathsQuestions: numMathsQuestions.value,
+      
       isLocationEnabled: isLocationEnabled.value,
-      weatherTypes: Utils.getIntFromWeatherTypes(selectedWeather.toList()),
       isWeatherEnabled: isWeatherEnabled.value,
+      weatherTypes: Utils.getIntFromWeatherTypes(selectedWeather.toList()),
+      isSharedAlarmEnabled: isSharedAlarmEnabled.value,
       location: Utils.geoPointToString(
         Utils.latLngToGeoPoint(selectedPoint.value),
       ),
-      isSharedAlarmEnabled: isSharedAlarmEnabled.value,
+      
+      days: repeatDays.toList(),
+      isEnabled: true,
+      
+      isActivityEnabled: isActivityenabled.value,
       isQrEnabled: isQrEnabled.value,
       qrValue: qrValue.value,
-      isMathsEnabled: isMathsEnabled.value,
-      numMathsQuestions: numMathsQuestions.value,
-      mathsDifficulty: mathsDifficulty.value.index,
+      activityInterval: activityInterval.value * 60000,
+      
       isShakeEnabled: isShakeEnabled.value,
       shakeTimes: shakeTimes.value,
       isPedometerEnabled: isPedometerEnabled.value,
       numberOfSteps: numberOfSteps.value,
+      isOneTime: isOneTime.value,
+      snoozeDuration: snoozeDuration.value,
+      maxSnoozeCount: maxSnoozeCount.value,
+      currentSnoozeCount: 0,
+      smartSnoozeEnabled: smartSnoozeEnabled.value,
+      smartSnoozeDecrement: smartSnoozeDecrement.value,
+      minSmartSnoozeDuration: minSmartSnoozeDuration.value,
+      isSunriseEnabled: isSunriseEnabled.value,
+      sunriseDuration: sunriseDuration.value,
+      ambientSoundType: ambientSoundType.value,
       ringtoneName: customRingtoneName.value,
       note: note.value,
+      deleteAfterGoesOff: deleteAfterGoesOff.value,
       showMotivationalQuote: showMotivationalQuote.value,
-      activityMonitor: isActivityMonitorenabled.value,
+      volMin: volMin.value,
+      volMax: volMax.value,
       alarmDate: selectedDate.value.toString().substring(0, 11),
+      activityMonitor: isActivityMonitorenabled.value,
       profile: homeController.selectedProfile.value,
       isGuardian: isGuardian.value,
+      guardian: contactTextEditingController.text,
       guardianTimer: guardianTimer.value,
-      guardian: guardian.value,
       isCall: isCall.value,
+      mainAlarmTime: Utils.timeOfDayToString(
+        TimeOfDay.fromDateTime(
+          selectedTime.value,
+        ),
+      ),
+      gradient: gradient.value,
       ringOn: isFutureDate.value,
     );
+
+    return alarmRecord;
   }
 
   Future<FilePickerResult?> openFilePicker() async {
@@ -1426,7 +1443,6 @@ class AddOrUpdateAlarmController extends GetxController {
       );
     }
   }
-}
 
   int orderedCountryCode(Country countryA, Country countryB) {
     // `??` for null safety of 'dialCode'
@@ -1435,3 +1451,35 @@ class AddOrUpdateAlarmController extends GetxController {
 
     return int.parse(dialCodeA).compareTo(int.parse(dialCodeB));
   }
+
+  // Method to preview ambient sound
+  void previewAmbientSound() {
+    if (ambientSoundType.value != 'None') {
+      SunriseAlarmService.instance.previewAmbientSound(ambientSoundType.value);
+    }
+  }
+
+  // Method to stop sound preview
+  void stopAmbientSoundPreview() {
+    SunriseAlarmService.instance.stopSunrise();
+  }
+
+  // Method to increment sunrise duration
+  void incrementSunriseDuration() {
+    if (sunriseDuration.value < 60) {
+      sunriseDuration.value += 5;
+    }
+  }
+
+  // Method to decrement sunrise duration
+  void decrementSunriseDuration() {
+    if (sunriseDuration.value > 5) {
+      sunriseDuration.value -= 5;
+    }
+  }
+
+  // List of available ambient sound types
+  List<String> getAmbientSoundTypes() {
+    return ['None', 'Forest', 'Ocean', 'Rain', 'White Noise'];
+  }
+}
