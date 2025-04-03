@@ -26,6 +26,8 @@ class SettingsController extends GetxController {
   final _flipToSnooze = 'flip_to_snooze';
   var isSortedAlarmListEnabled = true.obs;
   final _sortedAlarmListKey = 'sorted_alarm_list';
+  var isGoogleAssistantEnabled = true.obs;
+  final _googleAssistantKey = 'google_assistant';
   var currentLanguage = 'en_US'.obs;
   final _secureStorageProvider = SecureStorageProvider();
   final apiKey = TextEditingController();
@@ -173,6 +175,10 @@ class SettingsController extends GetxController {
 
     isSortedAlarmListEnabled.value = await _secureStorageProvider
         .readSortedAlarmListValue(key: _sortedAlarmListKey);
+        
+    // Load Google Assistant preference (default to true if not set)
+    isGoogleAssistantEnabled.value = await _secureStorageProvider
+        .readHapticFeedbackValue(key: _googleAssistantKey);
 
     currentLanguage.value = await storage.readCurrentLanguage();
 
@@ -246,6 +252,18 @@ class SettingsController extends GetxController {
     isSortedAlarmListEnabled.value = enabled;
     homeController.isSortedAlarmListEnabled.value = enabled;
     _saveSortedAlarmListPreference();
+  }
+  
+  void _saveGoogleAssistantPreference() async {
+    await _secureStorageProvider.writeHapticFeedbackValue(
+      key: _googleAssistantKey,
+      isHapticFeedbackEnabled: isGoogleAssistantEnabled.value,
+    );
+  }
+  
+  void toggleGoogleAssistant(bool enabled) {
+    isGoogleAssistantEnabled.value = enabled;
+    _saveGoogleAssistantPreference();
   }
 
   void updateLocale(String key) {

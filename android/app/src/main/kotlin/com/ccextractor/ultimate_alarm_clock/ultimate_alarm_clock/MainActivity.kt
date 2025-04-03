@@ -26,6 +26,7 @@ class MainActivity : FlutterActivity() {
     companion object {
         const val CHANNEL1 = "ulticlock"
         const val CHANNEL2 = "timer"
+        const val CHANNEL_GOOGLE_ASSISTANT = "google_assistant"
         const val ACTION_START_FLUTTER_APP = "com.ccextractor.ultimate_alarm_clock"
         const val EXTRA_KEY = "alarmRing"
         const val ALARM_TYPE = "isAlarm"
@@ -40,6 +41,17 @@ class MainActivity : FlutterActivity() {
         intentFilter.addAction("com.ccextractor.ultimate_alarm_clock.START_TIMERNOTIF")
         intentFilter.addAction("com.ccextractor.ultimate_alarm_clock.STOP_TIMERNOTIF")
         context.registerReceiver(TimerNotification(), intentFilter, Context.RECEIVER_EXPORTED)
+        
+        // Handle intent if the app was launched from Google Assistant
+        handleGoogleAssistantIntent(intent)
+    }
+    
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        
+        // Handle intent if the app was launched from Google Assistant
+        handleGoogleAssistantIntent(intent)
     }
 
 
@@ -48,6 +60,7 @@ class MainActivity : FlutterActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON)
         var methodChannel1 = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL1)
         var methodChannel2 = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL2)
+        var googleAssistantChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL_GOOGLE_ASSISTANT)
 
         val intent = intent
 
@@ -292,6 +305,20 @@ class MainActivity : FlutterActivity() {
         val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS)
         intent.data = Uri.parse("package:${packageName}")
         startActivity(intent)
+    }
+    
+    /**
+     * Handle intent from Google Assistant
+     */
+    private fun handleGoogleAssistantIntent(intent: Intent?) {
+        if (intent == null) return
+        
+        // Get the method channel for Google Assistant
+        val flutterEngine = flutterEngine ?: return
+        val googleAssistantChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL_GOOGLE_ASSISTANT)
+        
+        // Process the intent with GoogleAssistantHandler
+        GoogleAssistantHandler.handleIntent(intent, googleAssistantChannel)
     }
 
 }

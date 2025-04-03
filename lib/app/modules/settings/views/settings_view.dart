@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:ultimate_alarm_clock/app/modules/settings/views/customize_undo_duration.dart';
 import 'package:ultimate_alarm_clock/app/modules/settings/views/enable_24Hour_format.dart';
 import 'package:ultimate_alarm_clock/app/modules/settings/views/enable_flip_to_snooze.dart';
+import 'package:ultimate_alarm_clock/app/modules/settings/views/enable_google_assistant.dart';
 import 'package:ultimate_alarm_clock/app/modules/settings/views/enable_haptic_feedback.dart';
 import 'package:ultimate_alarm_clock/app/modules/settings/views/enable_sorted_alarm_list.dart';
 import 'package:ultimate_alarm_clock/app/modules/settings/views/language_menu.dart';
@@ -113,6 +114,15 @@ class SettingsView extends GetView<SettingsController> {
                   height: 20,
                 ),
                 LanguageMenu(
+                  controller: controller,
+                  height: height,
+                  width: width,
+                  themeController: controller.themeController,
+                ),
+                const SizedBox(
+                  height: 20,
+                ),
+                EnableGoogleAssistant(
                   controller: controller,
                   height: height,
                   width: width,

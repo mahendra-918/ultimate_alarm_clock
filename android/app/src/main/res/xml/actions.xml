@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<actions>
+    <action intentName="actions.intent.CREATE_ALARM">
+        <parameter name="alarm.time" type="Time" />
+        <parameter name="alarm.label" type="String" />
+        <parameter name="alarm.recurrence" type="Recurrence" />
+        <fulfillment urlTemplate="ultimate-alarm-clock://create_alarm{?time,label,recurrence}">
+            <parameter-mapping intentParameter="alarm.time" urlParameter="time" />
+            <parameter-mapping intentParameter="alarm.label" urlParameter="label" />
+            <parameter-mapping intentParameter="alarm.recurrence" urlParameter="recurrence" />
+        </fulfillment>
+    </action>
+    <action intentName="actions.intent.CANCEL_ALARM">
+        <parameter name="alarm.label" type="String" />
+        <fulfillment urlTemplate="ultimate-alarm-clock://cancel_alarm{?label}">
+            <parameter-mapping intentParameter="alarm.label" urlParameter="label" />
+        </fulfillment>
+    </action>
+    <action intentName="actions.intent.ENABLE_ALARM">
+        <parameter name="alarm.label" type="String" />
+        <fulfillment urlTemplate="ultimate-alarm-clock://enable_alarm{?label}">
+            <parameter-mapping intentParameter="alarm.label" urlParameter="label" />
+        </fulfillment>
+    </action>
+    <action intentName="actions.intent.DISABLE_ALARM">
+        <parameter name="alarm.label" type="String" />
+        <fulfillment urlTemplate="ultimate-alarm-clock://disable_alarm{?label}">
+            <parameter-mapping intentParameter="alarm.label" urlParameter="label" />
+        </fulfillment>
+    </action>
+</actions>
