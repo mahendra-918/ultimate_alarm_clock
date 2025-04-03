@@ -14,6 +14,7 @@ import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/delete_t
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/label_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/location_activity_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/maths_challenge_tile.dart';
+import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/merged_snooze_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/note.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/pedometer_challenge_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/qr_bar_code_tile.dart';
@@ -25,8 +26,6 @@ import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/setting_
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/shake_to_dismiss_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/shared_alarm_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/shared_users_tile.dart';
-import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/snooze_duration_tile.dart';
-import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/timezone_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/weather_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/settings/controllers/settings_controller.dart';
 import 'package:ultimate_alarm_clock/app/modules/settings/controllers/theme_controller.dart';
@@ -830,7 +829,7 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                               )
                                             : const SizedBox(),
                                       ),
-                                      SnoozeDurationTile(
+                                      MergedSnoozeTile(
                                         controller: controller,
                                         themeController: themeController,
                                       ),
@@ -897,13 +896,6 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                       ScreenActivityTile(
                                         controller: controller,
                                         themeController: themeController,
-                                      ),
-                                      Divider(
-                                        color: themeController
-                                            .primaryDisabledTextColor.value,
-                                      ),
-                                      TimezoneTile(
-                                        controller: controller,
                                       ),
                                       Divider(
                                         color: themeController

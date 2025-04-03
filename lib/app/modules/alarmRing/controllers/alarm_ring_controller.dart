@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -33,9 +34,9 @@ class AlarmControlController extends GetxController {
   Timer? vibrationTimer;
   late StreamSubscription<FGBGType> _subscription;
   TimeOfDay currentTime = TimeOfDay.now();
-  late RxBool isSnoozing = false.obs;
-  RxInt minutes = 1.obs;
-  RxInt seconds = 0.obs;
+  final RxBool isSnoozing = false.obs;
+  final RxInt minutes = 1.obs;
+  final RxInt seconds = 0.obs;
   RxBool showButton = false.obs;
   StreamSubscription? _sensorSubscription;
   HomeController homeController = Get.find<HomeController>();
@@ -43,16 +44,18 @@ class AlarmControlController extends GetxController {
   SettingsController settingsController = Get.find<SettingsController>();
   RxBool get is24HourFormat => settingsController.is24HrsEnabled;
   Rx<AlarmModel> currentlyRingingAlarm = Utils.alarmModelInit.obs;
-  final formattedDate = Utils.getFormattedDate(DateTime.now()).obs;
-  final timeNow =
-      Utils.convertTo12HourFormat(Utils.timeOfDayToString(TimeOfDay.now())).obs;
-  final timeNow24Hr = Utils.timeOfDayToString(TimeOfDay.now()).obs;
+  final RxString formattedDate = ''.obs;
+  final RxString timeNow = ''.obs;
+  final RxString timeNow24Hr = ''.obs;
   Timer? _currentTimeTimer;
   bool isAlarmActive = true;
   late double initialVolume;
   late Timer guardianTimer;
-  RxInt guardianCoundown = 120.obs;
-  RxBool isPreviewMode = false.obs;
+  final RxInt guardianCoundown = 0.obs;
+  final RxBool isPreviewMode = false.obs;
+  final RxInt currentSnoozeCount = 0.obs;
+  final RxInt nextSnoozeDuration = 0.obs;
+  final RxBool snoozeDisabled = false.obs;
 
   getNextAlarm() async {
     UserModel? _userModel = await SecureStorageProvider().retrieveUserModel();
@@ -83,6 +86,40 @@ class AlarmControlController extends GetxController {
       _currentTimeTimer?.cancel();
     }
 
+    if (currentlyRingingAlarm.value.maxSnoozeCount > 0 && 
+        currentSnoozeCount.value >= currentlyRingingAlarm.value.maxSnoozeCount) {
+      Get.snackbar(
+        'Maximum Snooze Reached',
+        'You\'ve reached the maximum number of snoozes for this alarm',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 3),
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    currentSnoozeCount.value++;
+    
+    currentlyRingingAlarm.value.currentSnoozeCount = currentSnoozeCount.value;
+    
+    var snoozeEvent = {
+      'timestamp': DateTime.now().toIso8601String(),
+      'duration': minutes.value,
+    };
+    currentlyRingingAlarm.value.snoozeHistory.add(snoozeEvent);
+    
+    if (!isPreviewMode.value) {
+      if (currentlyRingingAlarm.value.isSharedAlarmEnabled) {
+        await FirestoreDb.updateAlarm(
+          currentlyRingingAlarm.value.ownerId,
+          currentlyRingingAlarm.value,
+        );
+      } else {
+        await IsarDb.updateAlarm(currentlyRingingAlarm.value);
+      }
+    }
+    
     _currentTimeTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (minutes.value == 0 && seconds.value == 0) {
         timer.cancel();
@@ -103,8 +140,29 @@ class AlarmControlController extends GetxController {
     });
   }
 
+  int calculateNextSnoozeDuration() {
+    if (!currentlyRingingAlarm.value.smartSnoozeEnabled) {
+      return currentlyRingingAlarm.value.snoozeDuration;
+    }
+    
+    int decrementedDuration = currentlyRingingAlarm.value.snoozeDuration - 
+        (currentSnoozeCount.value * currentlyRingingAlarm.value.smartSnoozeDecrement);
+    
+    return math.max(decrementedDuration, currentlyRingingAlarm.value.minSmartSnoozeDuration);
+  }
+
   void startTimer() {
-    minutes.value = currentlyRingingAlarm.value.snoozeDuration;
+    nextSnoozeDuration.value = calculateNextSnoozeDuration();
+    
+    if (currentlyRingingAlarm.value.maxSnoozeCount > 0 && 
+        currentSnoozeCount.value >= currentlyRingingAlarm.value.maxSnoozeCount) {
+      snoozeDisabled.value = true;
+    } else {
+      snoozeDisabled.value = false;
+    }
+    
+    minutes.value = nextSnoozeDuration.value;
+    
     isSnoozing.value = false;
     _currentTimeTimer = Timer.periodic(
         Duration(
@@ -114,8 +172,9 @@ class AlarmControlController extends GetxController {
           ),
         ), (timer) {
       formattedDate.value = Utils.getFormattedDate(DateTime.now());
-      timeNow.value =
-          Utils.convertTo12HourFormat(Utils.timeOfDayToString(TimeOfDay.now()));
+      var timeString = Utils.convertTo12HourFormat(Utils.timeOfDayToString(TimeOfDay.now()));
+      timeNow.value = timeString.join(' ');
+      timeNow24Hr.value = Utils.timeOfDayToString(TimeOfDay.now());
     });
   }
 
@@ -246,6 +305,14 @@ class AlarmControlController extends GetxController {
       currentlyRingingAlarm.value = args;
       isPreviewMode.value = false;
     }
+    
+    currentSnoozeCount.value = currentlyRingingAlarm.value.currentSnoozeCount;
+    nextSnoozeDuration.value = calculateNextSnoozeDuration();
+    
+    if (currentlyRingingAlarm.value.maxSnoozeCount > 0 && 
+        currentSnoozeCount.value >= currentlyRingingAlarm.value.maxSnoozeCount) {
+      snoozeDisabled.value = true;
+    }
 
     print('hwyooo ${currentlyRingingAlarm.value.isGuardian}');
     if (currentlyRingingAlarm.value.isGuardian) {
@@ -270,14 +337,11 @@ class AlarmControlController extends GetxController {
 
     FlutterVolumeController.updateShowSystemUI(false);
 
-    // _fadeInAlarmVolume();     TODO fix volume fade-in
-
     vibrationTimer =
         Timer.periodic(const Duration(milliseconds: 3500), (Timer timer) {
           Vibration.vibrate(pattern: [500, 3000]);
         });
 
-    // Preventing app from being minimized!
     _subscription = FGBGEvents.stream.listen((event) {
       if (event == FGBGType.background) {
         alarmChannel.invokeMethod('bringAppToForeground');
@@ -285,70 +349,19 @@ class AlarmControlController extends GetxController {
     });
 
     startTimer();
-    // if (Get.arguments == null) {
-    //   currentlyRingingAlarm.value = await getCurrentlyRingingAlarm();
-    //   showButton.value = true;
-    //   // If the alarm is set to NEVER repeat, then it will
-    //   // be chosen as the next alarm to ring by default as
-    //   // it would ring the next day
-    //   if (currentlyRingingAlarm.value.days
-    //       .every((element) => element == false)) {
-    //     currentlyRingingAlarm.value.isEnabled = false;
-    //
-    //     if (currentlyRingingAlarm.value.isSharedAlarmEnabled == false) {
-    //       IsarDb.updateAlarm(currentlyRingingAlarm.value);
-    //     } else {
-    //       FirestoreDb.updateAlarm(
-    //         currentlyRingingAlarm.value.ownerId,
-    //         currentlyRingingAlarm.value,
-    //       );
-    //     }
-    //   } else if (currentlyRingingAlarm.value.isOneTime == true) {
-    //     // If the alarm has to repeat on one day, but ring just once, we will
-    //     // keep seting its days to false until it will never ring
-    //     int currentDay = DateTime.now().weekday - 1;
-    //     currentlyRingingAlarm.value.days[currentDay] = false;
-    //
-    //     if (currentlyRingingAlarm.value.days
-    //         .every((element) => element == false)) {
-    //       currentlyRingingAlarm.value.isEnabled = false;
-    //     }
-    //
-    //     if (currentlyRingingAlarm.value.isSharedAlarmEnabled == false) {
-    //       IsarDb.updateAlarm(currentlyRingingAlarm.value);
-    //     } else {
-    //       FirestoreDb.updateAlarm(
-    //         currentlyRingingAlarm.value.ownerId,
-    //         currentlyRingingAlarm.value,
-    //       );
-    //     }
-    //   }
-    // } else {
-    //   currentlyRingingAlarm.value = Get.arguments;
-    //   showButton.value = true;
-    // }
 
     AudioUtils.playAlarm(alarmRecord: currentlyRingingAlarm.value);
-
 
     if(currentlyRingingAlarm.value.showMotivationalQuote) {
       Quote quote = Utils.getRandomQuote();
       showQuotePopup(quote);
     }
 
-    // Setting snooze duration
-    minutes.value = currentlyRingingAlarm.value.snoozeDuration;
-
-    // Scheduling next alarm if it's not in preview mode
     if (Get.arguments == null) {
-      // Finding the next alarm to ring
       AlarmModel latestAlarm = await getNextAlarm();
       TimeOfDay latestAlarmTimeOfDay =
       Utils.stringToTimeOfDay(latestAlarm.alarmTime);
 
-      // }
-      // This condition will never satisfy because this will only
-      // occur if fake model is returned as latest alarm
       if (latestAlarm.isEnabled == false) {
         debugPrint(
           'STOPPED IF CONDITION with latest = '
@@ -419,5 +432,24 @@ class AlarmControlController extends GetxController {
     _subscription.cancel();
     _currentTimeTimer?.cancel();
     _sensorSubscription?.cancel();
+  }
+
+  void resetSnoozeCountersForNewDay() {
+    // Reset snooze counter for recurring alarms
+    if (!currentlyRingingAlarm.value.days.every((element) => element == false)) {
+      currentlyRingingAlarm.value.currentSnoozeCount = 0;
+      
+      // Save the updated alarm to database
+      if (!isPreviewMode.value) {
+        if (currentlyRingingAlarm.value.isSharedAlarmEnabled) {
+          FirestoreDb.updateAlarm(
+            currentlyRingingAlarm.value.ownerId,
+            currentlyRingingAlarm.value,
+          );
+        } else {
+          IsarDb.updateAlarm(currentlyRingingAlarm.value);
+        }
+      }
+    }
   }
 }

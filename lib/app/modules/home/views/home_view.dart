@@ -803,59 +803,6 @@ class HomeView extends GetView<HomeController> {
                                                                         ),
                                                                       ],
                                                                     ),
-                                                                    
-                                                                    // Add timezone indicator if the alarm uses a specific timezone
-                                                                    if (!alarm.useLocalTimezone)
-                                                                      Padding(
-                                                                        padding: const EdgeInsets.only(top: 4.0),
-                                                                        child: Container(
-                                                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                                                          decoration: BoxDecoration(
-                                                                            color: kprimaryColor.withOpacity(0.1),
-                                                                            borderRadius: BorderRadius.circular(12),
-                                                                          ),
-                                                                          child: Row(
-                                                                            mainAxisSize: MainAxisSize.min,
-                                                                            children: [
-                                                                              Icon(
-                                                                                Icons.public,
-                                                                                size: 14,
-                                                                                color: alarm.isEnabled ? kprimaryColor : themeController.primaryDisabledTextColor.value,
-                                                                              ),
-                                                                              const SizedBox(width: 4),
-                                                                              Text(
-                                                                                alarm.timezoneName,
-                                                                                style: TextStyle(
-                                                                                  fontSize: 12,
-                                                                                  color: alarm.isEnabled ? kprimaryColor : themeController.primaryDisabledTextColor.value,
-                                                                                  fontWeight: FontWeight.w500,
-                                                                                ),
-                                                                              ),
-                                                                            ],
-                                                                          ),
-                                                                        ),
-                                                                      ),
-                                                                    
-                                                                    // Add dual time display if enabled
-                                                                    if (!alarm.useLocalTimezone && alarm.showDualTime)
-                                                                      Padding(
-                                                                        padding: const EdgeInsets.only(top: 4.0),
-                                                                        child: Text(
-                                                                          Utils.getLocalTimeForTimezone(
-                                                                            alarm.alarmTime,
-                                                                            alarm.timezoneId,
-                                                                            alarm.timezoneName
-                                                                          ),
-                                                                          style: TextStyle(
-                                                                            fontSize: 12,
-                                                                            color: alarm.isEnabled 
-                                                                              ? themeController.primaryTextColor.value.withOpacity(0.7)
-                                                                              : themeController.primaryDisabledTextColor.value,
-                                                                            fontWeight: FontWeight.w500,
-                                                                          ),
-                                                                        ),
-                                                                      ),
-                                                                    
                                                                     if (Utils.isChallengeEnabled(
                                                                           alarm,
                                                                         ) ||
@@ -873,19 +820,6 @@ class HomeView extends GetView<HomeController> {
                                                                               ),
                                                                               child: Icon(
                                                                                 Icons.share_arrival_time,
-                                                                                size: 24,
-                                                                                color: alarm.isEnabled == true
-                                                                                    ? themeController.primaryTextColor.value.withOpacity(0.5)
-                                                                                    : themeController.primaryDisabledTextColor.value,
-                                                                              ),
-                                                                            ),
-                                                                          if (!alarm.useLocalTimezone)
-                                                                            Padding(
-                                                                              padding: const EdgeInsets.symmetric(
-                                                                                horizontal: 3.0,
-                                                                              ),
-                                                                              child: Icon(
-                                                                                Icons.public,
                                                                                 size: 24,
                                                                                 color: alarm.isEnabled == true
                                                                                     ? themeController.primaryTextColor.value.withOpacity(0.5)
@@ -981,6 +915,74 @@ class HomeView extends GetView<HomeController> {
                                                                                 color: alarm.isEnabled == true
                                                                                     ? themeController.primaryTextColor.value.withOpacity(0.5)
                                                                                     : themeController.primaryDisabledTextColor.value,
+                                                                              ),
+                                                                            ),
+                                                                          if (alarm.isGuardian)
+                                                                            Padding(
+                                                                              padding: const EdgeInsets.symmetric(
+                                                                                horizontal: 3.0,
+                                                                              ),
+                                                                              child: Icon(
+                                                                                Icons.support_agent,
+                                                                                size: 24,
+                                                                                color: alarm.isEnabled == true
+                                                                                    ? themeController.primaryTextColor.value.withOpacity(0.5)
+                                                                                    : themeController.primaryDisabledTextColor.value,
+                                                                              ),
+                                                                            ),
+                                                                          // Show smart snooze icon if enabled
+                                                                          if (alarm.smartSnoozeEnabled)
+                                                                            Padding(
+                                                                              padding: const EdgeInsets.symmetric(
+                                                                                horizontal: 3.0,
+                                                                              ),
+                                                                              child: Icon(
+                                                                                Icons.trending_down,
+                                                                                size: 24,
+                                                                                color: alarm.isEnabled == true
+                                                                                    ? themeController.primaryTextColor.value.withOpacity(0.5)
+                                                                                    : themeController.primaryDisabledTextColor.value,
+                                                                              ),
+                                                                            ),
+                                                                          // Show max snooze indicator if set
+                                                                          if (alarm.maxSnoozeCount > 0)
+                                                                            Padding(
+                                                                              padding: const EdgeInsets.symmetric(
+                                                                                horizontal: 3.0,
+                                                                              ),
+                                                                              child: Stack(
+                                                                                alignment: Alignment.center,
+                                                                                children: [
+                                                                                  Icon(
+                                                                                    Icons.snooze,
+                                                                                    size: 24,
+                                                                                    color: alarm.isEnabled == true
+                                                                                        ? themeController.primaryTextColor.value.withOpacity(0.5)
+                                                                                        : themeController.primaryDisabledTextColor.value,
+                                                                                  ),
+                                                                                  Positioned(
+                                                                                    right: 0,
+                                                                                    bottom: 0,
+                                                                                    child: Container(
+                                                                                      width: 14,
+                                                                                      height: 14,
+                                                                                      decoration: BoxDecoration(
+                                                                                        color: kprimaryColor,
+                                                                                        borderRadius: BorderRadius.circular(10),
+                                                                                      ),
+                                                                                      child: Center(
+                                                                                        child: Text(
+                                                                                          '${alarm.maxSnoozeCount}',
+                                                                                          style: TextStyle(
+                                                                                            color: themeController.secondaryTextColor.value,
+                                                                                            fontSize: 8,
+                                                                                            fontWeight: FontWeight.bold,
+                                                                                          ),
+                                                                                        ),
+                                                                                      ),
+                                                                                    ),
+                                                                                  ),
+                                                                                ],
                                                                               ),
                                                                             ),
                                                                         ],

@@ -84,6 +84,10 @@ class AddOrUpdateAlarmController extends GetxController {
   final RxBool isOneTime = true.obs;
   final RxString label = ''.obs;
   final RxInt snoozeDuration = 1.obs;
+  final RxInt maxSnoozeCount = 0.obs;
+  final RxBool smartSnoozeEnabled = false.obs;
+  final RxInt smartSnoozeDecrement = 1.obs;
+  final RxInt minSmartSnoozeDuration = 1.obs;
   var customRingtoneName = 'Digital Alarm 1'.obs;
   var customRingtoneNames = [].obs;
   var previousRingtone = '';
@@ -141,12 +145,6 @@ class AddOrUpdateAlarmController extends GetxController {
   final RxInt guardianTimer = 0.obs;
   final RxString guardian = ''.obs;
   final RxBool isCall = false.obs;
-
-  // Timezone properties
-  final RxBool useLocalTimezone = true.obs;
-  final RxString timezoneId = 'device_local'.obs;
-  final RxString timezoneName = 'Device Local'.obs;
-  final RxBool showDualTime = false.obs;
 
   void toggleIsPlaying() {
     isPlaying.toggle();
@@ -834,6 +832,16 @@ class AddOrUpdateAlarmController extends GetxController {
         alarmRecord.value.mutexLock = false;
         mutexLock.value = false;
       }
+
+      isCall.value = alarmRecord.value.isCall;
+      isActivityMonitorenabled.value =
+          alarmRecord.value.isActivityEnabled ? 1 : 0;
+      snoozeDuration.value = alarmRecord.value.snoozeDuration;
+      maxSnoozeCount.value = alarmRecord.value.maxSnoozeCount;
+      smartSnoozeEnabled.value = alarmRecord.value.smartSnoozeEnabled;
+      smartSnoozeDecrement.value = alarmRecord.value.smartSnoozeDecrement;
+      minSmartSnoozeDuration.value = alarmRecord.value.minSmartSnoozeDuration;
+      gradient.value = alarmRecord.value.gradient;
     } else {
       hours.value = selectedTime.value.hour;
       minutes.value = selectedTime.value.minute;
@@ -1015,55 +1023,56 @@ class AddOrUpdateAlarmController extends GetxController {
   }
 
   AlarmModel updatedAlarmModel() {
+    String ownerId = '';
+    String ownerName = '';
+
+    // if alarmRecord is null or alarmRecord.ownerId is null,
+    // then assign the current logged-in user as the owner.
+
+    if (alarmRecord.value.ownerId.isEmpty) {
+      ownerId = userId.value;
+      ownerName = userName.value;
+    } else {
+      ownerId = alarmRecord.value.ownerId;
+      ownerName = alarmRecord.value.ownerName;
+    }
     return AlarmModel(
-      isOneTime: isOneTime.value,
       snoozeDuration: snoozeDuration.value,
+      maxSnoozeCount: maxSnoozeCount.value,
+      smartSnoozeEnabled: smartSnoozeEnabled.value,
+      smartSnoozeDecrement: smartSnoozeDecrement.value,
+      minSmartSnoozeDuration: minSmartSnoozeDuration.value,
       volMax: volMax.value,
       volMin: volMin.value,
       gradient: gradient.value,
       label: label.value,
-      note: note.value,
-      showMotivationalQuote: showMotivationalQuote.value,
+      isOneTime: isOneTime.value,
       deleteAfterGoesOff: deleteAfterGoesOff.value,
+      mainAlarmTime:
+          Utils.timeOfDayToString(TimeOfDay.fromDateTime(selectedTime.value)),
+      offsetDetails: offsetDetails,
+      sharedUserIds: sharedUserIds,
       lastEditedUserId: lastEditedUserId.value,
       mutexLock: mutexLock.value,
-      alarmID: alarmRecord.value.alarmID,
-      ownerId: ownerId.value,
-      ownerName: ownerName.value,
+      alarmID: alarmID,
+      ownerId: ownerId,
+      ownerName: ownerName,
       activityInterval: activityInterval.value * 60000,
       days: repeatDays.toList(),
-      alarmTime: Utils.timeOfDayToString(
-        TimeOfDay.fromDateTime(
-          selectedTime.value,
-        ),
-      ),
-      mainAlarmTime: Utils.timeOfDayToString(
-        TimeOfDay.fromDateTime(
-          selectedTime.value,
-        ),
-      ),
-      intervalToAlarm: Utils.getMillisecondsToAlarm(
-        DateTime.now(),
-        selectedTime.value,
-      ),
+      alarmTime:
+          Utils.timeOfDayToString(TimeOfDay.fromDateTime(selectedTime.value)),
+      intervalToAlarm:
+          Utils.getMillisecondsToAlarm(DateTime.now(), selectedTime.value),
       isActivityEnabled: isActivityenabled.value,
-      minutesSinceMidnight: Utils.timeOfDayToInt(
-        TimeOfDay.fromDateTime(
-          selectedTime.value,
-        ),
-      ),
+      minutesSinceMidnight:
+          Utils.timeOfDayToInt(TimeOfDay.fromDateTime(selectedTime.value)),
       isLocationEnabled: isLocationEnabled.value,
-      weatherTypes: Utils.getIntFromWeatherTypes(
-        selectedWeather.toList(),
-      ),
+      weatherTypes: Utils.getIntFromWeatherTypes(selectedWeather.toList()),
       isWeatherEnabled: isWeatherEnabled.value,
       location: Utils.geoPointToString(
-        Utils.latLngToGeoPoint(
-          selectedPoint.value,
-        ),
+        Utils.latLngToGeoPoint(selectedPoint.value),
       ),
       isSharedAlarmEnabled: isSharedAlarmEnabled.value,
-      sharedUserIds: sharedUserIds,
       isQrEnabled: isQrEnabled.value,
       qrValue: qrValue.value,
       isMathsEnabled: isMathsEnabled.value,
@@ -1073,20 +1082,17 @@ class AddOrUpdateAlarmController extends GetxController {
       shakeTimes: shakeTimes.value,
       isPedometerEnabled: isPedometerEnabled.value,
       numberOfSteps: numberOfSteps.value,
-      offsetDetails: offsetDetails,
       ringtoneName: customRingtoneName.value,
+      note: note.value,
+      showMotivationalQuote: showMotivationalQuote.value,
       activityMonitor: isActivityMonitorenabled.value,
       alarmDate: selectedDate.value.toString().substring(0, 11),
       profile: homeController.selectedProfile.value,
       isGuardian: isGuardian.value,
-      guardianTimer: 0,
-      guardian: contactTextEditingController.text,
+      guardianTimer: guardianTimer.value,
+      guardian: guardian.value,
       isCall: isCall.value,
       ringOn: isFutureDate.value,
-      useLocalTimezone: useLocalTimezone.value,
-      timezoneId: timezoneId.value,
-      timezoneName: timezoneName.value,
-      showDualTime: showDualTime.value,
     );
   }
 
@@ -1382,10 +1388,6 @@ class AddOrUpdateAlarmController extends GetxController {
       guardian: guardian.value,
       isCall: isCall.value,
       ringOn: isFutureDate.value,
-      useLocalTimezone: useLocalTimezone.value,
-      timezoneId: timezoneId.value,
-      timezoneName: timezoneName.value,
-      showDualTime: showDualTime.value,
       );
 
       if (homeController.isProfileUpdate.value) {
@@ -1424,6 +1426,7 @@ class AddOrUpdateAlarmController extends GetxController {
       );
     }
   }
+}
 
   int orderedCountryCode(Country countryA, Country countryB) {
     // `??` for null safety of 'dialCode'
@@ -1432,4 +1435,3 @@ class AddOrUpdateAlarmController extends GetxController {
 
     return int.parse(dialCodeA).compareTo(int.parse(dialCodeB));
   }
-}

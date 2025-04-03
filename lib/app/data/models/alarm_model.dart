@@ -59,13 +59,19 @@ class AlarmModel {
   late int guardianTimer;
   late String guardian;
   late bool isCall;
-  
   // Timezone fields
   late bool useLocalTimezone;
   late String timezoneId;
   late String timezoneName;
   late bool showDualTime;
-  
+  // Enhanced snooze fields
+  late int maxSnoozeCount;
+  late int currentSnoozeCount;
+  late bool smartSnoozeEnabled;
+  late int smartSnoozeDecrement;
+  late int minSmartSnoozeDuration;
+  @ignore
+  List<Map<String, dynamic>> snoozeHistory = [];
   @ignore
   Map? offsetDetails;
 
@@ -120,7 +126,13 @@ class AlarmModel {
       this.useLocalTimezone = true,
       this.timezoneId = 'device_local',
       this.timezoneName = 'Device Local',
-      this.showDualTime = false});
+      this.showDualTime = false,
+      this.maxSnoozeCount = 0,
+      this.currentSnoozeCount = 0,
+      this.smartSnoozeEnabled = false,
+      this.smartSnoozeDecrement = 1,
+      this.minSmartSnoozeDuration = 1,
+      this.snoozeHistory = const []});
 
   AlarmModel.fromDocumentSnapshot({
     required firestore.DocumentSnapshot documentSnapshot,
@@ -196,6 +208,18 @@ class AlarmModel {
     timezoneId = documentSnapshot['timezoneId'] ?? 'device_local';
     timezoneName = documentSnapshot['timezoneName'] ?? 'Device Local';
     showDualTime = documentSnapshot['showDualTime'] ?? false;
+    
+    // Set the enhanced snooze fields with defaults if they don't exist
+    maxSnoozeCount = documentSnapshot['maxSnoozeCount'] ?? 0;
+    currentSnoozeCount = documentSnapshot['currentSnoozeCount'] ?? 0;
+    smartSnoozeEnabled = documentSnapshot['smartSnoozeEnabled'] ?? false;
+    smartSnoozeDecrement = documentSnapshot['smartSnoozeDecrement'] ?? 1;
+    minSmartSnoozeDuration = documentSnapshot['minSmartSnoozeDuration'] ?? 1;
+    
+    // Parse snooze history if it exists
+    if (documentSnapshot['snoozeHistory'] != null) {
+      snoozeHistory = List<Map<String, dynamic>>.from(documentSnapshot['snoozeHistory']);
+    }
   }
 
   AlarmModel fromMapSQFlite(Map<String, dynamic> map) {
@@ -248,10 +272,6 @@ class AlarmModel {
       guardian: map['guardian'],
       isCall: map['isCall'] == 1,
       ringOn: map['ringOn'] == 1,
-      useLocalTimezone: map['useLocalTimezone'] == 1,
-      timezoneId: map['timezoneId'],
-      timezoneName: map['timezoneName'],
-      showDualTime: map['showDualTime'] == 1,
     );
   }
 
@@ -308,6 +328,12 @@ class AlarmModel {
       'timezoneId': timezoneId,
       'timezoneName': timezoneName,
       'showDualTime': showDualTime ? 1 : 0,
+      'maxSnoozeCount': maxSnoozeCount,
+      'currentSnoozeCount': currentSnoozeCount,
+      'smartSnoozeEnabled': smartSnoozeEnabled ? 1 : 0,
+      'smartSnoozeDecrement': smartSnoozeDecrement,
+      'minSmartSnoozeDuration': minSmartSnoozeDuration,
+      'snoozeHistory': snoozeHistory
     };
   }
 
@@ -362,7 +388,6 @@ class AlarmModel {
     guardianTimer = alarmData['guardianTimer'];
     guardian = alarmData['guardian'];
     isCall = alarmData['isCall'];
-    ringOn = alarmData['ringOn'];
   }
 
   AlarmModel.fromJson(String alarmData, UserModel? user) {
@@ -421,10 +446,16 @@ class AlarmModel {
       'guardian': alarmRecord.guardian,
       'isCall': alarmRecord.isCall,
       'ringOn': alarmRecord.ringOn,
-      'useLocalTimezone': alarmRecord.useLocalTimezone,
+      'useLocalTimezone': alarmRecord.useLocalTimezone ? 1 : 0,
       'timezoneId': alarmRecord.timezoneId,
       'timezoneName': alarmRecord.timezoneName,
-      'showDualTime': alarmRecord.showDualTime
+      'showDualTime': alarmRecord.showDualTime ? 1 : 0,
+      'maxSnoozeCount': alarmRecord.maxSnoozeCount,
+      'currentSnoozeCount': alarmRecord.currentSnoozeCount,
+      'smartSnoozeEnabled': alarmRecord.smartSnoozeEnabled ? 1 : 0,
+      'smartSnoozeDecrement': alarmRecord.smartSnoozeDecrement,
+      'minSmartSnoozeDuration': alarmRecord.minSmartSnoozeDuration,
+      'snoozeHistory': alarmRecord.snoozeHistory
     };
 
     if (alarmRecord.isSharedAlarmEnabled) {
