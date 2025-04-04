@@ -32,12 +32,26 @@ class AlarmReceiver : BroadcastReceiver() {
         val activityCheckIntent = Intent(context, ScreenMonitorService::class.java)
         context.stopService(activityCheckIntent)
         val isLocationEnabled = sharedPreferences.getInt("flutter.is_location_on", 0)
+        val isNegativeActivity = sharedPreferences.getInt("flutter.is_negative_activity", 0) == 1
+        val activityThreshold = 180000 // 3 minutes in milliseconds
 
-        if (Math.abs(screenOnTimeInMillis - screenOffTimeInMillis) < 180000 || screenOnTimeInMillis - screenOffTimeInMillis == 0L) {
+        val screenActivity = Math.abs(screenOnTimeInMillis - screenOffTimeInMillis)
+        val isUnderThreshold = screenActivity < activityThreshold || screenActivity == 0L
+
+        // Determine if we should ring based on activity and negative flag
+        // isNegativeActivity true: ring if NOT active (isUnderThreshold true)
+        // isNegativeActivity false: ring if active (isUnderThreshold true)
+        val shouldRing = if (isNegativeActivity) {
+            !isUnderThreshold // Ring if NOT under threshold (activity is high)
+        } else {
+            isUnderThreshold // Ring if under threshold (activity is low)
+        }
+
+        if (shouldRing) {
             println("ANDROID STARTING APP")
             context.startActivity(flutterIntent)
 
-            if((screenOnTimeInMillis - screenOffTimeInMillis) == 0L) {
+            if (screenActivity == 0L) {
                 // if alarm rings (no smart controls used)
                 logdbHelper.insertLog(
                     "Alarm is ringing",
@@ -48,8 +62,14 @@ class AlarmReceiver : BroadcastReceiver() {
                 return
             }
 
+            val message = if (isNegativeActivity) {
+                "Alarm is ringing. Your Screen Activity was MORE than what you specified"
+            } else {
+                "Alarm is ringing. Your Screen Activity was LESS than what you specified"
+            }
+            
             logdbHelper.insertLog(
-                "Alarm is ringing. Your Screen Activity was less than what you specified",
+                message,
                 status = LogDatabaseHelper.Status.SUCCESS,
                 type = LogDatabaseHelper.LogType.NORMAL,
                 hasRung = 1
@@ -57,8 +77,14 @@ class AlarmReceiver : BroadcastReceiver() {
             return
         }
 
+        val message = if (isNegativeActivity) {
+            "Alarm didn't ring. Your Screen Activity was LESS than what you specified"
+        } else {
+            "Alarm didn't ring. Your Screen Activity was MORE than what you specified"
+        }
+        
         logdbHelper.insertLog(
-            "Alarm didn't ring. Your Screen Activity was more than what you specified",
+            message,
             status = LogDatabaseHelper.Status.WARNING,
             type = LogDatabaseHelper.LogType.NORMAL,
             hasRung = 0

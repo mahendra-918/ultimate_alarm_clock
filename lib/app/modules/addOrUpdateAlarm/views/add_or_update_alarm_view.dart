@@ -34,6 +34,7 @@ import 'package:ultimate_alarm_clock/app/utils/utils.dart';
 import '../controllers/add_or_update_alarm_controller.dart';
 import 'alarm_date_tile.dart';
 import 'guardian_angel.dart';
+import 'conditional_alarm_help_dialog.dart';
 
 class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
   AddOrUpdateAlarmView({super.key}) {
@@ -70,6 +71,16 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
               elevation: 0.0,
               centerTitle: true,
               iconTheme: Theme.of(context).iconTheme,
+              leading: Obx(
+                () => IconButton(
+                  onPressed: () =>
+                      controller.checkUnsavedChangesAndNavigate(context),
+                  icon: Icon(
+                    Icons.arrow_back,
+                    color: themeController.primaryTextColor.value,
+                  ),
+                ),
+              ),
               title: (controller.mutexLock.value == true)
                   ? const Text('')
                   : controller.homeController.isProfile.value
@@ -85,6 +96,19 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                             style: Theme.of(context).textTheme.titleSmall,
                           ),
                         ),
+              actions: [
+                // Help button for condition types
+                IconButton(
+                  icon: Icon(
+                    Icons.help_outline,
+                    color: themeController.primaryTextColor.value,
+                  ),
+                  tooltip: 'Learn about condition types',
+                  onPressed: () {
+                    ConditionalAlarmHelpDialog.show(themeController: themeController);
+                  },
+                ),
+              ],
             ),
           ),
         ),
@@ -1114,6 +1138,8 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                 ),
                                 isActivityEnabled:
                                     controller.isActivityenabled.value,
+                                isNegativeActivityEnabled:
+                                    controller.isNegativeActivityEnabled.value,
                                 minutesSinceMidnight: Utils.timeOfDayToInt(
                                   TimeOfDay.fromDateTime(
                                     controller.selectedTime.value,
@@ -1121,11 +1147,15 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                 ),
                                 isLocationEnabled:
                                     controller.isLocationEnabled.value,
+                                isNegativeLocationEnabled:
+                                    controller.isNegativeLocationEnabled.value,
                                 weatherTypes: Utils.getIntFromWeatherTypes(
                                   controller.selectedWeather.toList(),
                                 ),
                                 isWeatherEnabled:
                                     controller.isWeatherEnabled.value,
+                                isNegativeWeatherEnabled:
+                                    controller.isNegativeWeatherEnabled.value,
                                 location: Utils.geoPointToString(
                                   Utils.latLngToGeoPoint(
                                     controller.selectedPoint.value,

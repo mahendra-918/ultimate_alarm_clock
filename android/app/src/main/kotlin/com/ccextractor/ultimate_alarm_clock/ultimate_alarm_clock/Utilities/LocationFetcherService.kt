@@ -33,95 +33,110 @@ class LocationFetcherService : Service() {
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var displayManager: DisplayManager
 
-    override fun onCreate() = runBlocking {
+    override fun onCreate() {
         super.onCreate()
+        
+        runBlocking {
+            sharedPreferences = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
 
-        sharedPreferences = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-        displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
-
-        createNotificationChannel()
-        startForeground(notificationId, getNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
-        var fetchLocationDeffered = async {
-            fetchLocation()
-        }
-
-        val logdbHelper = LogDatabaseHelper(this@LocationFetcherService)
-        var destinationLongitude = 0.0
-        var currentLongitude = 0.0
-        var destinationLatitude = 0.0
-        var currentLatitude = 0.0
-        var location = fetchLocationDeffered.await()
-        Log.d("Location", location)
-        val setLocationString = sharedPreferences.getString("flutter.set_location", "")
-        val current = location.split(",")
-        if (current.size == 2) {
-            try {
-                currentLatitude = current[0].toDouble()
-                currentLongitude = current[1].toDouble()
-            } catch (e: NumberFormatException) {
+            createNotificationChannel()
+            startForeground(notificationId, getNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+            var fetchLocationDeffered = async {
+                fetchLocation()
             }
-        } else {
-            println("Invalid location string format. Expected: \"lat,long\"")
-        }
-        val destination = setLocationString!!.split(",")
-        if (destination.size == 2) {
-            try {
-                destinationLatitude = destination[0].toDouble()
-                destinationLongitude = destination[1].toDouble()
 
-            } catch (e: NumberFormatException) {
-                println("Invalid latitude or longitude format.")
-            }
-        } else {
-            println("Invalid location string format. Expected: \"lat,long\"")
-        }
-        val distance = calculateDistance(
-            Location(currentLatitude, currentLongitude),
-            Location(destinationLatitude, destinationLongitude)
-        )
-        Log.d("Distance", "distance ${distance}")
-        if (distance >= 500.0) {
-
-            val flutterIntent =
-                Intent(this@LocationFetcherService, MainActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                    putExtra("initialRoute", "/")
-                    putExtra("alarmRing", "true")
-                    putExtra("isAlarm", "true")
-
+            val logdbHelper = LogDatabaseHelper(this@LocationFetcherService)
+            var destinationLongitude = 0.0
+            var currentLongitude = 0.0
+            var destinationLatitude = 0.0
+            var currentLatitude = 0.0
+            var location = fetchLocationDeffered.await()
+            Log.d("Location", location)
+            val setLocationString = sharedPreferences.getString("flutter.set_location", "")
+            val isNegativeLocation = sharedPreferences.getInt("flutter.is_negative_location", 0) == 1
+            val current = location.split(",")
+            if (current.size == 2) {
+                try {
+                    currentLatitude = current[0].toDouble()
+                    currentLongitude = current[1].toDouble()
+                } catch (e: NumberFormatException) {
                 }
-
-            Timer().schedule(9000){
-            println("ANDROID STARTING APP")
-            this@LocationFetcherService.startActivity(flutterIntent)
-                logdbHelper.insertLog(
-                    "Alarm is ringing. Alarm rings because you are ${distance}m away from chosen location",
-                    status = LogDatabaseHelper.Status.SUCCESS,
-                    type = LogDatabaseHelper.LogType.NORMAL,
-                    hasRung = 1
-                )
-                Timer().schedule(3000){
-                    stopSelf()
-                }
+            } else {
+                println("Invalid location string format. Expected: \"lat,long\"")
             }
+            val destination = setLocationString!!.split(",")
+            if (destination.size == 2) {
+                try {
+                    destinationLatitude = destination[0].toDouble()
+                    destinationLongitude = destination[1].toDouble()
 
-
-        }
-        if(distance < 500.0){
-            logdbHelper.insertLog(
-                "Alarm didn't ring. Because you are only ${distance}m away from chosen location",
-                status = LogDatabaseHelper.Status.WARNING,
-                type = LogDatabaseHelper.LogType.NORMAL,
-                hasRung = 0
+                } catch (e: NumberFormatException) {
+                    println("Invalid latitude or longitude format.")
+                }
+            } else {
+                println("Invalid location string format. Expected: \"lat,long\"")
+            }
+            val distance = calculateDistance(
+                Location(currentLatitude, currentLongitude),
+                Location(destinationLatitude, destinationLongitude)
             )
-            Timer().schedule(9000){
-                Timer().schedule(3000){
-                    stopSelf()
+            Log.d("Distance", "distance ${distance}")
+            
+            val shouldRing = if (isNegativeLocation) {
+                // For negative location, ring if outside of range (distance >= 500m)
+                distance >= 500.0
+            } else {
+                // For positive location, ring if within range (distance < 500m)
+                distance < 500.0
+            }
+            
+            if (shouldRing) {
+                val flutterIntent =
+                    Intent(this@LocationFetcherService, MainActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                        putExtra("initialRoute", "/")
+                        putExtra("alarmRing", "true")
+                        putExtra("isAlarm", "true")
+                    }
 
+                Timer().schedule(9000){
+                    println("ANDROID STARTING APP")
+                    this@LocationFetcherService.startActivity(flutterIntent)
+                    val message = if (isNegativeLocation) {
+                        "Alarm is ringing. Alarm rings because you are NOT within 500m of chosen location (${distance}m away)"
+                    } else {
+                        "Alarm is ringing. Alarm rings because you are within 500m of chosen location (${distance}m away)"
+                    }
+                    logdbHelper.insertLog(
+                        message,
+                        status = LogDatabaseHelper.Status.SUCCESS,
+                        type = LogDatabaseHelper.LogType.NORMAL,
+                        hasRung = 1
+                    )
+                    Timer().schedule(3000){
+                        stopSelf()
+                    }
+                }
+            } else {
+                val message = if (isNegativeLocation) {
+                    "Alarm didn't ring. Because you are within 500m of chosen location (${distance}m away)"
+                } else {
+                    "Alarm didn't ring. Because you are ${distance}m away from chosen location (outside 500m range)"
+                }
+                logdbHelper.insertLog(
+                    message,
+                    status = LogDatabaseHelper.Status.WARNING,
+                    type = LogDatabaseHelper.LogType.NORMAL,
+                    hasRung = 0
+                )
+                Timer().schedule(9000){
+                    Timer().schedule(3000){
+                        stopSelf()
+                    }
                 }
             }
         }
-
     }
 
     suspend fun fetchLocation(): String {

@@ -31,6 +31,7 @@ class WeatherFetcherService() : Service() {
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var displayManager: DisplayManager
     private var weatherTypes= ""
+    private var isNegativeWeather = false
 
     override fun onCreate() = runBlocking {
         super.onCreate()
@@ -47,6 +48,7 @@ class WeatherFetcherService() : Service() {
         var currentLongitude = 0.0
         var currentLatitude = 0.0
         weatherTypes = sharedPreferences.getString("flutter.weatherTypes", "")!!
+        isNegativeWeather = sharedPreferences.getInt("flutter.is_negative_weather", 0) == 1
         var location = fetchLocationDeffered.await()
         Log.d("Location", location)
         val current = location.split(",")
@@ -100,54 +102,60 @@ class WeatherFetcherService() : Service() {
                     currentWeather="sunny"
                 }
                 Log.d("Weather",currentWeather)
-                if(weatherTypes.contains(currentWeather)){
-                    shouldRing = false
+                
+                val matchesWeatherCondition = weatherTypes.contains(currentWeather)
+                
+                // shouldRing is true by default
+                // If negative weather: ring only if NOT matching selected types
+                // If positive weather: ring only if matching selected types
+                shouldRing = if (isNegativeWeather) {
+                    !matchesWeatherCondition
+                } else {
+                    matchesWeatherCondition
+                }
 
-                    if(shouldRing==false)
-                    
-                    {
+                if(!shouldRing) {
+                    val message = if (isNegativeWeather) {
+                        "Alarm didn't ring. The current weather is ${currentWeather}, which is NOT in your specified weather types: ${weatherTypes}"
+                    } else {
+                        "Alarm didn't ring. The current weather is ${currentWeather}, which doesn't match your specified weather types: ${weatherTypes}"
+                    }
+                    logdbHelper.insertLog(
+                        message,
+                        status = LogDatabaseHelper.Status.WARNING,
+                        type = LogDatabaseHelper.LogType.NORMAL,
+                        hasRung = 0
+                    )
+                    Timer().schedule(3000) {
+                        stopSelf()
+                    }
+                }
+                else {
+                    val flutterIntent =
+                        Intent(this@WeatherFetcherService, MainActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                            putExtra("initialRoute", "/")
+                            putExtra("alarmRing", "true")
+                            putExtra("isAlarm", "true")
+                        }
+
+                    Timer().schedule(9000) {
+                        println("ANDROID STARTING APP")
+                        this@WeatherFetcherService.startActivity(flutterIntent)
+                        val message = if (isNegativeWeather) {
+                            "Alarm is ringing. The current weather is ${currentWeather}, which is NOT in your specified weather types: ${weatherTypes}"
+                        } else {
+                            "Alarm is ringing. The current weather is ${currentWeather}, which matches your specified weather types: ${weatherTypes}"
+                        }
                         logdbHelper.insertLog(
-                            "Alarm didn't ring. Because it is ${currentWeather} outside. And, your specified weather types were: ${weatherTypes}",
-                            status = LogDatabaseHelper.Status.WARNING,
+                            message,
+                            status = LogDatabaseHelper.Status.SUCCESS,
                             type = LogDatabaseHelper.LogType.NORMAL,
-                            hasRung = 0
+                            hasRung = 1
                         )
                         Timer().schedule(3000) {
                             stopSelf()
                         }
-                    }
-
-                }
-                else{
-                    shouldRing = true
-
-                        if (shouldRing) {
-
-                            val flutterIntent =
-                                Intent(this@WeatherFetcherService, MainActivity::class.java).apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                                    putExtra("initialRoute", "/")
-                                    putExtra("alarmRing", "true")
-                                    putExtra("isAlarm", "true")
-
-                                }
-
-                            Timer().schedule(9000) {
-                                println("ANDROID STARTING APP")
-                                this@WeatherFetcherService.startActivity(flutterIntent)
-                                logdbHelper.insertLog(
-                                    "Alarm is ringing. The current weather is ${currentWeather}.",
-                                    status = LogDatabaseHelper.Status.SUCCESS,
-                                    type = LogDatabaseHelper.LogType.NORMAL,
-                                    hasRung = 1
-                                )
-                                Timer().schedule(3000) {
-                                    stopSelf()
-                                }
-                            }
-
-
-
                     }
                 }
             },

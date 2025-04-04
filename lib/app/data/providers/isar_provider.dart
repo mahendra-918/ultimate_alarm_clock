@@ -56,8 +56,90 @@ class IsarDb {
 
     final dir = await getDatabasesPath();
     final dbPath = '$dir/alarms.db';
-    db = await openDatabase(dbPath, version: 1, onCreate: _onCreate);
+    db = await openDatabase(
+      dbPath, 
+      version: 2, 
+      onCreate: _onCreate,
+      onUpgrade: _onUpgrade
+    );
     return db;
+  }
+
+  void _onCreate(Database db, int version) async {
+    // Create tables for alarms and ringtones (modify column types as needed)
+    await db.execute('''
+      CREATE TABLE alarms (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        firestoreId TEXT,
+        alarmTime TEXT NOT NULL,
+        alarmID TEXT NOT NULL UNIQUE,
+        isEnabled INTEGER NOT NULL DEFAULT 1,
+        isLocationEnabled INTEGER NOT NULL DEFAULT 0,
+        isNegativeLocationEnabled INTEGER NOT NULL DEFAULT 0,
+        isSharedAlarmEnabled INTEGER NOT NULL DEFAULT 0,
+        isWeatherEnabled INTEGER NOT NULL DEFAULT 0,
+        isNegativeWeatherEnabled INTEGER NOT NULL DEFAULT 0,
+        location TEXT,
+        activityInterval INTEGER,
+        minutesSinceMidnight INTEGER NOT NULL,
+        days TEXT NOT NULL,
+        weatherTypes TEXT NOT NULL,
+        isMathsEnabled INTEGER NOT NULL DEFAULT 0,
+        mathsDifficulty INTEGER,
+        numMathsQuestions INTEGER,
+        isShakeEnabled INTEGER NOT NULL DEFAULT 0,
+        shakeTimes INTEGER,
+        isQrEnabled INTEGER NOT NULL DEFAULT 0,
+        qrValue TEXT,
+        isPedometerEnabled INTEGER NOT NULL DEFAULT 0,
+        numberOfSteps INTEGER,
+        intervalToAlarm INTEGER,
+        isActivityEnabled INTEGER NOT NULL DEFAULT 0,
+        isNegativeActivityEnabled INTEGER NOT NULL DEFAULT 0,
+        sharedUserIds TEXT,
+        ownerId TEXT NOT NULL,
+        ownerName TEXT NOT NULL,
+        lastEditedUserId TEXT,
+        mutexLock INTEGER NOT NULL DEFAULT 0,
+        mainAlarmTime TEXT,
+        label TEXT,
+        isOneTime INTEGER NOT NULL DEFAULT 0,
+        snoozeDuration INTEGER,
+        gradient INTEGER,
+        ringtoneName TEXT,
+        note TEXT,
+        deleteAfterGoesOff INTEGER NOT NULL DEFAULT 0,
+        showMotivationalQuote INTEGER NOT NULL DEFAULT 0,
+        volMin REAL,
+        volMax REAL,
+        activityMonitor INTEGER,
+        alarmDate TEXT NOT NULL,
+        profile TEXT NOT NULL,
+        isGuardian INTEGER,
+        guardianTimer INTEGER,
+        guardian TEXT,
+        isCall INTEGER,
+        ringOn INTEGER
+        
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE ringtones (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ringtoneName TEXT NOT NULL,
+        ringtonePath TEXT NOT NULL,
+        currentCounterOfUsage INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+  }
+
+  void _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Add negative condition columns if upgrading from version 1
+      await db.execute('ALTER TABLE alarms ADD COLUMN isNegativeLocationEnabled INTEGER NOT NULL DEFAULT 0');
+      await db.execute('ALTER TABLE alarms ADD COLUMN isNegativeWeatherEnabled INTEGER NOT NULL DEFAULT 0');
+      await db.execute('ALTER TABLE alarms ADD COLUMN isNegativeActivityEnabled INTEGER NOT NULL DEFAULT 0');
+    }
   }
 
   Future<Database?> getTimerSQLiteDatabase() async {
@@ -104,72 +186,6 @@ class IsarDb {
     );
     return db;
   }
-
-  void _onCreate(Database db, int version) async {
-    // Create tables for alarms and ringtones (modify column types as needed)
-    await db.execute('''
-      CREATE TABLE alarms (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        firestoreId TEXT,
-        alarmTime TEXT NOT NULL,
-        alarmID TEXT NOT NULL UNIQUE,
-        isEnabled INTEGER NOT NULL DEFAULT 1,
-        isLocationEnabled INTEGER NOT NULL DEFAULT 0,
-        isSharedAlarmEnabled INTEGER NOT NULL DEFAULT 0,
-        isWeatherEnabled INTEGER NOT NULL DEFAULT 0,
-        location TEXT,
-        activityInterval INTEGER,
-        minutesSinceMidnight INTEGER NOT NULL,
-        days TEXT NOT NULL,
-        weatherTypes TEXT NOT NULL,
-        isMathsEnabled INTEGER NOT NULL DEFAULT 0,
-        mathsDifficulty INTEGER,
-        numMathsQuestions INTEGER,
-        isShakeEnabled INTEGER NOT NULL DEFAULT 0,
-        shakeTimes INTEGER,
-        isQrEnabled INTEGER NOT NULL DEFAULT 0,
-        qrValue TEXT,
-        isPedometerEnabled INTEGER NOT NULL DEFAULT 0,
-        numberOfSteps INTEGER,
-        intervalToAlarm INTEGER,
-        isActivityEnabled INTEGER NOT NULL DEFAULT 0,
-        sharedUserIds TEXT,
-        ownerId TEXT NOT NULL,
-        ownerName TEXT NOT NULL,
-        lastEditedUserId TEXT,
-        mutexLock INTEGER NOT NULL DEFAULT 0,
-        mainAlarmTime TEXT,
-        label TEXT,
-        isOneTime INTEGER NOT NULL DEFAULT 0,
-        snoozeDuration INTEGER,
-        gradient INTEGER,
-        ringtoneName TEXT,
-        note TEXT,
-        deleteAfterGoesOff INTEGER NOT NULL DEFAULT 0,
-        showMotivationalQuote INTEGER NOT NULL DEFAULT 0,
-        volMin REAL,
-        volMax REAL,
-        activityMonitor INTEGER,
-        alarmDate TEXT NOT NULL,
-        profile TEXT NOT NULL,
-        isGuardian INTEGER,
-        guardianTimer INTEGER,
-        guardian TEXT,
-        isCall INTEGER,
-        ringOn INTEGER
-        
-      )
-    ''');
-    await db.execute('''
-      CREATE TABLE ringtones (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        ringtoneName TEXT NOT NULL,
-        ringtonePath TEXT NOT NULL,
-        currentCounterOfUsage INTEGER NOT NULL DEFAULT 0
-      )
-    ''');
-  }
-
 
   Future<Isar> openDB() async {
     final dir = await getApplicationDocumentsDirectory();

@@ -14,14 +14,17 @@ class ProfileModel {
   String? firestoreId;
   late bool isEnabled;
   late bool isLocationEnabled;
+  late bool isNegativeLocationEnabled;
   late bool isSharedAlarmEnabled;
   late bool isWeatherEnabled;
+  late bool isNegativeWeatherEnabled;
   late bool isMathsEnabled;
   late bool isShakeEnabled;
   late bool isQrEnabled;
   late bool isPedometerEnabled;
   late int intervalToAlarm;
   late bool isActivityEnabled;
+  late bool isNegativeActivityEnabled;
   late String location;
   late int activityInterval;
   late int minutesSinceMidnight;
@@ -68,10 +71,13 @@ class ProfileModel {
       required this.days,
       required this.intervalToAlarm,
       required this.isActivityEnabled,
+      required this.isNegativeActivityEnabled,
       required this.minutesSinceMidnight,
       required this.isLocationEnabled,
+      required this.isNegativeLocationEnabled,
       required this.isSharedAlarmEnabled,
       required this.isWeatherEnabled,
+      required this.isNegativeWeatherEnabled,
       required this.location,
       required this.weatherTypes,
       required this.isMathsEnabled,
@@ -134,10 +140,13 @@ class ProfileModel {
     isEnabled = documentSnapshot['isEnabled'];
     intervalToAlarm = documentSnapshot['intervalToAlarm'];
     isActivityEnabled = documentSnapshot['isActivityEnabled'];
+    isNegativeActivityEnabled = documentSnapshot['isNegativeActivityEnabled'] ?? false;
     activityInterval = documentSnapshot['activityInterval'];
 
     isLocationEnabled = documentSnapshot['isLocationEnabled'];
+    isNegativeLocationEnabled = documentSnapshot['isNegativeLocationEnabled'] ?? false;
     isWeatherEnabled = documentSnapshot['isWeatherEnabled'];
+    isNegativeWeatherEnabled = documentSnapshot['isNegativeWeatherEnabled'] ?? false;
     weatherTypes = List<int>.from(documentSnapshot['weatherTypes']);
     location = documentSnapshot['location'];
     isMathsEnabled = documentSnapshot['isMathsEnabled'];
@@ -186,12 +195,14 @@ class ProfileModel {
     isEnabled = profileData['isEnabled'];
     intervalToAlarm = profileData['intervalToAlarm'];
     isActivityEnabled = profileData['isActivityEnabled'];
+    isNegativeActivityEnabled = profileData['isNegativeActivityEnabled'] ?? false;
     isWeatherEnabled = profileData['isWeatherEnabled'];
+    isNegativeWeatherEnabled = profileData['isNegativeWeatherEnabled'] ?? false;
     weatherTypes = List<int>.from(profileData['weatherTypes']);
 
     activityInterval = profileData['activityInterval'];
     isLocationEnabled = profileData['isLocationEnabled'];
-    isSharedAlarmEnabled = profileData['isSharedAlarmEnabled'];
+    isNegativeLocationEnabled = profileData['isNegativeLocationEnabled'] ?? false;
     location = profileData['location'];
 
     isMathsEnabled = profileData['isMathsEnabled'];
@@ -244,11 +255,14 @@ class ProfileModel {
       'intervalToAlarm': profileRecord.intervalToAlarm,
       'isEnabled': profileRecord.isEnabled,
       'isActivityEnabled': profileRecord.isActivityEnabled,
+      'isNegativeActivityEnabled': profileRecord.isNegativeActivityEnabled,
       'weatherTypes': profileRecord.weatherTypes,
       'isWeatherEnabled': profileRecord.isWeatherEnabled,
+      'isNegativeWeatherEnabled': profileRecord.isNegativeWeatherEnabled,
       'activityInterval': profileRecord.activityInterval,
       'minutesSinceMidnight': profileRecord.minutesSinceMidnight,
       'isLocationEnabled': profileRecord.isLocationEnabled,
+      'isNegativeLocationEnabled': profileRecord.isNegativeLocationEnabled,
       'location': profileRecord.location,
       'isSharedAlarmEnabled': profileRecord.isSharedAlarmEnabled,
       'isMathsEnabled': profileRecord.isMathsEnabled,

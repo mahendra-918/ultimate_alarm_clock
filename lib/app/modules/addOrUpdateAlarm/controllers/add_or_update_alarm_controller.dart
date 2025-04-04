@@ -25,6 +25,8 @@ import 'package:ultimate_alarm_clock/app/utils/constants.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl_phone_number_input/src/models/country_model.dart';
 import '../../settings/controllers/settings_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class AddOrUpdateAlarmController extends GetxController {
   final labelController = TextEditingController();
@@ -40,14 +42,17 @@ class AddOrUpdateAlarmController extends GetxController {
   final isActivityMonitorenabled = 0.obs;
   final activityInterval = 0.obs;
   final isLocationEnabled = false.obs;
+  final isNegativeLocationEnabled = false.obs;
   final isSharedAlarmEnabled = false.obs;
   late final isWeatherEnabled = false.obs;
+  late final isNegativeWeatherEnabled = false.obs;
   final weatherApiKeyExists = false.obs;
   final isShakeEnabled = false.obs;
   final timeToAlarm = ''.obs;
   final shakeTimes = 0.obs;
   final isPedometerEnabled = false.obs;
   final numberOfSteps = 0.obs;
+  final isNegativeActivityEnabled = false.obs;
   var ownerId = ''.obs; // id -> owner of the alarm
   var ownerName = ''.obs; // name -> owner of the alarm
   var userId = ''.obs; // id -> loggedin user
@@ -328,58 +333,265 @@ class AddOrUpdateAlarmController extends GetxController {
     }
   }
 
-  Future<void> getLocation() async {
+  Future<bool> getLocation() async {
+    debugPrint('Starting location fetch...');
+    
+    // First check if location services are enabled
+    if (!await FlLocation.isLocationServicesEnabled) {
+      debugPrint('Location services are disabled');
+      Get.snackbar(
+        'Location Services Disabled',
+        'Please enable location services in your device settings to use this feature',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 3),
+        margin: const EdgeInsets.all(10),
+        mainButton: TextButton(
+          onPressed: () {
+            // Open location settings
+            openLocationSettings();
+          },
+          child: const Text('SETTINGS', style: TextStyle(color: Colors.white)),
+        ),
+      );
+      
+      // Set a default location
+      if (selectedPoint.value.latitude == 0 && selectedPoint.value.longitude == 0) {
+        selectedPoint.value = LatLng(40.7128, -74.0060); // Default to NYC
+        updateMapMarker();
+      }
+      return false;
+    }
+    
     if (await checkAndRequestPermission()) {
-      const timeLimit = Duration(seconds: 10);
-      await FlLocation.getLocation(
-        timeLimit: timeLimit,
-        accuracy: LocationAccuracy.best,
-      ).then((location) {
-        selectedPoint.value = LatLng(location.latitude, location.longitude);
-      }).onError((error, stackTrace) {
-        debugPrint('error: ${error.toString()}');
-      });
+      try {
+        debugPrint('Fetching location with 15 second timeout');
+        const timeLimit = Duration(seconds: 15); // Increased from 10 to 15 seconds
+        bool locationObtained = false;
+        
+        await FlLocation.getLocation(
+          timeLimit: timeLimit,
+          accuracy: LocationAccuracy.best,
+        ).then((location) {
+          // Update the selected point with user's current location
+          debugPrint('Location successfully obtained: ${location.latitude}, ${location.longitude}');
+          selectedPoint.value = LatLng(location.latitude, location.longitude);
+          // Ensure the marker is updated
+          updateMapMarker();
+          locationObtained = true;
+          
+          // Show a brief success message
+          Get.snackbar(
+            'Location Found',
+            'Your current location has been set',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.green,
+            colorText: Colors.white,
+            duration: const Duration(seconds: 1),
+            margin: const EdgeInsets.all(10),
+          );
+        }).onError((error, stackTrace) {
+          debugPrint('Error getting location: ${error.toString()}');
+          debugPrint('Stack trace: ${stackTrace.toString()}');
+          
+          // Show error to user
+          Get.snackbar(
+            'Location Error',
+            'Could not get your current location. Please check that your GPS is enabled and that you have given the app location permissions.',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
+            duration: const Duration(seconds: 4),
+            margin: const EdgeInsets.all(10),
+            mainButton: TextButton(
+              onPressed: () {
+                // Open location settings
+                openLocationSettings();
+              },
+              child: const Text('SETTINGS', style: TextStyle(color: Colors.white)),
+            ),
+          );
+          
+          // Set a default location if we couldn't get the user's location
+          if (selectedPoint.value.latitude == 0 && selectedPoint.value.longitude == 0) {
+            selectedPoint.value = LatLng(40.7128, -74.0060); // Default to NYC
+            updateMapMarker();
+          }
+        });
+        
+        return locationObtained;
+      } catch (e) {
+        debugPrint('Exception during location retrieval: $e');
+        
+        // Show error to user
+        Get.snackbar(
+          'Location Error',
+          'Failed to access your location. Please try again or set a location manually by tapping on the map.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 3),
+          margin: const EdgeInsets.all(10),
+        );
+        
+        // Ensure we have at least some location set
+        if (selectedPoint.value.latitude == 0 && selectedPoint.value.longitude == 0) {
+          selectedPoint.value = LatLng(40.7128, -74.0060); // Default to NYC
+          updateMapMarker();
+        }
+        return false;
+      }
+    } else {
+      // Permission denied, set a default location
+      debugPrint('Location permission denied or location services disabled');
+      if (selectedPoint.value.latitude == 0 && selectedPoint.value.longitude == 0) {
+        selectedPoint.value = LatLng(40.7128, -74.0060); // Default to NYC
+        updateMapMarker();
+      }
+      
+      // Show error to user about location permissions
+      Get.snackbar(
+        'Permission Required',
+        'Location permission is needed to find your current location. Please grant permission in settings.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.amber,
+        colorText: Colors.black,
+        duration: const Duration(seconds: 3),
+        margin: const EdgeInsets.all(10),
+        mainButton: TextButton(
+          onPressed: () {
+            // Open app settings
+            openLocationSettings();
+          },
+          child: const Text('SETTINGS', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        ),
+      );
+      
+      return false;
     }
   }
 
   Future<bool> checkAndRequestPermission({bool? background}) async {
+    debugPrint('Checking location permissions and services...');
+    
+    // First check if location services are enabled at the device level
     if (!await FlLocation.isLocationServicesEnabled) {
-      // Location services are disabled.
+      debugPrint('Device location services are disabled');
+      
+      // Show dialog to enable location services
+      bool? shouldOpenSettings = await Get.defaultDialog<bool>(
+        backgroundColor: themeController.secondaryBackgroundColor.value,
+        barrierDismissible: false,
+        title: 'Location Services Disabled',
+        contentPadding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+        titlePadding: const EdgeInsets.only(top: 30, right: 40),
+        titleStyle: TextStyle(
+          color: themeController.primaryTextColor.value,
+        ),
+        content: const Text(
+          'Location services are turned off on your device. Please enable location services in your device settings to use this feature.',
+        ),
+        actions: [
+          TextButton(
+            style: TextButton.styleFrom(
+              backgroundColor: themeController.primaryTextColor.value.withOpacity(0.2),
+            ),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            onPressed: () {
+              Get.back(result: false);
+            },
+          ),
+          const SizedBox(width: 10),
+          TextButton(
+            style: TextButton.styleFrom(
+              backgroundColor: kprimaryColor,
+            ),
+            child: const Text('Open Settings', style: TextStyle(color: Colors.black)),
+            onPressed: () {
+              Get.back(result: true);
+            },
+          ),
+        ],
+      );
+
+      if (shouldOpenSettings == true) {
+        openLocationSettings();
+      }
       return false;
     }
 
+    // Check current permission status
     var locationPermission = await FlLocation.checkLocationPermission();
+    debugPrint('Current location permission status: $locationPermission');
+    
     if (locationPermission == LocationPermission.deniedForever) {
-      // Cannot request runtime permission because location permission
-      // is denied forever.
+      // Cannot request runtime permission because location permission is denied forever
+      debugPrint('Location permission is denied forever');
+      
+      bool? shouldOpenSettings = await Get.defaultDialog<bool>(
+        backgroundColor: themeController.secondaryBackgroundColor.value,
+        barrierDismissible: false,
+        title: 'Location Permission Required',
+        contentPadding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+        titlePadding: const EdgeInsets.only(top: 30, right: 40),
+        titleStyle: TextStyle(
+          color: themeController.primaryTextColor.value,
+        ),
+        content: const Text(
+          'Location permission is permanently denied. Please enable it in app settings to use location-based features.',
+        ),
+        actions: [
+          TextButton(
+            style: TextButton.styleFrom(
+              backgroundColor: themeController.primaryTextColor.value.withOpacity(0.2),
+            ),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            onPressed: () {
+              Get.back(result: false);
+            },
+          ),
+          const SizedBox(width: 10),
+          TextButton(
+            style: TextButton.styleFrom(
+              backgroundColor: kprimaryColor,
+            ),
+            child: const Text('Open Settings', style: TextStyle(color: Colors.black)),
+            onPressed: () {
+              Get.back(result: true);
+            },
+          ),
+        ],
+      );
+      
+      if (shouldOpenSettings == true) {
+        openLocationSettings();
+      }
       return false;
     } else if (locationPermission == LocationPermission.denied) {
       bool? shouldAskPermission = await Get.defaultDialog<bool>(
         backgroundColor: themeController.secondaryBackgroundColor.value,
         barrierDismissible: false,
         title: 'Location Permission',
-        contentPadding:
-            const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+        contentPadding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
         titlePadding: const EdgeInsets.only(top: 30, right: 40),
         titleStyle: TextStyle(
           color: themeController.primaryTextColor.value,
         ),
         content: const Text(
-          'To ensure timely alarm dismissal, this app requires access to your location. Your location will be accessed in the background at the scheduled alarm time.',
+          'To use location-based alarms, this app needs access to your location. Your location will be accessed in the background at the scheduled alarm time.',
         ),
         actions: [
           TextButton(
             style: TextButton.styleFrom(
-              backgroundColor: kprimaryColor,
+              backgroundColor: themeController.primaryTextColor.value.withOpacity(0.2),
             ),
-            child: const Text('Cancel', style: TextStyle(color: Colors.black)),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
             onPressed: () {
               Get.back(result: false);
             },
           ),
-          const SizedBox(
-            width: 10,
-          ),
+          const SizedBox(width: 10),
           TextButton(
             style: TextButton.styleFrom(
               backgroundColor: kprimaryColor,
@@ -390,30 +602,78 @@ class AddOrUpdateAlarmController extends GetxController {
             },
           ),
         ],
-        cancelTextColor: Colors.black,
-        confirmTextColor: Colors.black,
       );
 
       if (shouldAskPermission == false) {
-        // User declined the permission request.
+        // User declined the permission request
+        debugPrint('User declined permission request dialog');
         return false;
       }
-      // Ask the user for location permission.
+      
+      // Ask for location permission
+      debugPrint('Requesting location permission...');
       locationPermission = await FlLocation.requestLocationPermission();
+      debugPrint('Location permission after request: $locationPermission');
+      
       if (locationPermission == LocationPermission.denied ||
-          locationPermission == LocationPermission.deniedForever) return false;
+          locationPermission == LocationPermission.deniedForever) {
+        debugPrint('Location permission denied after request');
+        return false;
+      }
     }
 
-    // Location permission must always be allowed (LocationPermission.always)
-    // to collect location data in the background.
-    if (background == true &&
-        locationPermission == LocationPermission.whileInUse) return false;
+    // Check if we need background permission (which is required for most alarm scenarios)
+    if (background == true && locationPermission == LocationPermission.whileInUse) {
+      bool? shouldRequestBackground = await Get.defaultDialog<bool>(
+        backgroundColor: themeController.secondaryBackgroundColor.value,
+        barrierDismissible: false,
+        title: 'Background Location',
+        contentPadding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+        titlePadding: const EdgeInsets.only(top: 30, right: 40),
+        titleStyle: TextStyle(
+          color: themeController.primaryTextColor.value,
+        ),
+        content: const Text(
+          'For location-based alarms to work properly when your phone is locked or the app is in the background, please allow "Always" location access.',
+        ),
+        actions: [
+          TextButton(
+            style: TextButton.styleFrom(
+              backgroundColor: themeController.primaryTextColor.value.withOpacity(0.2),
+            ),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            onPressed: () {
+              Get.back(result: false);
+            },
+          ),
+          const SizedBox(width: 10),
+          TextButton(
+            style: TextButton.styleFrom(
+              backgroundColor: kprimaryColor,
+            ),
+            child: const Text('Settings', style: TextStyle(color: Colors.black)),
+            onPressed: () {
+              Get.back(result: true);
+            },
+          ),
+        ],
+      );
+      
+      if (shouldRequestBackground == true) {
+        openLocationSettings();
+      }
+      return false;
+    }
 
-    // Location services has been enabled and permission have been granted.
+    // Location services are enabled and permission granted
+    debugPrint('Location permission granted successfully');
     return true;
   }
 
   createAlarm(AlarmModel alarmData) async {
+    // Save negative condition preferences to shared preferences for native services
+    await _saveNegativeConditionPreferences();
+    
     if (isSharedAlarmEnabled.value == true) {
       alarmRecord.value =
           await FirestoreDb.addAlarm(userModel.value, alarmData);
@@ -426,6 +686,22 @@ class AddOrUpdateAlarmController extends GetxController {
         alarmRecord: alarmData,
       );
     });
+  }
+
+  Future<void> _saveNegativeConditionPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // Save negative activity preference
+    await prefs.setInt('flutter.is_negative_activity', 
+        isNegativeActivityEnabled.value ? 1 : 0);
+    
+    // Save negative location preference
+    await prefs.setInt('flutter.is_negative_location', 
+        isNegativeLocationEnabled.value ? 1 : 0);
+    
+    // Save negative weather preference
+    await prefs.setInt('flutter.is_negative_weather', 
+        isNegativeWeatherEnabled.value ? 1 : 0);
   }
 
   showQRDialog() {
@@ -754,16 +1030,7 @@ class AddOrUpdateAlarmController extends GetxController {
       isLocationEnabled.value = alarmRecord.value.isLocationEnabled;
       selectedPoint.value = Utils.stringToLatLng(alarmRecord.value.location);
       // Shows the marker in UI
-      markersList.add(
-        Marker(
-          point: selectedPoint.value,
-          builder: (ctx) => const Icon(
-            Icons.location_on,
-            size: 35,
-            color: Colors.black,
-          ),
-        ),
-      );
+      updateMapMarker();
 
       isWeatherEnabled.value = alarmRecord.value.isWeatherEnabled;
       weatherTypes.value = Utils.getFormattedWeatherTypes(selectedWeather);
@@ -936,17 +1203,7 @@ class AddOrUpdateAlarmController extends GetxController {
     selectedPoint.listen(
       (point) {
         selectedPoint.value = point;
-        markersList.clear();
-        markersList.add(
-          Marker(
-            point: selectedPoint.value,
-            builder: (ctx) => const Icon(
-              Icons.location_on,
-              size: 35,
-              color: Colors.black,
-            ),
-          ),
-        );
+        updateMapMarker();
         _compareAndSetChange(
           'location',
           '${point.latitude} ${point.longitude}',
@@ -1046,11 +1303,14 @@ class AddOrUpdateAlarmController extends GetxController {
       intervalToAlarm:
           Utils.getMillisecondsToAlarm(DateTime.now(), selectedTime.value),
       isActivityEnabled: isActivityenabled.value,
+      isNegativeActivityEnabled: isNegativeActivityEnabled.value,
       minutesSinceMidnight:
           Utils.timeOfDayToInt(TimeOfDay.fromDateTime(selectedTime.value)),
       isLocationEnabled: isLocationEnabled.value,
+      isNegativeLocationEnabled: isNegativeLocationEnabled.value,
       weatherTypes: Utils.getIntFromWeatherTypes(selectedWeather.toList()),
       isWeatherEnabled: isWeatherEnabled.value,
+      isNegativeWeatherEnabled: isNegativeWeatherEnabled.value,
       location: Utils.geoPointToString(
         Utils.latLngToGeoPoint(selectedPoint.value),
       ),
@@ -1337,16 +1597,19 @@ class AddOrUpdateAlarmController extends GetxController {
         selectedTime.value,
       ),
       isActivityEnabled: isActivityenabled.value,
+      isNegativeActivityEnabled: isNegativeActivityEnabled.value,
       minutesSinceMidnight: Utils.timeOfDayToInt(
         TimeOfDay.fromDateTime(
           selectedTime.value,
         ),
       ),
       isLocationEnabled: isLocationEnabled.value,
+      isNegativeLocationEnabled: isNegativeLocationEnabled.value,
       weatherTypes: Utils.getIntFromWeatherTypes(
         selectedWeather.toList(),
       ),
       isWeatherEnabled: isWeatherEnabled.value,
+      isNegativeWeatherEnabled: isNegativeWeatherEnabled.value,
       location: Utils.geoPointToString(
         Utils.latLngToGeoPoint(
           selectedPoint.value,
@@ -1408,7 +1671,6 @@ class AddOrUpdateAlarmController extends GetxController {
       );
     }
   }
-}
 
   int orderedCountryCode(Country countryA, Country countryB) {
     // `??` for null safety of 'dialCode'
@@ -1417,3 +1679,92 @@ class AddOrUpdateAlarmController extends GetxController {
 
     return int.parse(dialCodeA).compareTo(int.parse(dialCodeB));
   }
+
+  // Method to update the map location and update marker
+  void setMapLocation(LatLng point) {
+    selectedPoint.value = point;
+    updateMapMarker();
+  }
+  
+  // Update the marker on the map
+  void updateMapMarker() {
+    markersList.clear();
+    markersList.add(
+      Marker(
+        width: 120,
+        height: 80,
+        point: selectedPoint.value,
+        builder: (ctx) => Stack(
+          clipBehavior: Clip.none,
+          children: [
+            const Positioned(
+              top: 0,
+              left: 40,
+              child: Icon(
+                Icons.location_on,
+                size: 35,
+                color: Colors.red,
+              ),
+            ),
+            Positioned(
+              top: 40,
+              left: 15,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(4),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      spreadRadius: 1,
+                      blurRadius: 2,
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: const Text(
+                  "Alarm Location",
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Open application settings to allow user to change permissions
+  void openLocationSettings() {
+    debugPrint('Prompting user to open location settings...');
+    try {
+      // Show instructions to open settings manually
+      Get.defaultDialog(
+        backgroundColor: themeController.secondaryBackgroundColor.value,
+        title: 'Open Settings',
+        titleStyle: TextStyle(
+          color: themeController.primaryTextColor.value,
+        ),
+        contentPadding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+        content: const Text(
+          'Please open your device settings and enable location services and permissions for this app.',
+        ),
+        confirm: TextButton(
+          style: TextButton.styleFrom(
+            backgroundColor: kprimaryColor,
+          ),
+          child: const Text('OK', style: TextStyle(color: Colors.black)),
+          onPressed: () {
+            Get.back();
+          },
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error showing settings dialog: $e');
+    }
+  }
+}

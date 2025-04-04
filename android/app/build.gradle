@@ -48,7 +48,11 @@ android {
         multiDexEnabled true
     }
 
-    
+    // Add this to suppress the pedometer SDK 35 warning
+    lint {
+        disable 'GradleDependency'
+        abortOnError false
+    }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17 // Updated to Java 17

@@ -4,6 +4,7 @@ import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/controllers/ad
 import 'package:ultimate_alarm_clock/app/modules/settings/controllers/theme_controller.dart';
 import 'package:ultimate_alarm_clock/app/utils/constants.dart';
 import 'package:ultimate_alarm_clock/app/utils/utils.dart';
+import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/condition_explanation_widget.dart';
 
 class WeatherTile extends StatelessWidget {
   const WeatherTile({
@@ -20,167 +21,304 @@ class WeatherTile extends StatelessWidget {
     final double width = MediaQuery.of(context).size.width;
     final double height = MediaQuery.of(context).size.height;
 
-    return Container(
-      child: ListTile(
-        onTap: () async {
-          Utils.hapticFeedback();
-          await controller.checkAndRequestPermission();
-          Get.defaultDialog(
-            titlePadding: const EdgeInsets.symmetric(vertical: 20),
-            backgroundColor: themeController.secondaryBackgroundColor.value,
-            title: 'Select weather types'.tr,
-            titleStyle: Theme.of(context).textTheme.displaySmall,
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  WeatherOption(
-                    type: WeatherTypes.sunny,
-                    label: 'Sunny',
-                    controller: controller,
-                    themeController: themeController,
+    return Obx(
+      () => Column(
+        children: [
+          // Main weather tile with toggle
+          ListTile(
+            title: Row(
+              children: [
+                FittedBox(
+                  alignment: Alignment.centerLeft,
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    'Weather Condition'.tr,
+                    style: TextStyle(
+                      color: themeController.primaryTextColor.value,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                  WeatherOption(
-                    type: WeatherTypes.cloudy,
-                    label: 'Cloudy',
-                    controller: controller,
-                    themeController: themeController,
-                  ),
-                  WeatherOption(
-                    type: WeatherTypes.rainy,
-                    label: 'Rainy',
-                    controller: controller,
-                    themeController: themeController,
-                  ),
-                  WeatherOption(
-                    type: WeatherTypes.windy,
-                    label: 'Windy',
-                    controller: controller,
-                    themeController: themeController,
-                  ),
-                  WeatherOption(
-                    type: WeatherTypes.stormy,
-                    label: 'Stormy',
-                    controller: controller,
-                    themeController: themeController,
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-        title: Row(
-          children: [
-            FittedBox(
-              alignment: Alignment.centerLeft,
-              fit: BoxFit.scaleDown,
-              child: Text(
-                'Weather Condition'.tr,
-                style: TextStyle(
-                  color: themeController.primaryTextColor.value,
-                  fontWeight: FontWeight.w500,
                 ),
-              ),
-            ),
-            IconButton(
-              icon: Icon(
-                Icons.info_sharp,
-                size: 21,
-                color: themeController.primaryTextColor.value.withOpacity(0.3),
-              ),
-              onPressed: () {
-                Utils.hapticFeedback();
-                showModalBottomSheet(
-                  context: context,
-                  backgroundColor:
-                      themeController.secondaryBackgroundColor.value,
-                  builder: (context) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(25.0),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            Icon(
-                              Icons.cloudy_snowing,
-                              color: themeController.primaryTextColor.value,
-                              size: height * 0.1,
-                            ),
-                            Text(
-                              'Weather based cancellation'.tr,
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.displayMedium,
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.only(top: 15.0),
-                              child: Text(
-                                'weatherDescription'.tr,
-                                style: Theme.of(context).textTheme.bodyMedium,
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            SizedBox(
-                              width: width,
-                              child: TextButton(
-                                style: ButtonStyle(
-                                  backgroundColor: MaterialStateProperty.all(
-                                    kprimaryColor,
-                                  ),
-                                ),
-                                onPressed: () {
-                                  Utils.hapticFeedback();
-                                  Get.back();
-                                },
-                                child: Text(
-                                  'Understood'.tr,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .displaySmall!
-                                      .copyWith(
-                                        color: themeController
-                                            .secondaryTextColor.value,
-                                      ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                IconButton(
+                  icon: Icon(
+                    Icons.info_sharp,
+                    size: 21,
+                    color: themeController.primaryTextColor.value.withOpacity(0.3),
+                  ),
+                  onPressed: () {
+                    Utils.hapticFeedback();
+                    Utils.showModal(
+                      context: context,
+                      title: 'Weather based alarm',
+                      description: 'This feature uses current weather conditions to determine whether to ring the alarm or not. You can set it to ring only when specific weather types are present or when they are NOT present.',
+                      iconData: Icons.cloudy_snowing,
+                      isLightMode: themeController.currentTheme.value == ThemeMode.light,
                     );
                   },
-                );
-              },
-            ),
-          ],
-        ),
-        trailing: InkWell(
-          child: Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Obx(
-                () => Container(
-                  width: MediaQuery.of(context).size.width * 0.2, // Adjust width dynamically
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    controller.weatherTypes.value,
-                    textAlign: TextAlign.right,
-                    style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                          color: (controller.isWeatherEnabled.value == false)
-                              ? kprimaryDisabledTextColor
-                              : themeController.primaryTextColor.value,
-                        ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
                 ),
-              ),
-              const Icon(
-                Icons.chevron_right,
-                color: kprimaryDisabledTextColor,
-              ),
-            ],
+              ],
+            ),
+            trailing: Switch(
+              value: controller.isWeatherEnabled.value || controller.isNegativeWeatherEnabled.value,
+              onChanged: (value) async {
+                Utils.hapticFeedback();
+                await controller.checkAndRequestPermission();
+                if (value) {
+                  // Default to positive weather condition when turning on
+                  controller.isWeatherEnabled.value = true;
+                  controller.isNegativeWeatherEnabled.value = false;
+                } else {
+                  // Turn off both weather conditions
+                  controller.isWeatherEnabled.value = false;
+                  controller.isNegativeWeatherEnabled.value = false;
+                }
+              },
+              activeColor: kprimaryColor,
+            ),
           ),
-        ),
+          
+          // Additional settings that show only when weather is enabled
+          AnimatedSize(
+            duration: const Duration(milliseconds: 300),
+            child: (controller.isWeatherEnabled.value || controller.isNegativeWeatherEnabled.value)
+              ? Column(
+                children: [
+                  // Add explanation helper
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                    child: Row(
+                      children: [
+                        Expanded(child: Container()),
+                        ConditionExplanationWidget(
+                          themeController: themeController,
+                          title: "Weather Condition Types",
+                          positiveExplanation: 
+                              "When 'Ring WHEN weather matches' is selected, the alarm will ONLY ring if the current weather matches one of your selected weather types.",
+                          negativeExplanation: 
+                              "When 'Ring when weather does NOT match' is selected, the alarm will ONLY ring if the current weather does NOT match any of your selected weather types.",
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // Condition type section
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 10),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: themeController.primaryBackgroundColor.value,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: themeController.primaryTextColor.value.withOpacity(0.1),
+                              width: 1,
+                            ),
+                          ),
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Condition Type:',
+                                style: TextStyle(
+                                  color: themeController.primaryTextColor.value,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              
+                              // Positive condition with improved visuals
+                              InkWell(
+                                onTap: () {
+                                  Utils.hapticFeedback();
+                                  controller.isWeatherEnabled.value = true;
+                                  controller.isNegativeWeatherEnabled.value = false;
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                                  decoration: BoxDecoration(
+                                    color: controller.isWeatherEnabled.value 
+                                        ? kprimaryColor.withOpacity(0.15) 
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: controller.isWeatherEnabled.value 
+                                          ? kprimaryColor 
+                                          : themeController.primaryTextColor.value.withOpacity(0.1),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        controller.isWeatherEnabled.value 
+                                            ? Icons.radio_button_checked 
+                                            : Icons.radio_button_unchecked,
+                                        color: controller.isWeatherEnabled.value 
+                                            ? kprimaryColor 
+                                            : themeController.primaryTextColor.value,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Ring WHEN weather matches',
+                                              style: TextStyle(
+                                                color: themeController.primaryTextColor.value,
+                                                fontWeight: controller.isWeatherEnabled.value 
+                                                    ? FontWeight.bold 
+                                                    : FontWeight.normal,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              'Alarm will only sound during selected weather conditions',
+                                              style: TextStyle(
+                                                color: themeController.primaryTextColor.value.withOpacity(0.7),
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              
+                              const SizedBox(height: 8),
+                              
+                              // Negative condition with improved visuals
+                              InkWell(
+                                onTap: () {
+                                  Utils.hapticFeedback();
+                                  controller.isWeatherEnabled.value = false;
+                                  controller.isNegativeWeatherEnabled.value = true;
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                                  decoration: BoxDecoration(
+                                    color: controller.isNegativeWeatherEnabled.value 
+                                        ? Colors.redAccent.withOpacity(0.1) 
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: controller.isNegativeWeatherEnabled.value 
+                                          ? Colors.redAccent 
+                                          : themeController.primaryTextColor.value.withOpacity(0.1),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        controller.isNegativeWeatherEnabled.value 
+                                            ? Icons.radio_button_checked 
+                                            : Icons.radio_button_unchecked,
+                                        color: controller.isNegativeWeatherEnabled.value 
+                                            ? Colors.redAccent 
+                                            : themeController.primaryTextColor.value,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Ring when weather does NOT match',
+                                              style: TextStyle(
+                                                color: themeController.primaryTextColor.value,
+                                                fontWeight: controller.isNegativeWeatherEnabled.value 
+                                                    ? FontWeight.bold 
+                                                    : FontWeight.normal,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              'Alarm will only sound when current weather differs from selection',
+                                              style: TextStyle(
+                                                color: themeController.primaryTextColor.value.withOpacity(0.7),
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  const Divider(),
+                  
+                  // Weather types section with enhanced visuals
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Select Weather Types:',
+                          style: TextStyle(
+                            color: themeController.primaryTextColor.value,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        WeatherOption(
+                          type: WeatherTypes.sunny,
+                          label: 'Sunny',
+                          controller: controller,
+                          themeController: themeController,
+                        ),
+                        WeatherOption(
+                          type: WeatherTypes.cloudy,
+                          label: 'Cloudy',
+                          controller: controller,
+                          themeController: themeController,
+                        ),
+                        WeatherOption(
+                          type: WeatherTypes.rainy,
+                          label: 'Rainy',
+                          controller: controller,
+                          themeController: themeController,
+                        ),
+                        WeatherOption(
+                          type: WeatherTypes.windy,
+                          label: 'Windy',
+                          controller: controller,
+                          themeController: themeController,
+                        ),
+                        WeatherOption(
+                          type: WeatherTypes.stormy,
+                          label: 'Stormy',
+                          controller: controller,
+                          themeController: themeController,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(),
+                ],
+              )
+              : const SizedBox.shrink(),
+          ),
+        ],
       ),
     );
   }
