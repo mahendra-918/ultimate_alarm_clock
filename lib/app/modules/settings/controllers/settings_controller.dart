@@ -39,6 +39,8 @@ class SettingsController extends GetxController {
   final storage = Get.find<GetStorageProvider>();
   final RxString local = Get.locale.toString().obs;
   final Rx<UserModel?> userModel = Rx<UserModel?>(null);
+  var physicalButtonAction = 'Do Nothing'.obs;
+  final _physicalButtonActionKey = 'physical_button_action';
   final Map<String, dynamic> optionslocales = {
     'en_US': {
       'languageCode': 'en',
@@ -176,6 +178,11 @@ class SettingsController extends GetxController {
 
     currentLanguage.value = await storage.readCurrentLanguage();
 
+    String? buttonAction = await _secureStorageProvider.readPhysicalButtonAction(key: _physicalButtonActionKey);
+    if (buttonAction != null) {
+      physicalButtonAction.value = buttonAction;
+    }
+
     // Store the retrieved API key from the flutter secure storage
     String? retrievedAPIKey = await getKey(ApiKeys.openWeatherMap);
 
@@ -255,5 +262,10 @@ class SettingsController extends GetxController {
     local.value = Get.locale.toString();
     storage.writeCurrentLanguage(local.value);
     storage.writeLocale(languageCode, countryCode);
+  }
+
+  void updatePhysicalButtonAction(String action) {
+    physicalButtonAction.value = action;
+    _secureStorageProvider.writePhysicalButtonAction(key: _physicalButtonActionKey, action: action);
   }
 }

@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/services.dart' show ServicesBinding;
 
 import 'package:flutter_fgbg/flutter_fgbg.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
@@ -236,6 +237,7 @@ class AlarmControlController extends GetxController {
   void onInit() async {
     super.onInit();
     startListeningToFlip();
+    setupHardwareButtonListeners();
 
     // Extract alarm and preview flag from arguments
     final args = Get.arguments;
@@ -373,6 +375,63 @@ class AlarmControlController extends GetxController {
           print("Failed to schedule alarm: ${e.message}");
         }
       }
+    }
+  }
+
+  void setupHardwareButtonListeners() {
+    ServicesBinding.instance.keyboard.addHandler((KeyEvent event) {
+      
+      if (!isAlarmActive) return false;
+      
+      if (event is KeyDownEvent) {
+        if (event.logicalKey == LogicalKeyboardKey.audioVolumeUp ||
+            event.logicalKey == LogicalKeyboardKey.audioVolumeDown ||
+            event.logicalKey == LogicalKeyboardKey.powerOff) {
+          
+          handleHardwareButtonPress();
+          return true;
+        }
+      }
+      
+      return false; 
+    });
+  }
+
+  void handleHardwareButtonPress() {
+    String action = settingsController.physicalButtonAction.value;
+    
+    switch (action) {
+      case 'Snooze':
+        if (!isSnoozing.value) {
+          startSnooze();
+        }
+        break;
+      case 'Dismiss':
+        Vibration.cancel();
+        if (vibrationTimer != null) {
+          vibrationTimer!.cancel();
+        }
+        String ringtoneName = currentlyRingingAlarm.value.ringtoneName;
+        AudioUtils.stopAlarm(ringtoneName: ringtoneName);
+        
+        if (currentlyRingingAlarm.value.isGuardian) {
+          guardianTimer.cancel();
+        }
+        
+        if (Utils.isChallengeEnabled(currentlyRingingAlarm.value)) {
+          Get.toNamed(
+            '/alarm-challenge',
+            arguments: currentlyRingingAlarm.value,
+          );
+        } else {
+          Get.offAllNamed(
+            '/bottom-navigation-bar',
+            arguments: currentlyRingingAlarm.value,
+          );
+        }
+        break;
+      default: 
+        break;
     }
   }
 

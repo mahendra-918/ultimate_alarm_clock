@@ -215,4 +215,18 @@ class SecureStorageProvider {
       value: timerId.toString(),
     );
   }
+
+  Future<String?> readPhysicalButtonAction({required String key}) async {
+    return await _secureStorage.read(key: key);
+  }
+
+  Future<void> writePhysicalButtonAction({
+    required String key,
+    required String action,
+  }) async {
+    await _secureStorage.write(
+      key: key,
+      value: action,
+    );
+  }
 }

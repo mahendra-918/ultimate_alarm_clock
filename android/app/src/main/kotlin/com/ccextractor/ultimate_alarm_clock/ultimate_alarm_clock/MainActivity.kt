@@ -15,6 +15,7 @@ import android.os.Bundle
 import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
+import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.annotation.NonNull
 import io.flutter.embedding.android.FlutterActivity
@@ -26,12 +27,15 @@ class MainActivity : FlutterActivity() {
     companion object {
         const val CHANNEL1 = "ulticlock"
         const val CHANNEL2 = "timer"
+        const val VOLUME_CHANNEL = "ulticlock/volume_buttons"
         const val ACTION_START_FLUTTER_APP = "com.ccextractor.ultimate_alarm_clock"
         const val EXTRA_KEY = "alarmRing"
         const val ALARM_TYPE = "isAlarm"
         private var isAlarm: String? = "true"
         val alarmConfig = hashMapOf("shouldAlarmRing" to false, "alarmIgnore" to false)
         private var ringtone: Ringtone? = null
+        private var volumeButtonMethodChannel: MethodChannel? = null
+        private var isVolumeButtonListenerActive = false
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,6 +52,23 @@ class MainActivity : FlutterActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON)
         var methodChannel1 = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL1)
         var methodChannel2 = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL2)
+        
+        volumeButtonMethodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, VOLUME_CHANNEL)
+        volumeButtonMethodChannel?.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "startVolumeButtonListener" -> {
+                    isVolumeButtonListenerActive = true
+                    result.success(null)
+                }
+                "stopVolumeButtonListener" -> {
+                    isVolumeButtonListenerActive = false
+                    result.success(null)
+                }
+                else -> {
+                    result.notImplemented()
+                }
+            }
+        }
 
         val intent = intent
 
@@ -141,6 +162,23 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val keyCode = event.keyCode
+        
+        if (isVolumeButtonListenerActive && 
+            (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) && 
+            event.action == KeyEvent.ACTION_DOWN) {
+            
+        
+            volumeButtonMethodChannel?.invokeMethod("volumeButtonPressed", null)
+            
+        
+            return true
+        }
+        
+        
+        return super.dispatchKeyEvent(event)
+    }
 
     fun bringAppToForeground(context: Context) {
         val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager?
