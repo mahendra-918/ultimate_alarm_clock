@@ -126,6 +126,10 @@ class FirestoreDb {
     await _alarmsCollection(user)
         .add(AlarmModel.toMap(alarmRecord))
         .then((value) => alarmRecord.firestoreId = value.id);
+    
+    // Add a log entry for alarm creation
+    await IsarDb().insertLog('Alarm created: ${alarmRecord.alarmTime}', status: Status.success, type: LogType.normal, alarmID: alarmRecord.alarmID);
+    
     return alarmRecord;
   }
 

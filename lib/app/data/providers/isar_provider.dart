@@ -188,7 +188,7 @@ class IsarDb {
     }
     return Future.value(Isar.getInstance());
   }
-  Future<int> insertLog(String msg, {Status status = Status.warning, LogType type = LogType.dev, int hasRung = 0}) async {
+  Future<int> insertLog(String msg, {Status status = Status.warning, LogType type = LogType.dev, int hasRung = 0, String alarmID = ""}) async {
     try {
       final db = await setAlarmLogs();
       if (db == null) {
@@ -205,6 +205,7 @@ class IsarDb {
           'LogType': t,
           'Message': msg,
           'HasRung': hasRung,
+          'AlarmID': alarmID,
         },
       );
       debugPrint('Successfully inserted log: $msg');
@@ -257,6 +258,8 @@ class IsarDb {
     final sqlmap = alarmRecord.toSQFliteMap();
     print(sqlmap);
     await sql!.insert('alarms', sqlmap);
+    // Add a log entry for alarm creation
+    await IsarDb().insertLog('Alarm created ${alarmRecord.alarmTime}', status: Status.success, type: LogType.normal, alarmID: alarmRecord.alarmID);
     List a = await IsarDb().getLogs();
     print(a);
     return alarmRecord;
@@ -435,7 +438,7 @@ class IsarDb {
     await db.writeTxn(() async {
       await db.alarmModels.put(alarmRecord);
     });
-    await IsarDb().insertLog('Alarm updated ${alarmRecord.alarmTime}', status: Status.success, type: LogType.normal);
+    await IsarDb().insertLog('Alarm updated ${alarmRecord.alarmTime}', status: Status.success, type: LogType.normal, alarmID: alarmRecord.alarmID);
     await sql!.update(
       'alarms',
       alarmRecord.toSQFliteMap(),
@@ -511,7 +514,7 @@ class IsarDb {
     await db.writeTxn(() async {
       await db.alarmModels.delete(id);
     });
-    await IsarDb().insertLog('Alarm deleted ${tobedeleted!.alarmTime}');
+    await IsarDb().insertLog('Alarm deleted ${tobedeleted!.alarmTime}', status: Status.success, type: LogType.normal, alarmID: tobedeleted.alarmID);
     await sql!.delete(
       'alarms',
       where: 'alarmID = ?',
