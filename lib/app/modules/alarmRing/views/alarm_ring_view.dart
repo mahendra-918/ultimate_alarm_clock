@@ -211,10 +211,7 @@ class AlarmControlView extends GetView<AlarmControlController> {
                               arguments: controller.currentlyRingingAlarm.value,
                             );
                           } else {
-                            Get.offAllNamed(
-                              '/bottom-navigation-bar',
-                              arguments: controller.currentlyRingingAlarm.value,
-                            );
+                            Get.offAllNamed('/greeting-screen');
                           }
                         },
                         child: Text(

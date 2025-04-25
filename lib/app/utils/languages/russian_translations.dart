@@ -182,6 +182,12 @@ class RussianTranslations extends Translations {
           'Alarm Owner': 'Владелец будильника',
           'Shared Users': 'Общие пользователи',
           'No shared users!': 'Нет общих пользователей!',
+          'Good Morning': 'Доброе утро',
+          'Good Afternoon': 'Добрый день',
+          'Good Evening': 'Добрый вечер',
+          'Good Night': 'Доброй ночи',
+          'Have a great day': 'Хорошего дня',
+          'Have a peaceful night': 'Спокойной ночи',
           'Remove': 'Удалить',
           'Select duration': 'Выберите продолжительность',
 //snooze_duration_tile.dart

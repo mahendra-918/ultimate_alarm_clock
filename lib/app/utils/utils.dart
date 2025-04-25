@@ -186,6 +186,20 @@ class Utils {
     }
   }
 
+  static String getGreeting() {
+    final hour = DateTime.now().hour;
+    
+    if (hour >= 5 && hour < 12) {
+      return 'Good Morning'.tr;
+    } else if (hour >= 12 && hour < 17) {
+      return 'Good Afternoon'.tr;
+    } else if (hour >= 17 && hour < 21) {
+      return 'Good Evening'.tr;
+    } else {
+      return 'Good Night'.tr;
+    }
+  }
+
   static List<String> convertTo12HourFormat(String time) {
     int hour = int.parse(time.substring(0, 2));
     String minute = time.substring(3);

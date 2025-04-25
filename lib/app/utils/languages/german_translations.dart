@@ -194,6 +194,12 @@ class GermanTranslations extends Translations {
           'Alarm Owner': 'Alarm-Besitzer',
           'Shared Users': 'Geteilte Benutzer',
           'No shared users!': 'Keine geteilten Benutzer!',
+          'Good Morning': 'Guten Morgen',
+          'Good Afternoon': 'Guten Tag',
+          'Good Evening': 'Guten Abend',
+          'Good Night': 'Gute Nacht',
+          'Have a great day': 'Haben Sie einen schönen Tag',
+          'Have a peaceful night': 'Haben Sie eine friedliche Nacht',
           'Remove': 'Entfernen',
           'Select duration': 'Dauer wählen',
 //snooze_duration_tile.dart

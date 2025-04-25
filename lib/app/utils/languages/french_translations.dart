@@ -55,7 +55,7 @@ class FrenchTranslations extends Translations {
           'Yes': 'Oui',
           'No': 'Non',
           'Confirmation': 'Confirmation',
-          'want to delete?': 'Êtes-vous sûr de vouloir supprimer cette alarme ?',
+          'want to delete?': 'Êtes-vous sûr de vouloir supprimer cette alarme ?',
           'delete' : 'supprimer',
           'You cannot join your own alarm!':
               'Vous ne pouvez pas rejoindre votre propre réveil !',
@@ -198,6 +198,12 @@ class FrenchTranslations extends Translations {
           'Alarm Owner': 'Propriétaire de l\'alarme',
           'Shared Users': 'Utilisateurs partagés',
           'No shared users!': 'Aucun utilisateur partagé !',
+          'Good Morning': 'Bonjour',
+          'Good Afternoon': 'Bon après-midi',
+          'Good Evening': 'Bonsoir',
+          'Good Night': 'Bonne nuit',
+          'Have a great day': 'Passez une bonne journée',
+          'Have a peaceful night': 'Passez une nuit paisible',
           'Remove': 'Supprimer',
           'Select duration': 'Sélectionner la durée',
 //snooze_duration_tile.dart

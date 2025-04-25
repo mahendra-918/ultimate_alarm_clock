@@ -24,6 +24,8 @@ import '../modules/timerRing/bindings/timer_ring_binding.dart';
 import '../modules/timerRing/views/timer_ring_view.dart';
 import '../modules/debug/bindings/debug_binding.dart';
 import '../modules/debug/views/debug_view.dart';
+import '../modules/greetingScreen/bindings/greeting_screen_binding.dart';
+import '../modules/greetingScreen/views/greeting_screen_view.dart';
 
 part 'app_routes.dart';
 
@@ -94,6 +96,11 @@ class AppPages {
       name: _Paths.DEBUG,
       page: () => DebugView(),
       binding: DebugBinding(),
+    ),
+    GetPage(
+      name: _Paths.GREETING_SCREEN,
+      page: () => const GreetingScreenView(),
+      binding: GreetingScreenBinding(),
     ),
   ];
 }

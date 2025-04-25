@@ -198,6 +198,12 @@ class SpanishTranslations extends Translations {
           'Alarm Owner': 'Propietario de la alarma',
           'Shared Users': 'Usuarios compartidos',
           'No shared users!': '¡No hay usuarios compartidos!',
+          'Good Morning': 'Buenos días',
+          'Good Afternoon': 'Buenas tardes',
+          'Good Evening': 'Buenas tardes',
+          'Good Night': 'Buenas noches',
+          'Have a great day': 'Que tengas un buen día',
+          'Have a peaceful night': 'Que tengas una noche tranquila',
           'Remove': 'Eliminar',
           'Select duration': 'Seleccionar duración',
 //snooze_duration_tile.dart

@@ -7,6 +7,7 @@ import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shake/shake.dart';
 import 'package:ultimate_alarm_clock/app/data/models/alarm_model.dart';
+import 'package:ultimate_alarm_clock/app/modules/settings/controllers/theme_controller.dart';
 import 'package:ultimate_alarm_clock/app/utils/audio_utils.dart';
 import 'package:ultimate_alarm_clock/app/utils/constants.dart';
 import 'package:ultimate_alarm_clock/app/utils/utils.dart';
@@ -228,7 +229,8 @@ class AlarmChallengeController extends GetxController {
     if (!Utils.isChallengeEnabled(alarmRecord)) {
       isNumMathQuestionsSet = false;
       isTimerEnabled = false;
-      Get.offAllNamed('/bottom-navigation-bar');
+      
+      Get.offAllNamed('/greeting-screen');
     }
   }
 
