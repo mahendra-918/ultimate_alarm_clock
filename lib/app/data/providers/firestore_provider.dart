@@ -321,8 +321,12 @@ static Future<String> userExists(String email) async {
   static shareProfile(List emails) async {
     final profileSet = await IsarDb.getProfileAlarms();
     final currentProfileName = await storage.readProfile();
-
-    final currentUserEmail = _firebaseAuthInstance.currentUser!.email;
+    final user = _firebaseAuthInstance.currentUser;
+    if (user == null) {
+      // Not logged in, cannot share
+      return;
+    }
+    final currentUserEmail = user.email;
     profileSet['owner'] = currentUserEmail;
     Map sharedItem = {
       'type': 'profile',
@@ -338,7 +342,6 @@ static Future<String> userExists(String email) async {
         .then((v) {
       Get.snackbar('Notification', 'Item Shared!');
     });
-    ;
     for (final email in emails) {
       await _firebaseFirestore.collection('users').doc(email).update({
         'receivedItems': FieldValue.arrayUnion([sharedItem])
@@ -367,7 +370,12 @@ static Future<List<String>> getUserIdsByEmails(List emails) async {
 
 
   static shareAlarm(List emails, AlarmModel alarm) async {
-    final currentUserId = _firebaseAuthInstance.currentUser!.providerData[0].uid;
+    final user = _firebaseAuthInstance.currentUser;
+    if (user == null || user.providerData.isEmpty) {
+      // Not logged in, cannot share
+      return;
+    }
+    final currentUserId = user.providerData[0].uid;
     alarm.profile = 'Default';
     Map sharedItem = {
       'type': 'alarm',
@@ -375,24 +383,10 @@ static Future<List<String>> getUserIdsByEmails(List emails) async {
       'owner': currentUserId,
       'alarmTime': alarm.alarmTime
     };
-
-    // final newDocRef = FirebaseFirestore.instance
-    // .collection('users')
-    // .doc(currentUserId)
-    // .collection('alarms')
-    // .doc();
-
-    // await newDocRef.set(AlarmModel.toMap(alarm))
-    //     .then((v) {
-    //   Get.snackbar('Notification', 'Item Shared!');
-    // });
-
     for (final email in emails) {
       await addItemToUserByEmail(email, sharedItem);
     }
-
     Get.snackbar('Notification', 'Item Shared!');
-
   }
 
 static Future<void> addItemToUserByEmail(String email, dynamic sharedItem) async {
@@ -579,10 +573,15 @@ static Future<void> addItemToUserByEmail(String email, dynamic sharedItem) async
 
   static removeItem(Map item) async {
     print(item);
-
+    final user = _firebaseAuthInstance.currentUser;
+    if (user == null || user.providerData.isEmpty) {
+      // Not logged in, nothing to remove
+      return;
+    }
+    final uid = user.providerData[0].uid;
     await _firebaseFirestore
         .collection('users')
-        .doc(_firebaseAuthInstance.currentUser!.providerData[0].uid)
+        .doc(uid)
         .update({
       'receivedItems': FieldValue.arrayRemove([item])
     });
@@ -590,29 +589,38 @@ static Future<void> addItemToUserByEmail(String email, dynamic sharedItem) async
 
 
   static updateToken(String token) async {
+    final user = _firebaseAuthInstance.currentUser;
+    if (user == null || user.providerData.isEmpty) {
+      // Not logged in, nothing to update
+      return;
+    }
+    final uid = user.providerData[0].uid;
     await _firebaseFirestore
         .collection('users')
-        .doc(_firebaseAuthInstance.currentUser!.providerData[0].uid)
+        .doc(uid)
         .update({
       'fcmToken': token
     });
   }
 
-  static acceptSharedAlarm(String alarmOwnerId, AlarmModel alarm)
-  async {
-
-    String? currentUserId = _firebaseAuthInstance.currentUser!.providerData[0].uid;
-await _firebaseFirestore
-    .collection('sharedAlarms')
-    .doc(alarm.firestoreId)
-    .update({
-  'offsetDetails': FieldValue.arrayUnion([{
-    'userId': currentUserId,
-    'isOffsetBefore': true,
-    'offsetDuration': 0,
-    'offsettedTime': alarm.alarmTime,
-  }]),
-  'sharedUserIds': FieldValue.arrayUnion([currentUserId]), 
-});
+  static acceptSharedAlarm(String alarmOwnerId, AlarmModel alarm) async {
+    final user = _firebaseAuthInstance.currentUser;
+    if (user == null || user.providerData.isEmpty) {
+      // Not logged in, cannot accept
+      return;
+    }
+    final currentUserId = user.providerData[0].uid;
+    await _firebaseFirestore
+        .collection('sharedAlarms')
+        .doc(alarm.firestoreId)
+        .update({
+      'offsetDetails': FieldValue.arrayUnion([{
+        'userId': currentUserId,
+        'isOffsetBefore': true,
+        'offsetDuration': 0,
+        'offsettedTime': alarm.alarmTime,
+      }]),
+      'sharedUserIds': FieldValue.arrayUnion([currentUserId]),
+    });
   }
 }

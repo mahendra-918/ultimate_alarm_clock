@@ -57,16 +57,45 @@ class ShareDialog extends StatelessWidget {
                                 controller.selectedEmails,
                               );
                             } else {
+                              // Get the user IDs from emails
+                              List<String> sharedUserIds = await FirestoreDb.getUserIdsByEmails(
+                                controller.selectedEmails,
+                              );
+                              
+                              // Update the controller's sharedUserIds list
+                              if (sharedUserIds.isNotEmpty) {
+                                // Make sure we don't add duplicates
+                                for (String userId in sharedUserIds) {
+                                  if (!controller.sharedUserIds.contains(userId)) {
+                                    controller.sharedUserIds.add(userId);
+                                  }
+                                }
+                                
+                                // Update the alarm record
+                                controller.alarmRecord.value.sharedUserIds = controller.sharedUserIds;
+                                
+                                // Show the shared users list
+                                controller.showSharedUsersList.value = true;
+                              }
+                              
+                              // Share the alarm
                               await FirestoreDb.shareAlarm(
                                 controller.selectedEmails,
                                 controller.alarmRecord.value,
                               );
                               
-                            List<String> sharedUserIds = await FirestoreDb.getUserIdsByEmails(
-                                controller.selectedEmails,
-                              );
-
+                              // Send notifications
                               await PushNotifications().triggerSharedItemNotification(sharedUserIds);
+                              
+                              // Close the dialog
+                              Get.back();
+                              
+                              // Show success message
+                              Get.snackbar(
+                                'Shared Successfully',
+                                'Alarm has been shared with ${controller.selectedEmails.length} users',
+                                snackPosition: SnackPosition.BOTTOM,
+                              );
                             }
                           } else {
                             Get.snackbar('Error', 'Select an User');

@@ -1,42 +1,85 @@
 {
   "project_info": {
-    "project_number": "925414725523",
-    "project_id": "ultimate-alarm-clock-devtest",
-    "storage_bucket": "ultimate-alarm-clock-devtest.firebasestorage.app"
+    "project_number": "856004961904",
+    "project_id": "ultimate-alarm-clock-78e22",
+    "storage_bucket": "ultimate-alarm-clock-78e22.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:925414725523:android:37688caae6c2907d46ba66",
+        "mobilesdk_app_id": "1:856004961904:android:d5bb62a30418c700ff76b5",
         "android_client_info": {
           "package_name": "com.ccextractor.ultimate_alarm_clock"
         }
       },
       "oauth_client": [
         {
-          "client_id": "925414725523-4decg13kgfm2eagfu20h14ctbjs6orqs.apps.googleusercontent.com",
+          "client_id": "856004961904-g268it13qfadsuvfgh9busk9e3kv97n1.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.ccextractor.ultimate_alarm_clock",
-            "certificate_hash": "8568d6d074fa0efc8ef3b54fbd3440265a0dba42"
+            "certificate_hash": "9b50d5213cfb436c6162d353a5cabaa624910493"
           }
         },
         {
-          "client_id": "925414725523-i37idll449udbq88titj9e8b8no9oir8.apps.googleusercontent.com",
+          "client_id": "856004961904-b36mjt0i6r4f4g1b5pfd79t0bucnbpom.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyC-J7T-mkt65AYkbkMa2w7ToKyATagxzDw"
+          "current_key": "AIzaSyCnocMSjSH_5NfVhW7_gQHheA9q3UyK66c"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "925414725523-6r354n3el0u0ab01dg2kl3v77cm7m5n7.apps.googleusercontent.com",
+              "client_id": "856004961904-b36mjt0i6r4f4g1b5pfd79t0bucnbpom.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "856004961904-30cinmt6cgv2l1he6pnb1r5omvc8h5l0.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.ultimateAlarmClock"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:856004961904:android:e30e4d478e2c649fff76b5",
+        "android_client_info": {
+          "package_name": "com.company.uac"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "856004961904-b36mjt0i6r4f4g1b5pfd79t0bucnbpom.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCnocMSjSH_5NfVhW7_gQHheA9q3UyK66c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "856004961904-b36mjt0i6r4f4g1b5pfd79t0bucnbpom.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "856004961904-30cinmt6cgv2l1he6pnb1r5omvc8h5l0.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.ultimateAlarmClock"
+              }
             }
           ]
         }
