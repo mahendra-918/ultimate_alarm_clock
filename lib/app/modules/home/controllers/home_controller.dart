@@ -232,14 +232,21 @@ class HomeController extends GetxController {
     String profileName = await storage.readProfile();
     selectedProfile.value = profileName;
     ProfileModel? p = await IsarDb.getProfile(profileName);
-    profileModel.value = p!;
+    if (p != null)
+    {
+      profileModel.value = p!;
+    }
+    
   }
 
   void writeProfileName(String name) async {
     await storage.writeProfile(name);
     selectedProfile.value = name;
     ProfileModel? p = await IsarDb.getProfile(name);
-    profileModel.value = p!;
+    if (p != null)
+    {
+      profileModel.value = p!;
+    }
   }
 
   @override
@@ -253,6 +260,8 @@ class HomeController extends GetxController {
     }
     readProfileName();
 
+    userModel.value = await SecureStorageProvider().retrieveUserModel();
+    if (userModel.value == null){
     FirebaseAuth.instance.authStateChanges().listen((user) {
       if (user == null) {
         isUserSignedIn.value = false;
@@ -260,6 +269,11 @@ class HomeController extends GetxController {
         isUserSignedIn.value = true;
       }
     });
+    }
+    else {
+        isUserSignedIn.value = true;
+    }
+
 
     isSortedAlarmListEnabled.value = await SecureStorageProvider()
         .readSortedAlarmListValue(key: 'sorted_alarm_list');
@@ -274,14 +288,6 @@ class HomeController extends GetxController {
       scalingFactor.value = (minFactor + (maxFactor - minFactor) * newFactor);
     });
 
-    if (Get.arguments != null) {
-      bool showMotivationalQuote = Get.arguments.showMotivationalQuote;
-
-      if (showMotivationalQuote) {
-        Quote quote = Utils.getRandomQuote();
-        showQuotePopup(quote);
-      }
-    }
   }
 
   refreshUpcomingAlarms() async {
@@ -592,68 +598,6 @@ class HomeController extends GetxController {
         colorText: Colors.white,
       );
     }
-  }
-
-  void showQuotePopup(Quote quote) {
-    Get.defaultDialog(
-      title: 'Motivational Quote',
-      titlePadding: const EdgeInsets.only(
-        top: 20,
-        bottom: 10,
-      ),
-      backgroundColor: themeController.secondaryBackgroundColor.value,
-      titleStyle: TextStyle(
-        color: themeController.primaryTextColor.value,
-      ),
-      contentPadding: const EdgeInsets.all(20),
-      content: Column(
-        children: [
-          Obx(
-            () => Text(
-              quote.getQuote(),
-              style: TextStyle(
-                color: themeController.primaryTextColor.value,
-              ),
-            ),
-          ),
-          const SizedBox(
-            height: 15,
-          ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Obx(
-              () => Text(
-                quote.getAuthor(),
-                style: TextStyle(
-                  color: themeController.primaryTextColor.value,
-                  fontWeight: FontWeight.w600,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(
-            height: 30,
-          ),
-          TextButton(
-            style: ButtonStyle(
-              backgroundColor: MaterialStateProperty.all(
-                kprimaryColor,
-              ),
-            ),
-            onPressed: () {
-              Get.back();
-            },
-            child: Text(
-              'Dismiss',
-              style: TextStyle(
-                color: themeController.secondaryTextColor.value,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> swipeToDeleteAlarm(UserModel? user, AlarmModel alarm) async {
