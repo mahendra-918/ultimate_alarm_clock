@@ -14,7 +14,7 @@ import android.os.IBinder
 import android.os.SystemClock.sleep
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import com.ultimate_alarm_clock.Utilities.LocationHelper
+import com.ccextractor.ultimate_alarm_clock.LocationHelper
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import java.util.Timer

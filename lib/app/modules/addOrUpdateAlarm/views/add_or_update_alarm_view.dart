@@ -35,8 +35,6 @@ import 'package:ultimate_alarm_clock/app/utils/utils.dart';
 import '../controllers/add_or_update_alarm_controller.dart';
 import 'alarm_date_tile.dart';
 import 'guardian_angel.dart';
-import 'shared_alarm_offset.dart';
-import 'shared_alarm_users.dart';
 
 class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
   AddOrUpdateAlarmView({super.key}) {
@@ -998,7 +996,7 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                               : const SizedBox(),
                                         ),
                                       ),
-                                      SharedAlarmOffset(
+                                      AlarmOffset(
                                         controller: controller,
                                         themeController: themeController,
                                       ),
@@ -1014,7 +1012,7 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                               : const SizedBox(),
                                         ),
                                       ),
-                                      SharedAlarmUsers(
+                                      SharedUsers(
                                         controller: controller,
                                         themeController: themeController,
                                       ),

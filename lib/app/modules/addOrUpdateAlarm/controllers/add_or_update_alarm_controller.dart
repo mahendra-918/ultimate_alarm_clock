@@ -43,7 +43,6 @@ class AddOrUpdateAlarmController extends GetxController {
   final activityInterval = 0.obs;
   final isLocationEnabled = false.obs;
   final isSharedAlarmEnabled = false.obs;
-  final showSharedUsersList = false.obs; // For showing/hiding shared users list
   late final isWeatherEnabled = false.obs;
   final weatherApiKeyExists = false.obs;
   final isShakeEnabled = false.obs;

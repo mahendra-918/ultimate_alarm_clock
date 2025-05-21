@@ -17,6 +17,9 @@ import android.provider.Settings
 import android.util.Log
 import android.view.WindowManager
 import androidx.annotation.NonNull
+import com.google.firebase.FirebaseApp
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreSettings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -32,16 +35,49 @@ class MainActivity : FlutterActivity() {
         private var isAlarm: String? = "true"
         val alarmConfig = hashMapOf("shouldAlarmRing" to false, "alarmIgnore" to false)
         private var ringtone: Ringtone? = null
+        private var timerNotificationReceiver: TimerNotification? = null
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Initialize Firebase
+        FirebaseApp.initializeApp(this)
+        
+        // Initialize Firestore with settings right at app startup
+        try {
+            val db = FirebaseFirestore.getInstance()
+            val settings = FirebaseFirestoreSettings.Builder()
+                .setPersistenceEnabled(true)
+                .setCacheSizeBytes(FirebaseFirestoreSettings.CACHE_SIZE_UNLIMITED)
+                .build()
+            db.firestoreSettings = settings
+            Log.d("MainActivity", "Firestore initialized with persistent settings")
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Failed to initialize Firestore: ${e.message}")
+        }
+        
         var intentFilter = IntentFilter()
         intentFilter.addAction("com.ccextractor.ultimate_alarm_clock.START_TIMERNOTIF")
         intentFilter.addAction("com.ccextractor.ultimate_alarm_clock.STOP_TIMERNOTIF")
-        context.registerReceiver(TimerNotification(), intentFilter, Context.RECEIVER_EXPORTED)
+        timerNotificationReceiver = TimerNotification()
+        context.registerReceiver(timerNotificationReceiver, intentFilter, Context.RECEIVER_EXPORTED)
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        // Unregister the receiver to fix memory leak
+        if (timerNotificationReceiver != null) {
+            try {
+                context.unregisterReceiver(timerNotificationReceiver)
+            } catch (e: Exception) {
+                // Receiver might already be unregistered
+                Log.e("MainActivity", "Error unregistering receiver: ${e.message}")
+            }
+        }
+        // Stop and release ringtone if playing
+        stopDefaultAlarm()
+    }
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

@@ -1,12 +1,13 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:ultimate_alarm_clock/app/data/models/alarm_model.dart';
 import 'package:ultimate_alarm_clock/app/data/models/user_model.dart';
 import 'package:ultimate_alarm_clock/app/data/providers/isar_provider.dart';
 import 'package:ultimate_alarm_clock/app/utils/utils.dart';
-import 'package:sqflite/sqflite.dart';
 
 import '../../modules/home/controllers/home_controller.dart';
 import 'get_storage_provider.dart';
@@ -369,40 +370,72 @@ static Future<List<String>> getUserIdsByEmails(List emails) async {
 }
 
 
-  static shareAlarm(List emails, AlarmModel alarm) async {
-    final user = _firebaseAuthInstance.currentUser;
-    if (user == null || user.providerData.isEmpty) {
-      // Not logged in, cannot share
-      return;
+  static Future<bool> shareAlarm(List emails, AlarmModel alarm) async {
+    try {
+      final user = _firebaseAuthInstance.currentUser;
+      if (user == null || user.providerData.isEmpty) {
+        // Not logged in, cannot share
+        throw Exception('User not logged in');
+      }
+      
+      final currentUserId = user.providerData[0].uid;
+      alarm.profile = 'Default';
+      Map sharedItem = {
+        'type': 'alarm',
+        'AlarmName': alarm.firestoreId,
+        'owner': currentUserId,
+        'alarmTime': alarm.alarmTime
+      };
+      
+      // Use a timeout for the entire operation
+      return await Future.wait(
+        emails.map((email) => addItemToUserByEmail(email, sharedItem)),
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw TimeoutException('Sharing operation timed out');
+        },
+      ).then((_) {
+        return true;
+      });
+    } catch (e) {
+      debugPrint('Error sharing alarm: $e');
+      rethrow; // Re-throw to allow the caller to handle the error
     }
-    final currentUserId = user.providerData[0].uid;
-    alarm.profile = 'Default';
-    Map sharedItem = {
-      'type': 'alarm',
-      'AlarmName': alarm.firestoreId,
-      'owner': currentUserId,
-      'alarmTime': alarm.alarmTime
-    };
-    for (final email in emails) {
-      await addItemToUserByEmail(email, sharedItem);
-    }
-    Get.snackbar('Notification', 'Item Shared!');
   }
 
-static Future<void> addItemToUserByEmail(String email, dynamic sharedItem) async {
-  final querySnapshot = await _firebaseFirestore
-      .collection('users')
-      .where('email', isEqualTo: email)
-      .limit(1)
-      .get();
+  static Future<void> addItemToUserByEmail(String email, dynamic sharedItem) async {
+    try {
+      final querySnapshot = await _firebaseFirestore
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get()
+          .timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {
+              throw TimeoutException('Database operation timed out');
+            },
+          );
 
-  if (querySnapshot.docs.isNotEmpty) {
-    final docId = querySnapshot.docs.first.id;
-    await _firebaseFirestore.collection('users').doc(docId).update({
-      'receivedItems': FieldValue.arrayUnion([sharedItem])
-    });
+      if (querySnapshot.docs.isEmpty) {
+        throw Exception('User with email $email not found');
+      }
+
+      final docId = querySnapshot.docs.first.id;
+      await _firebaseFirestore.collection('users').doc(docId).update({
+        'receivedItems': FieldValue.arrayUnion([sharedItem])
+      }).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          throw TimeoutException('Database operation timed out');
+        },
+      );
+    } catch (e) {
+      debugPrint('Error adding item to user $email: $e');
+      rethrow;
+    }
   }
-}
 
 
   static Future receiveProfile(String email, String profileName) async {

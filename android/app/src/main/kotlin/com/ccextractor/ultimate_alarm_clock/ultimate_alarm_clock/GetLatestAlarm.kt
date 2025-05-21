@@ -8,14 +8,40 @@ import android.database.sqlite.SQLiteDatabase
 import android.util.Log
 import android.app.AlarmManager
 import android.app.PendingIntent
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreSettings
+import com.google.firebase.firestore.QuerySnapshot
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.time.Duration
 import java.time.LocalTime
 import java.util.*
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.delay
 
+// Firestore instance with offline persistence (initialized lazily)
+private val firestoreInstance by lazy {
+    val db = FirebaseFirestore.getInstance()
+    val settings = FirebaseFirestoreSettings.Builder()
+        .setPersistenceEnabled(true)
+        .setCacheSizeBytes(FirebaseFirestoreSettings.CACHE_SIZE_UNLIMITED)
+        .build()
+    
+    try {
+        db.firestoreSettings = settings
+    } catch (e: Exception) {
+        Log.e("Firestore", "Failed to set Firestore settings: ${e.message}")
+    }
+    
+    db
+}
 
-fun getLatestAlarm(db: SQLiteDatabase, wantNextAlarm: Boolean, profile: String,context: Context): Map<String, *>? {
+fun getLatestAlarm(db: SQLiteDatabase, wantNextAlarm: Boolean, profile: String, context: Context): Map<String, *>? {
+    // Firestore is initialized lazily when needed
+    
     val now = Calendar.getInstance()
     var nowInMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
     var nowInSeconds = nowInMinutes * 60 + now.get(Calendar.SECOND)
@@ -30,6 +56,11 @@ fun getLatestAlarm(db: SQLiteDatabase, wantNextAlarm: Boolean, profile: String,c
     // Initialize DatabaseHelper
     val logdbHelper = LogDatabaseHelper(context)
 
+    // Get user ID from SharedPreferences for Firestore queries
+    val sharedPreferences = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+    val userId = sharedPreferences.getString("flutter.userId", null)
+
+    // Get alarms from SQLite
     val cursor = db.rawQuery(
         """
         SELECT * FROM alarms
@@ -37,129 +68,427 @@ fun getLatestAlarm(db: SQLiteDatabase, wantNextAlarm: Boolean, profile: String,c
         AND (profile = ? OR ringOn = 1)
         """, arrayOf(profile)
     )
-    var selectedAlarm = null
-    Log.d("Alarm", cursor.count.toString())
+    
+    Log.d("Alarm", "SQLite alarms count: ${cursor.count}")
 
-    return if (cursor.count > 0) {
-        // Parse the cursor into an AlarmModel object
+    // Process SQLite alarms
+    var sqliteIntervalToAlarm = Long.MAX_VALUE
+    var sqliteNearestAlarm: AlarmModel? = null
+    
+    if (cursor.count > 0) {
         cursor.moveToFirst()
-        var alarm = AlarmModel.fromCursor(cursor)
-        var intervaltoAlarm = Long.MAX_VALUE
-        var setAlarm: AlarmModel? = null
         do {
-            alarm = AlarmModel.fromCursor(cursor)
-            if (alarm.ringOn == 0) {
-
-                var dayfromToday = 0
-                var timeDif = getTimeDifferenceInMillis(alarm.alarmTime)
-                Log.d("d", "timeDiff ${timeDif}")
-
-                if ((alarm.days[currentDay] == '1' || alarm.days == "0000000") && timeDif > -1L) {
-                    if (timeDif < intervaltoAlarm) {
-                        intervaltoAlarm = timeDif
-                        setAlarm = alarm
+            val alarm = AlarmModel.fromCursor(cursor)
+            val intervalToThisAlarm = calculateIntervalToAlarm(alarm, currentDay)
+            
+            if (intervalToThisAlarm > -1L && intervalToThisAlarm < sqliteIntervalToAlarm) {
+                sqliteIntervalToAlarm = intervalToThisAlarm
+                sqliteNearestAlarm = alarm
+            }
+        } while (cursor.moveToNext())
+        cursor.close()
+    } else {
+        cursor.close()
+    }
+    
+    // Log the nearest SQLite alarm
+    if (sqliteNearestAlarm != null) {
+        Log.d("Alarm", "Nearest SQLite alarm is at ${sqliteNearestAlarm.alarmTime} in ${sqliteIntervalToAlarm} ms")
+    } else {
+        Log.d("Alarm", "No eligible SQLite alarms found")
+    }
+    
+    // Get alarms from Firestore if user is logged in
+    var firestoreIntervalToAlarm = Long.MAX_VALUE
+    var firestoreNearestAlarm: AlarmModel? = null
+    
+    if (userId != null) {
+        Log.d("FirestoreTest", "User is logged in with ID: $userId - attempting to fetch Firestore alarms")
+        try {
+            val firestoreAlarms = getFirestoreAlarms(userId, context)
+            if (firestoreAlarms.isNotEmpty()) {
+                Log.d("FirestoreTest", "Successfully retrieved ${firestoreAlarms.size} Firestore alarms")
+                
+                // Find the nearest Firestore alarm
+                for (alarm in firestoreAlarms) {
+                    val intervalToThisAlarm = calculateIntervalToAlarm(alarm, currentDay)
+                    
+                    if (intervalToThisAlarm > -1L && intervalToThisAlarm < firestoreIntervalToAlarm) {
+                        firestoreIntervalToAlarm = intervalToThisAlarm
+                        firestoreNearestAlarm = alarm
                     }
+                }
+                
+                // Log the nearest Firestore alarm
+                if (firestoreNearestAlarm != null) {
+                    Log.d("Alarm", "Nearest Firestore alarm is at ${firestoreNearestAlarm.alarmTime} in ${firestoreIntervalToAlarm} ms")
+                } else {
+                    Log.d("Alarm", "No eligible Firestore alarms found")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("Alarm", "Error fetching Firestore alarms: ${e.message}")
+            // Continue with SQLite alarms only if Firestore fails
+        }
+    }
+    
+    // Select the nearest alarm from both sources
+    var finalIntervalToAlarm = Long.MAX_VALUE
+    var finalAlarm: AlarmModel? = null
+    
+    if (sqliteNearestAlarm != null && firestoreNearestAlarm != null) {
+        // Both sources have alarms, pick the nearest one
+        if (sqliteIntervalToAlarm <= firestoreIntervalToAlarm) {
+            finalIntervalToAlarm = sqliteIntervalToAlarm
+            finalAlarm = sqliteNearestAlarm
+            Log.d("Alarm", "Selected SQLite alarm as it's closer (${sqliteIntervalToAlarm} ms vs ${firestoreIntervalToAlarm} ms)")
+        } else {
+            finalIntervalToAlarm = firestoreIntervalToAlarm
+            finalAlarm = firestoreNearestAlarm
+            Log.d("FirestoreTest", "SELECTED FIRESTORE ALARM as it's closer (${firestoreIntervalToAlarm} ms vs ${sqliteIntervalToAlarm} ms)")
+            Log.d("FirestoreTest", "Selected Firestore alarm details: time=${firestoreNearestAlarm.alarmTime}, id=${firestoreNearestAlarm.alarmId}")
+        }
+    } else if (sqliteNearestAlarm != null) {
+        // Only SQLite has an alarm
+        finalIntervalToAlarm = sqliteIntervalToAlarm
+        finalAlarm = sqliteNearestAlarm
+        Log.d("Alarm", "Selected SQLite alarm as no Firestore alarm is available")
+    } else if (firestoreNearestAlarm != null) {
+        // Only Firestore has an alarm
+        finalIntervalToAlarm = firestoreIntervalToAlarm
+        finalAlarm = firestoreNearestAlarm
+        Log.d("FirestoreTest", "SELECTED FIRESTORE ALARM as no SQLite alarm is available")
+        Log.d("FirestoreTest", "Selected Firestore alarm details: time=${firestoreNearestAlarm.alarmTime}, id=${firestoreNearestAlarm.alarmId}")
+    } else {
+        // No alarms from either source
+        Log.d("Alarm", "No eligible alarms found from either source")
+        return null
+    }
+
+    if (finalAlarm != null) {
+        Log.d("Alarm", "Final alarm selected: ${finalAlarm.alarmTime} in ${finalIntervalToAlarm} ms")
+
+        // Add the latest alarm details to the LOG table
+        val logDetails = """
+            Alarm Scheduled for ${finalAlarm.alarmTime}
+        """.trimIndent()
+        logdbHelper.insertLog(
+            "Alarm Scheduled for ${finalAlarm.alarmTime}",
+            LogDatabaseHelper.Status.SUCCESS,
+            LogDatabaseHelper.LogType.DEV
+        )
+
+        // Return the latest alarm details
+        val a = mapOf(
+            "interval" to finalIntervalToAlarm,
+            "isActivity" to finalAlarm.activityMonitor,
+            "isLocation" to finalAlarm.isLocationEnabled,
+            "location" to finalAlarm.location,
+            "isWeather" to finalAlarm.isWeatherEnabled,
+            "weatherTypes" to finalAlarm.weatherTypes,
+            "alarmID" to finalAlarm.alarmId
+        )
+        Log.d("s", "sdsd ${a}")
+        return a
+    }
+    
+    return null
+}
+
+// Helper function to calculate interval to an alarm
+private fun calculateIntervalToAlarm(alarm: AlarmModel, currentDay: Int): Long {
+    if (alarm.ringOn == 0) {
+        var dayfromToday = 0
+        var timeDif = getTimeDifferenceInMillis(alarm.alarmTime)
+
+        if ((alarm.days[currentDay] == '1' || alarm.days == "0000000") && timeDif > -1L) {
+            return timeDif
                 } else {
                     dayfromToday = getDaysUntilNextAlarm(alarm.days, currentDay)
                     if (dayfromToday == 0) {
-
                         if (alarm.days == "0000000") {
-
                             var timeDif =
                                 getTimeDifferenceFromMidnight(alarm.alarmTime) + getMillisecondsUntilMidnight()
-                            if (timeDif < intervaltoAlarm && timeDif > -1L) {
-                                intervaltoAlarm = timeDif
-                                setAlarm = alarm
+                    if (timeDif > -1L) {
+                        return timeDif
                             }
                         } else {
-
                             var timeDif =
                                 getTimeDifferenceFromMidnight(alarm.alarmTime) + getMillisecondsUntilMidnight() + 86400000 * 6
-                            if (timeDif < intervaltoAlarm && timeDif > -1L) {
-                                intervaltoAlarm = timeDif
-                                setAlarm = alarm
+                    if (timeDif > -1L) {
+                        return timeDif
                             }
                         }
                     } else if (dayfromToday == 1) {
                         var timeDif =
                             getTimeDifferenceFromMidnight(alarm.alarmTime) + getMillisecondsUntilMidnight()
-                        Log.d("d", "timeDiff ${timeDif}")
-
-                        if (timeDif < intervaltoAlarm && timeDif > -1L) {
-                            intervaltoAlarm = timeDif
-                            setAlarm = alarm
+                if (timeDif > -1L) {
+                    return timeDif
                         }
                     } else {
                         var timeDif =
                             getTimeDifferenceFromMidnight(alarm.alarmTime) + getMillisecondsUntilMidnight() + 86400000 * (dayfromToday - 1)
-                        if (timeDif < intervaltoAlarm && timeDif > -1L) {
-                            intervaltoAlarm = timeDif
-                            setAlarm = alarm
+                if (timeDif > -1L) {
+                    return timeDif
                         }
                     }
-
                 }
             } else {
                 val dayfromToday = getDaysFromCurrentDate(alarm.alarmDate)
                 if (dayfromToday == 0L) {
                     var timeDif = getTimeDifferenceInMillis(alarm.alarmTime)
                     if (alarm.days[currentDay] == '1' && timeDif > -1L) {
-                        if (timeDif < intervaltoAlarm) {
-                            intervaltoAlarm = timeDif
-                            setAlarm = alarm
-                        }
+                return timeDif
                     }
                 } else if (dayfromToday == 1L) {
                     var timeDif =
                         getTimeDifferenceFromMidnight(alarm.alarmTime) + getMillisecondsUntilMidnight()
-                    if (timeDif < intervaltoAlarm) {
-                        intervaltoAlarm = timeDif
-                        setAlarm = alarm
-                    }
+            return timeDif
                 } else {
-
                     var timeDif =
                         getTimeDifferenceFromMidnight(alarm.alarmTime) + getMillisecondsUntilMidnight() + 86400000 * (dayfromToday - 1)
-                    if (timeDif < intervaltoAlarm && timeDif > -1L) {
-                        intervaltoAlarm = timeDif
-                        setAlarm = alarm
+            if (timeDif > -1L) {
+                return timeDif
+            }
+        }
+    }
+    
+    return -1L  // Alarm is not eligible or in the past
+}
+
+// Function to fetch alarms from Firestore
+@SuppressLint("Range")
+fun getFirestoreAlarms(userId: String, context: Context): List<AlarmModel> {
+    val alarms = mutableListOf<AlarmModel>()
+    
+    Log.d("FirestoreTest", "Starting Firestore alarm fetch for user: $userId")
+    try {
+        // Use runBlocking to make synchronous Firestore calls
+        runBlocking {
+            // Use the lazy-initialized Firestore instance 
+            
+            // Query for alarms where user is the owner
+            val ownerQuery = firestoreInstance.collection("sharedAlarms")
+                .whereEqualTo("isEnabled", true)
+                .whereEqualTo("ownerId", userId)
+            
+            // Query for alarms shared with this user
+            val sharedQuery = firestoreInstance.collection("sharedAlarms")
+                .whereEqualTo("isEnabled", true)
+                .whereArrayContains("sharedUserIds", userId)
+            
+            // Execute both queries with retry mechanism
+            Log.d("FirestoreTest", "Executing owner query: ${ownerQuery.whereEqualTo("ownerId", userId)}")
+            val ownerResults = withRetry(3) {
+                withContext(Dispatchers.IO) {
+                    ownerQuery.get().await()
+                }
+            }
+            Log.d("FirestoreTest", "Owner query results: ${ownerResults?.documents?.size ?: 0} documents")
+            
+            Log.d("FirestoreTest", "Executing shared query: ${sharedQuery.whereArrayContains("sharedUserIds", userId)}")
+            val sharedResults = withRetry(3) {
+                withContext(Dispatchers.IO) {
+                    sharedQuery.get().await()
+                }
+            }
+            Log.d("FirestoreTest", "Shared query results: ${sharedResults?.documents?.size ?: 0} documents")
+            
+            // Process owner alarms
+            if (ownerResults != null) {
+                for (document in ownerResults.documents) {
+                    try {
+                        val alarm = createAlarmModelFromFirestore(document.data, userId, context)
+                        if (alarm != null) {
+                            alarms.add(alarm)
+                        }
+                    } catch (e: Exception) {
+                        Log.e("Alarm", "Error parsing owner alarm: ${e.message}")
                     }
                 }
-
             }
-
-        } while (cursor.moveToNext())
-        cursor.close()
-
-        if (setAlarm != null) {
-            Log.d("Alarm", intervaltoAlarm.toString())
-
-            // Add the latest alarm details to the LOG table
-            val logDetails = """
-                Alarm Scheduled for ${setAlarm.alarmTime}
-            """.trimIndent()
-            logdbHelper.insertLog(
-                "Alarm Scheduled for ${setAlarm.alarmTime}",
-                LogDatabaseHelper.Status.SUCCESS,
-                LogDatabaseHelper.LogType.DEV
-            )
-
-            // Return the latest alarm details
-            val a = mapOf(
-                "interval" to intervaltoAlarm,
-                "isActivity" to setAlarm.activityMonitor,
-                "isLocation" to setAlarm.isLocationEnabled,
-                "location" to setAlarm.location,
-                "isWeather" to setAlarm.isWeatherEnabled,
-                "weatherTypes" to setAlarm.weatherTypes,
-                "alarmID" to setAlarm.alarmId
-            )
-            Log.d("s", "sdsd ${a}")
-            return a
+            
+            // Process shared alarms
+            if (sharedResults != null) {
+                for (document in sharedResults.documents) {
+                    try {
+                        // Verify the userId is actually in the sharedUserIds array
+                        val sharedUserIds = document.data?.get("sharedUserIds") as? List<String>
+                        if (sharedUserIds != null && sharedUserIds.contains(userId)) {
+                            val alarm = createAlarmModelFromFirestore(document.data, userId, context)
+                            if (alarm != null) {
+                                alarms.add(alarm)
+                                Log.d("Alarm", "Added shared alarm with ID ${alarm.alarmId} for user $userId")
+                            }
+                        } else {
+                            Log.d("Alarm", "Skipped shared alarm as user $userId is not in sharedUserIds list")
+                        }
+                    } catch (e: Exception) {
+                        Log.e("Alarm", "Error parsing shared alarm: ${e.message}")
+                    }
+                }
+            }
         }
-        null
-    } else {
-        null
+    } catch (e: Exception) {
+        Log.e("FirestoreTest", "Error in Firestore query: ${e.message}", e)
+    }
+    
+    Log.d("FirestoreTest", "Finished Firestore fetch with ${alarms.size} alarms")
+    if (alarms.isNotEmpty()) {
+        alarms.forEach { alarm ->
+            Log.d("FirestoreTest", "Retrieved alarm: time=${alarm.alarmTime}, days=${alarm.days}, id=${alarm.alarmId}")
+        }
+    }
+    
+    return alarms
+}
+
+// Helper function to retry Firestore operations
+private suspend fun <T> withRetry(maxRetries: Int, block: suspend () -> T): T? {
+    var retries = 0
+    var lastException: Exception? = null
+    
+    while (retries < maxRetries) {
+        try {
+            return block()
+        } catch (e: Exception) {
+            lastException = e
+            Log.w("Firestore", "Operation failed, retry ${retries + 1}/$maxRetries: ${e.message}")
+            retries++
+            // Exponential backoff
+            delay(1000L * (1 shl retries))
+        }
+    }
+    
+    Log.e("Firestore", "Operation failed after $maxRetries retries: ${lastException?.message}")
+    return null
+}
+
+// Helper function to create an AlarmModel from Firestore data
+@SuppressLint("Range")
+fun createAlarmModelFromFirestore(data: Map<String, Any>?, userId: String, context: Context): AlarmModel? {
+    if (data == null) return null
+    
+    try {
+        val id = 0 // We'll use a dummy ID for Firestore alarms
+        val minutesSinceMidnight = (data["minutesSinceMidnight"] as? Long)?.toInt() ?: 0
+        
+        // Get the original alarm time
+        val originalAlarmTime = data["alarmTime"] as? String ?: ""
+        
+        // Check if there are offset details for this alarm
+        var alarmTime = originalAlarmTime
+        val offsetDetails = data["offsetDetails"] as? Map<String, Any>
+        
+        // If there are offset details and user ID is in the offset details, use the offsetted time
+        if (offsetDetails != null && offsetDetails.containsKey(userId)) {
+            try {
+                val userOffset = offsetDetails[userId] as? Map<String, Any>
+                if (userOffset != null) {
+                    val offsettedTime = userOffset["offsettedTime"] as? String
+                    if (offsettedTime != null) {
+                        // Use the offsetted time instead of the original time
+                        alarmTime = offsettedTime
+                        Log.d("Alarm", "Using offsetted time $offsettedTime instead of $originalAlarmTime for user $userId")
+                    }
+                }
+            } catch (e: Exception) {
+                // Handle property access errors
+                Log.e("Alarm", "Error accessing offset details: ${e.message}")
+            }
+        }
+        
+        // Convert days from array to string format with error handling
+        val daysArray = try {
+            data["days"] as? List<Boolean> ?: listOf()
+        } catch (e: Exception) {
+            Log.e("Alarm", "Error accessing days array: ${e.message}")
+            listOf<Boolean>()
+        }
+        val days = daysArray.joinToString("") { if (it) "1" else "0" }
+        
+        // Safely access boolean properties with error handling
+        val isOneTime = try {
+            if (data["isOneTime"] as? Boolean == true) 1 else 0
+        } catch (e: Exception) {
+            Log.e("Alarm", "Error accessing isOneTime: ${e.message}")
+            0
+        }
+        
+        val activityMonitor = try {
+            if (data["activityMonitor"] as? Boolean == true) 1 else 0
+        } catch (e: Exception) {
+            Log.e("Alarm", "Error accessing activityMonitor: ${e.message}")
+            0
+        }
+        
+        val isWeatherEnabled = try {
+            if (data["isWeatherEnabled"] as? Boolean == true) 1 else 0
+        } catch (e: Exception) {
+            Log.e("Alarm", "Error accessing isWeatherEnabled: ${e.message}")
+            0
+        }
+        
+        val weatherTypes = try {
+            data["weatherTypes"] as? String ?: "[]"
+        } catch (e: Exception) {
+            Log.e("Alarm", "Error accessing weatherTypes: ${e.message}")
+            "[]"
+        }
+        
+        val isLocationEnabled = try {
+            if (data["isLocationEnabled"] as? Boolean == true) 1 else 0
+        } catch (e: Exception) {
+            Log.e("Alarm", "Error accessing isLocationEnabled: ${e.message}")
+            0
+        }
+        
+        val location = try {
+            data["location"] as? String ?: ""
+        } catch (e: Exception) {
+            Log.e("Alarm", "Error accessing location: ${e.message}")
+            ""
+        }
+        
+        val alarmDate = try {
+            data["alarmDate"] as? String ?: SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        } catch (e: Exception) {
+            Log.e("Alarm", "Error accessing alarmDate: ${e.message}")
+            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        }
+        
+        val alarmId = try {
+            data["alarmID"] as? String ?: ""
+        } catch (e: Exception) {
+            Log.e("Alarm", "Error accessing alarmID: ${e.message}")
+            ""
+        }
+        
+        val ringOn = try {
+            if (data["ringOn"] as? Boolean == true) 1 else 0
+        } catch (e: Exception) {
+            Log.e("Alarm", "Error accessing ringOn: ${e.message}")
+            0
+        }
+        
+        return AlarmModel(
+            id,
+            minutesSinceMidnight,
+            alarmTime,
+            days,
+            isOneTime,
+            activityMonitor,
+            isWeatherEnabled,
+            weatherTypes,
+            isLocationEnabled,
+            location,
+            alarmDate,
+            alarmId,
+            ringOn
+        )
+    } catch (e: Exception) {
+        Log.e("Alarm", "Error creating alarm from Firestore: ${e.message}")
+        return null
     }
 }
 
@@ -298,14 +627,27 @@ object AlarmUtils {
         isWeather: Int,
         weatherTypes: String
     ) {
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val intent = Intent(context, AlarmReceiver::class.java)
-        val pendingIntent = PendingIntent.getBroadcast(
-            context,
-            0,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-        )
+        val triggerTimeMs = System.currentTimeMillis() + milliSeconds
+        val triggerDate = java.util.Date(triggerTimeMs)
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
+        
+        Log.d("AlarmUtils", "Scheduling alarm for ${milliSeconds}ms from now (${sdf.format(triggerDate)})")
+        
+        try {
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val intent = Intent(context, AlarmReceiver::class.java)
+            
+            // Add extras to the intent to help debugging
+            intent.putExtra("alarm_trigger_time", triggerTimeMs)
+            intent.putExtra("alarm_scheduled_at", System.currentTimeMillis())
+            
+            // Use a fixed request code (100) for the main alarm to ensure consistent replacement
+            val pendingIntent = PendingIntent.getBroadcast(
+                context,
+                100, // Fixed request code for better predictability
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+            )
 
         val activityCheckIntent = Intent(context, ScreenMonitorService::class.java)
         val pendingActivityCheckIntent = PendingIntent.getService(
@@ -315,60 +657,123 @@ object AlarmUtils {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
         )
 
-        val tenMinutesInMilliseconds = 600000L
-        val preTriggerTime = System.currentTimeMillis() + (milliSeconds - tenMinutesInMilliseconds)
-        val triggerTime = System.currentTimeMillis() + milliSeconds
+        // These variables are now declared lower down in the code
 
-        if (activityMonitor == 1) {
-            val alarmClockInfo = AlarmManager.AlarmClockInfo(preTriggerTime, pendingIntent)
-            alarmManager.setAlarmClock(alarmClockInfo, pendingActivityCheckIntent)
-        } else {
+            // Reset screen activity tracking values to ensure a clean start
             val sharedPreferences = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
             val editor = sharedPreferences.edit()
-            editor.putLong("flutter.is_screen_off", 0L).apply()
-            editor.putLong("flutter.is_screen_on", 0L).apply()
-        }
-
-        if (locationMonitor == 1) {
-            val sharedPreferences = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-            val editor = sharedPreferences.edit()
-            editor.putString("flutter.set_location", setLocation).apply()
-            Log.d("location", setLocation)
-            editor.putInt("flutter.is_location_on", 1).apply()
-
-            val locationAlarmIntent = Intent(context, LocationFetcherService::class.java)
-            val pendingLocationAlarmIntent = PendingIntent.getService(
-                context,
-                5,
-                locationAlarmIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-            )
-            val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerTime - 10000, pendingIntent)
-            alarmManager.setAlarmClock(alarmClockInfo, pendingLocationAlarmIntent)
-        } else if (isWeather == 1) {
-            val sharedPreferences = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-            val editor = sharedPreferences.edit()
-            editor.putString("flutter.weatherTypes", getWeatherConditions(weatherTypes)).apply()
-            Log.d("we", getWeatherConditions(weatherTypes))
-
-            val weatherAlarmIntent = Intent(context, WeatherFetcherService::class.java)
-            val pendingWeatherAlarmIntent = PendingIntent.getService(
-                context,
-                6,
-                weatherAlarmIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-            )
-            val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerTime - 10000, pendingIntent)
-            alarmManager.setAlarmClock(alarmClockInfo, pendingWeatherAlarmIntent)
-        } else {
-            val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerTime, pendingIntent)
+            editor.putLong("flutter.is_screen_off", 0L)
+            editor.putLong("flutter.is_screen_on", 0L)
+            editor.apply() // Use a single apply() for better performance
+            
+            // Calculate pre-trigger time (10 minutes before main alarm)
+            val preTriggerTime = triggerTimeMs - 600000L
+            
+            // Setup activity monitoring if enabled
+            if (activityMonitor == 1) {
+                Log.d("AlarmUtils", "Setting up activity monitoring to start at $preTriggerTime")
+                // Reuse the previously declared intent
+                activityCheckIntent.putExtra("triggerTime", preTriggerTime)
+                // Create a new pending intent
+                val monitorPendingIntent = PendingIntent.getService(
+                    context, 
+                    101, // Fixed request code
+                    activityCheckIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                )
+                
+                try {
+                    // Start the service separately to ensure it's running
+                    context.startService(activityCheckIntent)
+                    Log.d("AlarmUtils", "Started ScreenMonitorService immediately")
+                    
+                    // Also set an alarm with the monitoring service
+                    val monitorAlarmInfo = AlarmManager.AlarmClockInfo(preTriggerTime, pendingIntent)
+                    alarmManager.setAlarmClock(monitorAlarmInfo, monitorPendingIntent)
+                    Log.d("AlarmUtils", "Activity monitor alarm set for $preTriggerTime")
+                } catch (e: Exception) {
+                    Log.e("AlarmUtils", "Failed to start ScreenMonitorService: ${e.message}")
+                }
+            }
+            
+            // Handle location monitoring
+            if (locationMonitor == 1) {
+                Log.d("AlarmUtils", "Setting up location monitoring for: $setLocation")
+                editor.putString("flutter.set_location", setLocation)
+                editor.putInt("flutter.is_location_on", 1)
+                editor.apply()
+                
+                val locationAlarmIntent = Intent(context, LocationFetcherService::class.java)
+                val pendingLocationAlarmIntent = PendingIntent.getService(
+                    context,
+                    102, // Fixed request code
+                    locationAlarmIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                )
+                
+                // Set location alarm to trigger shortly before the main alarm
+                val locationTriggerTime = triggerTimeMs - 10000 // 10 seconds before
+                try {
+                    val locationAlarmInfo = AlarmManager.AlarmClockInfo(locationTriggerTime, pendingIntent)
+                    alarmManager.setAlarmClock(locationAlarmInfo, pendingLocationAlarmIntent)
+                    Log.d("AlarmUtils", "Location alarm set for $locationTriggerTime")
+                } catch (e: Exception) {
+                    Log.e("AlarmUtils", "Failed to set location alarm: ${e.message}")
+                }
+            } 
+            // Handle weather conditions
+            else if (isWeather == 1) {
+                val weatherConditions = getWeatherConditions(weatherTypes)
+                Log.d("AlarmUtils", "Setting up weather monitoring with conditions: $weatherConditions")
+                editor.putString("flutter.weatherTypes", weatherConditions)
+                editor.apply()
+                
+                val weatherAlarmIntent = Intent(context, WeatherFetcherService::class.java)
+                val pendingWeatherAlarmIntent = PendingIntent.getService(
+                    context,
+                    103, // Fixed request code
+                    weatherAlarmIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                )
+                
+                // Set weather alarm to trigger shortly before the main alarm
+                val weatherTriggerTime = triggerTimeMs - 10000 // 10 seconds before
+                try {
+                    val weatherAlarmInfo = AlarmManager.AlarmClockInfo(weatherTriggerTime, pendingIntent)
+                    alarmManager.setAlarmClock(weatherAlarmInfo, pendingWeatherAlarmIntent)
+                    Log.d("AlarmUtils", "Weather alarm set for $weatherTriggerTime")
+                } catch (e: Exception) {
+                    Log.e("AlarmUtils", "Failed to set weather alarm: ${e.message}")
+                }
+            }
+            
+            // Set the main alarm with AlarmManager.setExactAndAllowWhileIdle for more reliability
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTimeMs, pendingIntent)
+                Log.d("AlarmUtils", "Alarm set with setExactAndAllowWhileIdle for ${sdf.format(triggerDate)}")
+            } else {
+                alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerTimeMs, pendingIntent)
+                Log.d("AlarmUtils", "Alarm set with setExact for ${sdf.format(triggerDate)}")
+            }
+            
+            // Also set with AlarmClockInfo for user visibility and reliability
+            val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerTimeMs, pendingIntent)
             alarmManager.setAlarmClock(alarmClockInfo, pendingIntent)
+            Log.d("AlarmUtils", "Alarm also set with setAlarmClock for backup")
+            
+            // Log the next scheduled alarm time
+            val nextAlarmTime = alarmManager.nextAlarmClock?.triggerTime
+            val nextAlarmDate = if (nextAlarmTime != null) sdf.format(Date(nextAlarmTime)) else "none"
+            Log.d("AlarmUtils", "Next system alarm time: $nextAlarmDate")
+            
+        } catch (e: Exception) {
+            Log.e("AlarmUtils", "Error scheduling alarm: ${e.message}", e)
         }
     }
 
     private fun getWeatherConditions(weatherTypes: String): String {
-        // This function needs to be accessible if used in above code.
-        return weatherTypes // placeholder, update as per your logic
+        // Return the weather types as is since it's already in the correct format
+        return weatherTypes
     }
 }
 
