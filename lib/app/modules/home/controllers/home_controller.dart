@@ -523,15 +523,17 @@ class HomeController extends GetxController {
 
         try {
           if (isSharedAlarmEnabled) {
-            
-            AlarmModel? alarmToDelete = await FirestoreDb.getAlarm(userModel.value, alarmId);
-            if (alarmToDelete != null) {
-              deletedAlarms.add(alarmToDelete);
-              await FirestoreDb.deleteAlarm(userModel.value, alarmId);
-              successCount++;
-            }
+            // AlarmModel? alarmToDelete = await FirestoreDb.getAlarm(userModel.value, alarmId);
+            // if (alarmToDelete != null) {
+            //   deletedAlarms.add(alarmToDelete);
+            //   await FirestoreDb.deleteAlarm(userModel.value, alarmId);
+            //   successCount++;
+            // }
+            // For shared alarms, directly delete from Firestore without trying to get the alarm first
+            await FirestoreDb.deleteAlarm(userModel.value, alarmId);
+            successCount++;
           } else {
-            
+            // For local alarms, get the alarm first then delete it
             AlarmModel? alarmToDelete = await IsarDb.getAlarm(alarmId);
             if (alarmToDelete != null) {
               deletedAlarms.add(alarmToDelete);
