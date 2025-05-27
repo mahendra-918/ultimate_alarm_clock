@@ -55,16 +55,29 @@ class AlarmControlController extends GetxController {
   RxInt guardianCoundown = 120.obs;
   RxBool isPreviewMode = false.obs;
 
-  getNextAlarm() async {
+  // This method only gets information about the next alarm - it does not schedule anything
+  Future<AlarmModel> getNextAlarm() async {
     UserModel? _userModel = await SecureStorageProvider().retrieveUserModel();
     AlarmModel _alarmRecord = homeController.genFakeAlarmModel();
+    
+    // Get non-shared alarms from Isar
     AlarmModel isarLatestAlarm =
-    await IsarDb.getLatestAlarm(_alarmRecord, true);
+        await IsarDb.getLatestAlarm(_alarmRecord, true);
+    
+    // Get shared alarms from Firestore
     AlarmModel firestoreLatestAlarm =
-    await FirestoreDb.getLatestAlarm(_userModel, _alarmRecord, true);
+        await FirestoreDb.getLatestAlarm(_userModel, _alarmRecord, true);
+    
+    // Determine which alarm should be scheduled next
     AlarmModel latestAlarm =
-    Utils.getFirstScheduledAlarm(isarLatestAlarm, firestoreLatestAlarm);
-    debugPrint('LATEST : ${latestAlarm.alarmTime}');
+        Utils.getFirstScheduledAlarm(isarLatestAlarm, firestoreLatestAlarm);
+    
+    // Log which type of alarm is being used
+    if (latestAlarm.isSharedAlarmEnabled) {
+      debugPrint('Next alarm is a SHARED alarm from Firestore: ${latestAlarm.alarmTime}');
+    } else {
+      debugPrint('Next alarm is a LOCAL alarm from Isar: ${latestAlarm.alarmTime}');
+    }
 
     return latestAlarm;
   }
@@ -286,51 +299,8 @@ class AlarmControlController extends GetxController {
     });
 
     startTimer();
-    // if (Get.arguments == null) {
-    //   currentlyRingingAlarm.value = await getCurrentlyRingingAlarm();
-    //   showButton.value = true;
-    //   // If the alarm is set to NEVER repeat, then it will
-    //   // be chosen as the next alarm to ring by default as
-    //   // it would ring the next day
-    //   if (currentlyRingingAlarm.value.days
-    //       .every((element) => element == false)) {
-    //     currentlyRingingAlarm.value.isEnabled = false;
-    //
-    //     if (currentlyRingingAlarm.value.isSharedAlarmEnabled == false) {
-    //       IsarDb.updateAlarm(currentlyRingingAlarm.value);
-    //     } else {
-    //       FirestoreDb.updateAlarm(
-    //         currentlyRingingAlarm.value.ownerId,
-    //         currentlyRingingAlarm.value,
-    //       );
-    //     }
-    //   } else if (currentlyRingingAlarm.value.isOneTime == true) {
-    //     // If the alarm has to repeat on one day, but ring just once, we will
-    //     // keep seting its days to false until it will never ring
-    //     int currentDay = DateTime.now().weekday - 1;
-    //     currentlyRingingAlarm.value.days[currentDay] = false;
-    //
-    //     if (currentlyRingingAlarm.value.days
-    //         .every((element) => element == false)) {
-    //       currentlyRingingAlarm.value.isEnabled = false;
-    //     }
-    //
-    //     if (currentlyRingingAlarm.value.isSharedAlarmEnabled == false) {
-    //       IsarDb.updateAlarm(currentlyRingingAlarm.value);
-    //     } else {
-    //       FirestoreDb.updateAlarm(
-    //         currentlyRingingAlarm.value.ownerId,
-    //         currentlyRingingAlarm.value,
-    //       );
-    //     }
-    //   }
-    // } else {
-    //   currentlyRingingAlarm.value = Get.arguments;
-    //   showButton.value = true;
-    // }
 
     AudioUtils.playAlarm(alarmRecord: currentlyRingingAlarm.value);
-
 
     if(currentlyRingingAlarm.value.showMotivationalQuote) {
       Quote quote = Utils.getRandomQuote();
@@ -339,64 +309,43 @@ class AlarmControlController extends GetxController {
 
     // Setting snooze duration
     minutes.value = currentlyRingingAlarm.value.snoozeDuration;
-
-    // Scheduling next alarm if it's not in preview mode
-    if (Get.arguments == null) {
-      // Finding the next alarm to ring
-      AlarmModel latestAlarm = await getNextAlarm();
-      TimeOfDay latestAlarmTimeOfDay =
-      Utils.stringToTimeOfDay(latestAlarm.alarmTime);
-
-      // }
-      // This condition will never satisfy because this will only
-      // occur if fake model is returned as latest alarm
-      if (latestAlarm.isEnabled == false) {
-        debugPrint(
-          'STOPPED IF CONDITION with latest = '
-              '${latestAlarmTimeOfDay.toString()} and '
-              'current = ${currentTime.toString()}',
-        );
-
-        await alarmChannel.invokeMethod('cancelAllScheduledAlarms');
-      } else {
-        int intervaltoAlarm = Utils.getMillisecondsToAlarm(
-          DateTime.now(),
-          Utils.timeOfDayToDateTime(latestAlarmTimeOfDay),
-        );
-
-        try {
-          await alarmChannel.invokeMethod('scheduleAlarm', {
-          'isSharedAlarm': latestAlarm.isSharedAlarmEnabled,
-          'isActivityEnabled': latestAlarm.isActivityEnabled,
-          'isLocationEnabled': latestAlarm.isLocationEnabled,
-          'isWeatherEnabled': latestAlarm.isWeatherEnabled,
-          'intervalToAlarm': intervaltoAlarm,
-          'location': latestAlarm.location,
-          'weatherTypes': jsonEncode(latestAlarm.weatherTypes),
-          });
-          print("Scheduled...");
-        } on PlatformException catch (e) {
-          print("Failed to schedule alarm: ${e.message}");
-        }
-      }
-    }
+    
+    // Note: We've removed the alarm scheduling code from here
+    // since it's already handled in the dismiss button handler
+    // This prevents duplicate alarms from being created
   }
 
   @override
   void onClose() async {
     super.onClose();
+    debugPrint('🔔 Alarm ring view is closing...');
+    
+    // Stop vibration and sound
     Vibration.cancel();
     vibrationTimer!.cancel();
     isAlarmActive = false;
     String ringtoneName = currentlyRingingAlarm.value.ringtoneName;
     AudioUtils.stopAlarm(ringtoneName: ringtoneName);
+    
+    // Reset volume to initial level
     await FlutterVolumeController.setVolume(
       initialVolume,
       stream: AudioStream.alarm,
     );
     
     if (!isPreviewMode.value) {
+      debugPrint('🔔 Processing alarm dismissal...');
+      
+      // If this is a shared alarm, block just this specific alarm from being rescheduled
+      if (currentlyRingingAlarm.value.isSharedAlarmEnabled) {
+        // Remember and block this specific alarm to prevent immediate rescheduling
+        rememberDismissedAlarm();
+        debugPrint('🔔 Blocked shared alarm from immediate rescheduling');
+      }
+      
+      // Handle one-time alarm deletion if needed
       if (currentlyRingingAlarm.value.deleteAfterGoesOff == true) {
+        debugPrint('🔔 Handling one-time alarm deletion');
         if (currentlyRingingAlarm.value.isSharedAlarmEnabled && 
             currentlyRingingAlarm.value.ownerId != null && 
             currentlyRingingAlarm.value.firestoreId != null) {  
@@ -404,26 +353,62 @@ class AlarmControlController extends GetxController {
             currentlyRingingAlarm.value.ownerId,
             currentlyRingingAlarm.value.firestoreId,
           );
+          debugPrint('🔔 Deleted one-time shared alarm from Firestore');
         } else if (currentlyRingingAlarm.value.isarId > 0) {
-          
           await IsarDb.deleteAlarm(currentlyRingingAlarm.value.isarId);
+          debugPrint('🔔 Deleted one-time local alarm from Isar');
         }
       } 
+      // Update one-time alarm state if needed
       else if (currentlyRingingAlarm.value.days.every((element) => element == false)) {
+        debugPrint('🔔 Disabling one-time alarm after ring');
         currentlyRingingAlarm.value.isEnabled = false;
         if (!currentlyRingingAlarm.value.isSharedAlarmEnabled && 
             currentlyRingingAlarm.value.isarId > 0) {
           await IsarDb.updateAlarm(currentlyRingingAlarm.value);
+          debugPrint('🔔 Updated one-time local alarm in Isar');
         } else if (currentlyRingingAlarm.value.ownerId != null) {
           await FirestoreDb.updateAlarm(
             currentlyRingingAlarm.value.ownerId,
             currentlyRingingAlarm.value,
           );
+          debugPrint('🔔 Updated one-time shared alarm in Firestore');
         }
       }
+      
+      // Cancel existing alarms and clear tracking data
+      await homeController.clearLastScheduledAlarm();
+      debugPrint('🔔 Cleared last scheduled alarm');
+      
+      // Set flag for HomeController to handle scheduling on its own cycle
+      // This prevents duplicate alarms from being scheduled
+      homeController.refreshTimer = true;
+      debugPrint('🔔 Set refresh flag for next alarm scheduling cycle');
+      
+      // Add a small delay to ensure all processes are complete
+      await Future.delayed(const Duration(milliseconds: 500));
     }
+    
     _subscription.cancel();
     _currentTimeTimer?.cancel();
     _sensorSubscription?.cancel();
+    debugPrint('🔔 Alarm ring cleanup complete');
+  }
+
+  // Save dismissed alarm details to prevent immediate rescheduling of the same alarm
+  void rememberDismissedAlarm() {
+    if (currentlyRingingAlarm.value.isSharedAlarmEnabled) {
+      // Block this specific alarm from being rescheduled
+      homeController.blockSharedAlarmRescheduling(
+        currentlyRingingAlarm.value.firestoreId,
+        currentlyRingingAlarm.value.alarmTime
+      );
+      
+      // Also store the ID for backward compatibility
+      homeController.lastDismissedSharedAlarmId = currentlyRingingAlarm.value.firestoreId;
+      homeController.lastDismissedSharedAlarmTime = Utils.stringToTimeOfDay(currentlyRingingAlarm.value.alarmTime);
+      
+      debugPrint('Remembered and blocked dismissed shared alarm: ${currentlyRingingAlarm.value.alarmTime}, ID: ${currentlyRingingAlarm.value.firestoreId}');
+    }
   }
 }
