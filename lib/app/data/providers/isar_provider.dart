@@ -251,14 +251,19 @@ class IsarDb {
 
   static Future<AlarmModel> addAlarm(AlarmModel alarmRecord) async {
     final isarProvider = IsarDb();
-    final sql = await IsarDb().getAlarmSQLiteDatabase();
     final db = await isarProvider.db;
     await db.writeTxn(() async {
       await db.alarmModels.put(alarmRecord);
     });
-    final sqlmap = alarmRecord.toSQFliteMap();
-    print(sqlmap);
-    await sql!.insert('alarms', sqlmap);
+    
+    // Only store in SQLite if it's NOT a shared alarm
+    if (!alarmRecord.isSharedAlarmEnabled) {
+      final sql = await IsarDb().getAlarmSQLiteDatabase();
+      final sqlmap = alarmRecord.toSQFliteMap();
+      print(sqlmap);
+      await sql!.insert('alarms', sqlmap);
+    }
+    
     List a = await IsarDb().getLogs();
     print(a);
     return alarmRecord;
@@ -371,11 +376,14 @@ class IsarDb {
       );
     }
 
-    // Get all enabled alarms
+    // Get all enabled alarms that are NOT shared alarms
     List<AlarmModel> alarms = await db.alarmModels
         .where()
         .filter()
         .isEnabledEqualTo(true)
+        .and()
+        .isSharedAlarmEnabledEqualTo(false) // Only get non-shared alarms
+        .and()
         .profileEqualTo(currentProfile)
         .findAll();
 
@@ -432,18 +440,22 @@ class IsarDb {
 
   static Future<void> updateAlarm(AlarmModel alarmRecord) async {
     final isarProvider = IsarDb();
-    final sql = await IsarDb().getAlarmSQLiteDatabase();
     final db = await isarProvider.db;
     await db.writeTxn(() async {
       await db.alarmModels.put(alarmRecord);
     });
     await IsarDb().insertLog('Alarm updated ${alarmRecord.alarmTime}', status: Status.success, type: LogType.normal);
-    await sql!.update(
-      'alarms',
-      alarmRecord.toSQFliteMap(),
-      where: 'alarmID = ?',
-      whereArgs: [alarmRecord.alarmID],
-    );
+    
+    // Only update SQLite if it's NOT a shared alarm
+    if (!alarmRecord.isSharedAlarmEnabled) {
+      final sql = await IsarDb().getAlarmSQLiteDatabase();
+      await sql!.update(
+        'alarms',
+        alarmRecord.toSQFliteMap(),
+        where: 'alarmID = ?',
+        whereArgs: [alarmRecord.alarmID],
+      );
+    }
   }
 
   static Future<AlarmModel?> getAlarm(int id) async {
@@ -508,17 +520,24 @@ class IsarDb {
   static Future<void> deleteAlarm(int id) async {
     final isarProvider = IsarDb();
     final db = await isarProvider.db;
-    final sql = await IsarDb().getAlarmSQLiteDatabase();
     final tobedeleted = await db.alarmModels.get(id);
+    
+    if (tobedeleted == null) return;
+    
     await db.writeTxn(() async {
       await db.alarmModels.delete(id);
     });
-    await IsarDb().insertLog('Alarm deleted ${tobedeleted!.alarmTime}');
-    await sql!.delete(
-      'alarms',
-      where: 'alarmID = ?',
-      whereArgs: [tobedeleted!.alarmID],
-    );
+    await IsarDb().insertLog('Alarm deleted ${tobedeleted.alarmTime}');
+    
+    // Only delete from SQLite if it's NOT a shared alarm
+    if (!tobedeleted.isSharedAlarmEnabled) {
+      final sql = await IsarDb().getAlarmSQLiteDatabase();
+      await sql!.delete(
+        'alarms',
+        where: 'alarmID = ?',
+        whereArgs: [tobedeleted.alarmID],
+      );
+    }
   }
 
   // Timer Functions
