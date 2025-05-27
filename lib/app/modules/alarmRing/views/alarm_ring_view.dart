@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter/services.dart';
+import 'dart:convert';
 import 'package:get/get.dart';
 import 'package:ultimate_alarm_clock/app/modules/settings/controllers/theme_controller.dart';
 import 'package:ultimate_alarm_clock/app/utils/constants.dart';
 import 'package:ultimate_alarm_clock/app/utils/utils.dart';
 import 'package:ultimate_alarm_clock/app/data/providers/isar_provider.dart';
 import 'package:ultimate_alarm_clock/app/data/providers/firestore_provider.dart';
+import 'package:ultimate_alarm_clock/app/data/models/alarm_model.dart';
 
 import '../controllers/alarm_ring_controller.dart';
 
@@ -187,30 +190,39 @@ class AlarmControlView extends GetView<AlarmControlController> {
                         ),
                         onPressed: () async {
                           Utils.hapticFeedback();
-                          if (controller
-                              .currentlyRingingAlarm.value.isGuardian) {
+                          debugPrint('🔔 Dismiss button pressed');
+                          
+                          // Cancel guardian timer if active
+                          if (controller.currentlyRingingAlarm.value.isGuardian) {
                             controller.guardianTimer.cancel();
+                            debugPrint('🔔 Guardian timer canceled');
                           }
                           
-                          if (controller.currentlyRingingAlarm.value.days.every((element) => element == false)) {
-                            controller.currentlyRingingAlarm.value.isEnabled = false;
-                            if (controller.currentlyRingingAlarm.value.isSharedAlarmEnabled == false) {
-                              await IsarDb.updateAlarm(controller.currentlyRingingAlarm.value);
-                            } else {
-                              await FirestoreDb.updateAlarm(
-                                controller.currentlyRingingAlarm.value.ownerId,
-                                controller.currentlyRingingAlarm.value,
-                              );
-                            }
+                          // If this is a shared alarm, block it from immediate rescheduling
+                          if (controller.currentlyRingingAlarm.value.isSharedAlarmEnabled) {
+                            controller.rememberDismissedAlarm();
+                            debugPrint('🔔 Blocked shared alarm: ${controller.currentlyRingingAlarm.value.alarmTime}, ID: ${controller.currentlyRingingAlarm.value.firestoreId}');
                           }
+                          
+                          // Cancel any existing alarms to prevent duplicates
+                          await controller.homeController.clearLastScheduledAlarm();
+                          debugPrint('🔔 Cleared all scheduled alarms');
+                          
+                          // Set flag for HomeController to handle rescheduling
+                          controller.homeController.refreshTimer = true;
+                          debugPrint('🔔 Set refresh flag for alarm scheduling');
+                          
+                          // Navigate to next screen based on challenges
                           if (Utils.isChallengeEnabled(
                             controller.currentlyRingingAlarm.value,
                           )) {
+                            debugPrint('🔔 Navigating to challenge screen');
                             Get.toNamed(
                               '/alarm-challenge',
                               arguments: controller.currentlyRingingAlarm.value,
                             );
                           } else {
+                            debugPrint('🔔 Navigating to home screen');
                             Get.offAllNamed(
                               '/bottom-navigation-bar',
                               arguments: controller.currentlyRingingAlarm.value,
