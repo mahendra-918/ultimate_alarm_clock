@@ -134,18 +134,23 @@ class FirestoreDb {
   }
 
   static addAlarm(UserModel? user, AlarmModel alarmRecord) async {
-    final sql = await FirestoreDb().getSQLiteDatabase();
-
     if (user == null) {
       return alarmRecord;
     }
-    await sql!
-        .insert('alarms', alarmRecord.toSQFliteMap())
-        .then((value) => print('insert success'));
+    
+    // Only store in SQLite if it's NOT a shared alarm
+    if (!alarmRecord.isSharedAlarmEnabled) {
+      final sql = await FirestoreDb().getSQLiteDatabase();
+      await sql!
+          .insert('alarms', alarmRecord.toSQFliteMap())
+          .then((value) => print('insert success'));
+    }
 
+    // Always store shared alarms in Firestore
     await _alarmsCollection(user)
         .add(AlarmModel.toMap(alarmRecord))
         .then((value) => alarmRecord.firestoreId = value.id);
+    
     return alarmRecord;
   }
 
@@ -202,29 +207,16 @@ class FirestoreDb {
       return alarmRecord;
     }
 
-    int nowInMinutes = 0;
-    if (wantNextAlarm == true) {
-      nowInMinutes = Utils.timeOfDayToInt(
-        TimeOfDay(
-          hour: TimeOfDay.now().hour,
-          minute: TimeOfDay.now().minute + 1,
-        ),
-      );
-    } else {
-      nowInMinutes = Utils.timeOfDayToInt(
-        TimeOfDay(
-          hour: TimeOfDay.now().hour,
-          minute: TimeOfDay.now().minute + 1,
-        ),
-      );
-    }
+    int nowInMinutes = Utils.timeOfDayToInt(
+      TimeOfDay(
+        hour: TimeOfDay.now().hour,
+        minute: TimeOfDay.now().minute + 1,
+      ),
+    );
 
-    late List<AlarmModel> alarms;
+    late List<AlarmModel> alarms = [];
 
-    // Get all enabled alarms
-    // QuerySnapshot snapshot =
-    //     await _alarmsCollection(user).where('isEnabled', isEqualTo: true).get();
-
+    // Get shared alarms from Firestore ONLY
     QuerySnapshot snapshotSharedAlarms = await _firebaseFirestore
         .collection('sharedAlarms')
         .where('isEnabled', isEqualTo: true)
@@ -235,25 +227,14 @@ class FirestoreDb {
       ),)
         .get();
 
-    // snapshot.docs.addAll(snapshotSharedAlarms.docs);
-
-    var z = snapshotSharedAlarms.docs.map((DocumentSnapshot document) {
-      AlarmModel x = AlarmModel.fromDocumentSnapshot(
+    final sharedAlarms = snapshotSharedAlarms.docs.map((DocumentSnapshot document) {
+      return AlarmModel.fromDocumentSnapshot(
         documentSnapshot: document,
         user: user,
       );
-      return x;
     }).toList();
-
-    alarms = snapshotSharedAlarms.docs.map((DocumentSnapshot document) {
-      AlarmModel x = AlarmModel.fromDocumentSnapshot(
-        documentSnapshot: document,
-        user: user,
-      );
-      return x;
-    }).toList();
-
-    alarms.addAll(z);
+    
+    alarms.addAll(sharedAlarms);
 
     if (alarms.isEmpty) {
       alarmRecord.minutesSinceMidnight = -1;
@@ -307,13 +288,18 @@ class FirestoreDb {
   }
 
   static updateAlarm(String? userId, AlarmModel alarmRecord) async {
-    final sql = await FirestoreDb().getSQLiteDatabase();
-    await sql!.update(
-      'alarms',
-      alarmRecord.toSQFliteMap(),
-      where: 'alarmID = ?',
-      whereArgs: [alarmRecord.alarmID],
-    );
+    // Only update SQLite if it's NOT a shared alarm
+    if (!alarmRecord.isSharedAlarmEnabled) {
+      final sql = await FirestoreDb().getSQLiteDatabase();
+      await sql!.update(
+        'alarms',
+        alarmRecord.toSQFliteMap(),
+        where: 'alarmID = ?',
+        whereArgs: [alarmRecord.alarmID],
+      );
+    }
+    
+    // Always update Firestore for shared alarms
     await _firebaseFirestore
         .collection('sharedAlarms')
         .doc(alarmRecord.firestoreId)
@@ -382,7 +368,12 @@ static Future<List<String>> getUserIdsByEmails(List emails) async {
 }
 
 
-  static shareAlarm(List emails, AlarmModel alarm) async {
+  static Future<void> shareAlarm(List emails, AlarmModel alarm) async {
+    if (emails.isEmpty) {
+      debugPrint('No emails provided for sharing');
+      return;
+    }
+
     final currentUserId = _firebaseAuthInstance.currentUser!.providerData[0].uid;
     alarm.profile = 'Default';
     Map sharedItem = {
@@ -392,37 +383,48 @@ static Future<List<String>> getUserIdsByEmails(List emails) async {
       'alarmTime': alarm.alarmTime
     };
 
-    // final newDocRef = FirebaseFirestore.instance
-    // .collection('users')
-    // .doc(currentUserId)
-    // .collection('alarms')
-    // .doc();
-
-    // await newDocRef.set(AlarmModel.toMap(alarm))
-    //     .then((v) {
-    //   Get.snackbar('Notification', 'Item Shared!');
-    // });
-
-    for (final email in emails) {
-      await addItemToUserByEmail(email, sharedItem);
+    try {
+      // Process all email operations in parallel with error handling
+      final results = await Future.wait(
+        emails.map((email) => addItemToUserByEmail(email, sharedItem).catchError((e) {
+          debugPrint('Error sharing to $email: $e');
+          return false; // Return false to indicate failure
+        })),
+        eagerError: false // Don't stop on first error
+      );
+      
+      // Check if any operations succeeded
+      if (results.any((success) => success != false)) {
+        debugPrint('Alarm shared with at least one recipient');
+      } else {
+        debugPrint('Failed to share alarm with any recipients');
+        throw Exception('Failed to share alarm with any recipients');
+      }
+    } catch (e) {
+      debugPrint('Error in shareAlarm: $e');
+      rethrow; // Rethrow to be caught by caller
     }
-
-    Get.snackbar('Notification', 'Item Shared!');
-
   }
 
-static Future<void> addItemToUserByEmail(String email, dynamic sharedItem) async {
-  final querySnapshot = await _firebaseFirestore
-      .collection('users')
-      .where('email', isEqualTo: email)
-      .limit(1)
-      .get();
+static Future<bool> addItemToUserByEmail(String email, dynamic sharedItem) async {
+  try {
+    final querySnapshot = await _firebaseFirestore
+        .collection('users')
+        .where('email', isEqualTo: email)
+        .limit(1)
+        .get();
 
-  if (querySnapshot.docs.isNotEmpty) {
-    final docId = querySnapshot.docs.first.id;
-    await _firebaseFirestore.collection('users').doc(docId).update({
-      'receivedItems': FieldValue.arrayUnion([sharedItem])
-    });
+    if (querySnapshot.docs.isNotEmpty) {
+      final docId = querySnapshot.docs.first.id;
+      await _firebaseFirestore.collection('users').doc(docId).update({
+        'receivedItems': FieldValue.arrayUnion([sharedItem])
+      });
+      return true; // Success
+    }
+    return false; // User not found
+  } catch (e) {
+    debugPrint('Error adding item to user $email: $e');
+    return false; // Failed
   }
 }
 
@@ -449,15 +451,16 @@ static Future<void> addItemToUserByEmail(String email, dynamic sharedItem) async
     String? ownerId,
     String? firestoreId,
   ) async {
-    final sql = await FirestoreDb().getSQLiteDatabase();
-
     try {
       // Delete alarm remotely (from Firestore)
       await FirebaseFirestore.instance
           .collection('sharedAlarms')
           .doc(firestoreId)
           .delete();
-      sql!.delete('alarms', where: 'firestoreId = ?', whereArgs: [firestoreId]);
+      
+      // Check if it exists in SQLite and delete if found
+      final sql = await FirestoreDb().getSQLiteDatabase();
+      await sql!.delete('alarms', where: 'firestoreId = ?', whereArgs: [firestoreId]);
 
       debugPrint('Alarm deleted successfully from Firestore.');
     } catch (e) {
@@ -513,9 +516,21 @@ static Future<void> addItemToUserByEmail(String email, dynamic sharedItem) async
   }
 
   static deleteAlarm(UserModel? user, String id) async {
-    final sql = await FirestoreDb().getSQLiteDatabase();
-    sql!.delete('alarms', where: 'firestoreId = ?', whereArgs: [id]);
-    await _alarmsCollection(user).doc(id).delete();
+    if (user == null) return;
+    
+    try {
+      // Delete from Firestore (for shared alarms)
+      await _firebaseFirestore
+          .collection('sharedAlarms')
+          .doc(id)
+          .delete();
+      
+      // Also attempt to delete from SQLite if it exists there
+      final sql = await FirestoreDb().getSQLiteDatabase();
+      await sql!.delete('alarms', where: 'firestoreId = ?', whereArgs: [id]);
+    } catch (e) {
+      debugPrint('Error deleting alarm: $e');
+    }
   }
 
   static addUserToAlarmSharedUsers(UserModel? userModel, String alarmID) async {
@@ -639,5 +654,22 @@ await _firebaseFirestore
   }]),
   'sharedUserIds': FieldValue.arrayUnion([currentUserId]), 
 });
+  }
+
+  static Future<AlarmModel> saveSharedAlarm(UserModel? user, AlarmModel alarmRecord) async {
+    if (user == null) {
+      return alarmRecord;
+    }
+    
+    // Make sure it's marked as a shared alarm
+    alarmRecord.isSharedAlarmEnabled = true;
+    
+    // Store only in Firestore
+    await _firebaseFirestore
+        .collection('sharedAlarms')
+        .add(AlarmModel.toMap(alarmRecord))
+        .then((value) => alarmRecord.firestoreId = value.id);
+    
+    return alarmRecord;
   }
 }
