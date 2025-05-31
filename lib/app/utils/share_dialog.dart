@@ -44,6 +44,14 @@ class ShareDialog extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
+    // Function to dismiss loading dialog safely
+    void dismissLoadingDialog() {
+      // Only dismiss if there's a dialog open
+      if (Get.isDialogOpen ?? false) {
+        Get.back();
+      }
+    }
+    
     return Material(
       color: Colors.transparent,
       child: Container(
@@ -150,26 +158,20 @@ class ShareDialog extends StatelessWidget {
                           
                           Utils.hapticFeedback();
                           
-                          final dialogCompleter = Completer();
+                          // Simple approach - show loading indicator in this screen
+                          bool isLoading = true;
                           
-                          Get.dialog(
-                            WillPopScope(
-                              onWillPop: () async => false,
-                              child: Dialog(
-                                backgroundColor: Colors.transparent,
-                                elevation: 0,
+                          // Create an overlay for the loading indicator that we can easily remove
+                          OverlayEntry? overlayEntry;
+                          overlayEntry = OverlayEntry(
+                            builder: (context) => Material(
+                              color: Colors.black54,
+                              child: Center(
                                 child: Container(
                                   padding: const EdgeInsets.all(20),
                                   decoration: BoxDecoration(
                                     color: themeController.secondaryBackgroundColor.value,
                                     borderRadius: BorderRadius.circular(16),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.1),
-                                        blurRadius: 12,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ],
                                   ),
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
@@ -196,25 +198,21 @@ class ShareDialog extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            barrierDismissible: false,
                           );
                           
-                          Future.delayed(const Duration(seconds: 15), () {
-                            if (!dialogCompleter.isCompleted) {
-                              dialogCompleter.complete();
-                              if (Get.isDialogOpen ?? false) {
-                                Get.back();
-                              }
-                              Get.snackbar(
-                                'Error'.tr,
-                                'Sharing timed out. Please try again.'.tr,
-                                backgroundColor: Colors.red,
-                                colorText: Colors.white,
-                                snackPosition: SnackPosition.BOTTOM,
-                                margin: const EdgeInsets.all(16),
-                              );
-                            }
+                          // Add overlay to screen
+                          if (context.mounted) {
+                            Overlay.of(context).insert(overlayEntry);
+                          }
+                          
+                          // Force remove overlay after 10 seconds no matter what
+                          Future.delayed(const Duration(seconds: 10), () {
+                            overlayEntry?.remove();
+                            overlayEntry = null;
                           });
+                          
+                          bool success = false;
+                          String errorMessage = '';
                           
                           try {
                             if (homeController.isProfile.value) {
@@ -222,55 +220,73 @@ class ShareDialog extends StatelessWidget {
                                 controller.selectedEmails,
                               );
                             } else {
-                              await FirestoreDb.shareAlarm(
-                                controller.selectedEmails,
-                                controller.alarmRecord.value,
-                              );
+                              // First share the alarm - with 5 second timeout
+                              await Future.any([
+                                FirestoreDb.shareAlarm(
+                                  controller.selectedEmails,
+                                  controller.alarmRecord.value,
+                                ),
+                                Future.delayed(const Duration(seconds: 5))
+                              ]);
                               
-                              List<String> sharedUserIds = await FirestoreDb.getUserIdsByEmails(
-                                controller.selectedEmails,
-                              );
-                              
-                              await PushNotifications().triggerSharedItemNotification(sharedUserIds);
+                              // Get user IDs (with 3 second timeout)
+                              List<String> sharedUserIds = [];
+                              try {
+                                sharedUserIds = await Future.any([
+                                  FirestoreDb.getUserIdsByEmails(controller.selectedEmails),
+                                  Future.delayed(const Duration(seconds: 3), () => <String>[])
+                                ]);
+                                
+                                // Send notifications with timeout
+                                if (sharedUserIds.isNotEmpty) {
+                                  try {
+                                    await Future.any([
+                                      PushNotifications().triggerSharedItemNotification(sharedUserIds),
+                                      Future.delayed(const Duration(seconds: 3))
+                                    ]);
+                                  } catch (_) {
+                                    // We'll continue anyway as this is not critical
+                                  }
+                                }
+                              } catch (_) {
+                                // Continue even if this fails
+                              }
                             }
-                            
-                            if (!dialogCompleter.isCompleted) {
-                              dialogCompleter.complete();
-                            }
-                            
-                            if (Get.isDialogOpen ?? false) {
-                              Get.back();
-                            }
-                            
-                            Get.back();
-                            
-                            Get.snackbar(
-                              'Success'.tr,
-                              'Alarm shared successfully'.tr,
-                              backgroundColor: kprimaryColor,
-                              colorText: Colors.white,
-                              snackPosition: SnackPosition.BOTTOM,
-                              margin: const EdgeInsets.all(16),
-                            );
+                            success = true;
                           } catch (e) {
-                            if (!dialogCompleter.isCompleted) {
-                              dialogCompleter.complete();
-                            }
-                            
+                            success = false;
+                            errorMessage = e.toString();
                             debugPrint('Error sharing alarm: $e');
+                          } finally {
+                            // Remove loading overlay
+                            overlayEntry?.remove();
+                            overlayEntry = null;
                             
+                            // Close share dialog
                             if (Get.isDialogOpen ?? false) {
                               Get.back();
                             }
                             
-                            Get.snackbar(
-                              'Error'.tr,
-                              'Failed to share alarm: ${e.toString()}'.tr,
-                              backgroundColor: Colors.red,
-                              colorText: Colors.white,
-                              snackPosition: SnackPosition.BOTTOM,
-                              margin: const EdgeInsets.all(16),
-                            );
+                            // Show appropriate snackbar
+                            if (success) {
+                              Get.snackbar(
+                                'Success'.tr,
+                                'Alarm shared successfully'.tr,
+                                backgroundColor: kprimaryColor,
+                                colorText: Colors.white,
+                                snackPosition: SnackPosition.BOTTOM,
+                                margin: const EdgeInsets.all(16),
+                              );
+                            } else {
+                              Get.snackbar(
+                                'Error'.tr,
+                                'Failed to share alarm: $errorMessage'.tr,
+                                backgroundColor: Colors.red,
+                                colorText: Colors.white,
+                                snackPosition: SnackPosition.BOTTOM,
+                                margin: const EdgeInsets.all(16),
+                              );
+                            }
                           }
                         },
                       ),

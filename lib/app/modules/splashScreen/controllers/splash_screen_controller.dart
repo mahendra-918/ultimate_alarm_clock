@@ -105,7 +105,9 @@ class SplashScreenController extends GetxController {
     alarmChannel.setMethodCallHandler((call) async {
       if (call.method == 'appStartup') {
         bool shouldAlarmRing = call.arguments['shouldAlarmRing'];
-        print("shouldring: $shouldAlarmRing");
+        bool isSharedAlarm = call.arguments['isSharedAlarm'] ?? false;
+        print("shouldring: $shouldAlarmRing, isSharedAlarm: $isSharedAlarm");
+        
         // This indicates the app was started through native code
         if (shouldAlarmRing == true) {
           shouldNavigate = false;
@@ -116,8 +118,31 @@ class SplashScreenController extends GetxController {
             shouldAlarmRing = false;
           } else {
             if (shouldAlarmRing) {
+              // Get the currently ringing alarm based on its type
+              if (isSharedAlarm) {
+                // Get shared alarm from Firestore
+                UserModel? userModel = await SecureStorageProvider().retrieveUserModel();
+                AlarmModel sharedAlarmModel = homeController.genFakeAlarmModel();
+                currentlyRingingAlarm.value = await FirestoreDb.getLatestAlarm(
+                  userModel, 
+                  sharedAlarmModel, 
+                  false
+                );
+                debugPrint('Using SHARED alarm for ring screen: ${currentlyRingingAlarm.value.alarmTime}');
+              } else {
+                // Get local alarm from Isar
               currentlyRingingAlarm.value = await getCurrentlyRingingAlarm();
-              Get.offNamed('/alarm-ring',arguments: currentlyRingingAlarm.value);
+                debugPrint('Using LOCAL alarm for ring screen: ${currentlyRingingAlarm.value.alarmTime}');
+              }
+              
+              // Set the flag in the alarm model to ensure correct handling downstream
+              currentlyRingingAlarm.value.isSharedAlarmEnabled = isSharedAlarm;
+              
+              // Store the alarm type in HomeController for proper cleanup later
+              homeController.lastScheduledAlarmIsShared = isSharedAlarm;
+              
+              // Navigate to the alarm ring screen
+              Get.offNamed('/alarm-ring', arguments: currentlyRingingAlarm.value);
             } else {
               currentlyRingingAlarm.value = await getCurrentlyRingingAlarm();
               // If the alarm is set to NEVER repeat, then it will be chosen as

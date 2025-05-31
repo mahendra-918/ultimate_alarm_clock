@@ -20,6 +20,7 @@ import 'package:ultimate_alarm_clock/app/data/providers/secure_storage_provider.
 import 'package:ultimate_alarm_clock/app/modules/settings/controllers/theme_controller.dart';
 import 'package:ultimate_alarm_clock/app/utils/constants.dart';
 import 'package:ultimate_alarm_clock/app/utils/utils.dart';
+import 'package:ultimate_alarm_clock/app/modules/timer/controllers/timer_controller.dart';
 
 import '../../../data/models/profile_model.dart';
 import '../../../data/providers/google_cloud_api_provider.dart';
@@ -93,6 +94,33 @@ class HomeController extends GetxController {
   final storage = Get.find<GetStorageProvider>();
 
   RxBool isProfileUpdate = false.obs;
+
+  // Keep track of the last scheduled alarm to avoid duplicates
+  String? lastScheduledAlarmId;
+  TimeOfDay? lastScheduledAlarmTime;
+  bool? lastScheduledAlarmIsShared;
+  
+  // Variables to track local alarms separately
+  String? lastScheduledLocalAlarmId;
+  TimeOfDay? lastScheduledLocalAlarmTime;
+
+  // Flag to prevent multiple refresh operations overlapping
+  bool isRefreshing = false;
+
+  // Flag to prevent shared alarm rescheduling right after dismissal
+  bool preventSharedAlarmRescheduling = false;
+  // Timer to reset the prevention flag
+  Timer? _preventReschedulingTimer;
+  // Track the last dismissed shared alarm to prevent immediate rescheduling
+  String? lastDismissedSharedAlarmId;
+  TimeOfDay? lastDismissedSharedAlarmTime;
+
+  // Track recently dismissed shared alarms to block their rescheduling
+  Set<String> recentlyDismissedAlarmIds = {};
+  Timer? _dismissedAlarmsCleanupTimer;
+
+  // New variable to store the shared alarm subscription
+  late StreamSubscription<QuerySnapshot> _sharedAlarmSubscription;
 
   loginWithGoogle() async {
     // Logging in again to ensure right details if User has linked account
@@ -253,6 +281,16 @@ class HomeController extends GetxController {
   @override
   void onInit() async {
     super.onInit();
+    
+    // Clear all alarm tracking on init to ensure clean startup
+    recentlyDismissedAlarmIds.clear();
+    lastScheduledAlarmId = null;
+    lastScheduledAlarmTime = null;
+    lastScheduledAlarmIsShared = null;
+    lastDismissedSharedAlarmId = null;
+    lastDismissedSharedAlarmTime = null;
+    preventSharedAlarmRescheduling = false;
+    
     final checkDefault = await IsarDb.getProfile('Default');
     if (checkDefault == null) {
       IsarDb.addProfile(Utils.genDefaultProfileModel());
@@ -273,6 +311,23 @@ class HomeController extends GetxController {
     }
     else {
         isUserSignedIn.value = true;
+        // Force refresh shared alarms on app startup to sync with Firestore
+        // This ensures we get the latest shared alarm data when app is opened
+        try {
+          await forceRefreshSharedAlarms();
+        } catch (e) {
+          debugPrint('Error during initial shared alarm refresh: $e');
+          // Don't let this break the app startup
+        }
+        
+        // Start listening for real-time shared alarm changes as backup to push notifications
+        setupSharedAlarmListener();
+        
+        // Set up periodic checks for when app resumes from background
+        setupPeriodicSharedAlarmCheck();
+        
+        // Set up user notification listener for background notifications
+        setupUserNotificationListener();
     }
 
 
@@ -289,14 +344,221 @@ class HomeController extends GetxController {
       scalingFactor.value = (minFactor + (maxFactor - minFactor) * newFactor);
     });
 
+    refreshUpcomingAlarms();
+  }
+
+  /// Sets up a real-time listener for shared alarm changes
+  void setupSharedAlarmListener() {
+    if (userModel.value == null) return;
+    
+    debugPrint('🎧 Setting up real-time shared alarm listener...');
+    
+    // Listen to the sharedAlarms collection for changes
+    _sharedAlarmSubscription = FirebaseFirestore.instance
+        .collection('sharedAlarms')
+        .where(Filter.or(
+          Filter('sharedUserIds', arrayContains: userModel.value!.id),
+          Filter('ownerId', isEqualTo: userModel.value!.id),
+        ))
+        .snapshots(includeMetadataChanges: false) // Only real changes, not metadata
+        .listen((QuerySnapshot snapshot) {
+      
+      debugPrint('📡 Received shared alarm update: ${snapshot.docChanges.length} changes');
+      
+      for (DocumentChange change in snapshot.docChanges) {
+        if (change.type == DocumentChangeType.modified) {
+          try {
+            AlarmModel updatedAlarm = AlarmModel.fromDocumentSnapshot(
+              documentSnapshot: change.doc,
+              user: userModel.value!,
+            );
+            
+            // Check if this alarm was updated by another user (not current user)
+            Map<String, dynamic>? docData = change.doc.data() as Map<String, dynamic>?;
+            String? lastEditedUserId = docData?['lastEditedUserId'];
+            String? currentUserId = userModel.value?.id;
+            
+            debugPrint('🔍 Alarm update detected:');
+            debugPrint('   - Alarm ID: ${updatedAlarm.firestoreId}');
+            debugPrint('   - Alarm Time: ${updatedAlarm.alarmTime}');
+            debugPrint('   - Edited by: $lastEditedUserId');
+            debugPrint('   - Current user: $currentUserId');
+            debugPrint('   - Is enabled: ${updatedAlarm.isEnabled}');
+            debugPrint('   - Is shared: ${updatedAlarm.isSharedAlarmEnabled}');
+            
+            // Apply updates regardless of who edited it - this ensures receivers get updates
+            if (updatedAlarm.isEnabled && updatedAlarm.isSharedAlarmEnabled) {
+              
+              // Calculate interval to new alarm time
+              TimeOfDay alarmTimeOfDay = Utils.stringToTimeOfDay(updatedAlarm.alarmTime);
+              int intervalToAlarm = Utils.getMillisecondsToAlarm(
+                DateTime.now(),
+                Utils.timeOfDayToDateTime(alarmTimeOfDay),
+              );
+              
+              if (intervalToAlarm > 0) {
+                debugPrint('🔄 Applying shared alarm update: ${updatedAlarm.alarmTime}');
+                
+                // Clear tracking for this alarm so it will be rescheduled
+                clearAlarmTracking(updatedAlarm.firestoreId ?? '', true);
+                
+                // Update the cache with new alarm data
+                updateSharedAlarmCache(updatedAlarm, intervalToAlarm);
+                
+                debugPrint('✅ Automatically updated shared alarm to new time: ${updatedAlarm.alarmTime}');
+                
+                // Force refresh to apply changes immediately
+                refreshTimer = true;
+                refreshUpcomingAlarms();
+                
+                // Show a user notification if this was updated by someone else
+                if (lastEditedUserId != null && 
+                    currentUserId != null && 
+                    lastEditedUserId != currentUserId) {
+                  debugPrint('👥 Alarm updated by another user - this is a receiver update');
+                  
+                  // Show notification to the user about the alarm update
+                  showSharedAlarmUpdateNotification(
+                    updatedAlarm.alarmTime,
+                    updatedAlarm.ownerName ?? 'Someone',
+                  );
+                }
+              } else {
+                debugPrint('⏰ Updated shared alarm time is in the past, clearing cache');
+                clearSharedAlarmCache();
+              }
+            } else {
+              debugPrint('❌ Updated alarm is disabled or not shared, clearing cache');
+              clearSharedAlarmCache();
+            }
+          } catch (e) {
+            debugPrint('❌ Error processing shared alarm update: $e');
+          }
+        }
+      }
+    }, onError: (error) {
+      debugPrint('❌ Error in shared alarm listener: $error');
+    });
+  }
+
+  /// Forces a refresh of shared alarms and ensures local cache is synchronized
+  Future<void> forceRefreshSharedAlarms() async {
+    if (userModel.value == null) return;
+    
+    try {
+      debugPrint('🔄 Force refreshing shared alarms on app startup...');
+      
+      // Get ALL shared alarms that this user is part of from Firestore
+      QuerySnapshot sharedAlarmsSnapshot = await FirebaseFirestore.instance
+          .collection('sharedAlarms')
+          .where(Filter.or(
+            Filter('sharedUserIds', arrayContains: userModel.value!.id),
+            Filter('ownerId', isEqualTo: userModel.value!.id),
+          ))
+          .where('isEnabled', isEqualTo: true)
+          .get();
+      
+      debugPrint('📊 Found ${sharedAlarmsSnapshot.docs.length} enabled shared alarms in Firestore');
+      
+      if (sharedAlarmsSnapshot.docs.isEmpty) {
+        debugPrint('❌ No shared alarms found, clearing cache');
+        await clearSharedAlarmCache();
+        return;
+      }
+      
+      // Process each shared alarm to find the most recent/relevant one
+      AlarmModel? latestSharedAlarm;
+      int shortestInterval = -1;
+      
+      for (DocumentSnapshot doc in sharedAlarmsSnapshot.docs) {
+        try {
+          AlarmModel alarm = AlarmModel.fromDocumentSnapshot(
+            documentSnapshot: doc,
+            user: userModel.value!,
+          );
+          
+          // Calculate interval to this alarm
+          TimeOfDay alarmTimeOfDay = Utils.stringToTimeOfDay(alarm.alarmTime);
+          DateTime alarmDateTime = Utils.timeOfDayToDateTime(alarmTimeOfDay);
+          int intervalToAlarm = Utils.getMillisecondsToAlarm(DateTime.now(), alarmDateTime);
+          
+          debugPrint('⏰ Checking alarm ${alarm.firestoreId}: ${alarm.alarmTime}, interval: ${intervalToAlarm}ms');
+          
+          // Find the alarm with the shortest positive interval (next to ring)
+          if (intervalToAlarm > 0 && (shortestInterval == -1 || intervalToAlarm < shortestInterval)) {
+            latestSharedAlarm = alarm;
+            shortestInterval = intervalToAlarm;
+            debugPrint('✅ This is now the closest alarm to ring');
+          }
+        } catch (e) {
+          debugPrint('❌ Error processing shared alarm ${doc.id}: $e');
+        }
+      }
+      
+      if (latestSharedAlarm != null && shortestInterval > 0) {
+        debugPrint('🎯 Selected shared alarm: ${latestSharedAlarm.alarmTime} (ID: ${latestSharedAlarm.firestoreId})');
+        
+        // Update the cache with the latest alarm data
+        await updateSharedAlarmCache(latestSharedAlarm, shortestInterval);
+        debugPrint('✅ Updated shared alarm cache with latest data: ${latestSharedAlarm.alarmTime}');
+        
+        // Force a complete refresh to reschedule with new data
+        refreshTimer = true;
+        refreshUpcomingAlarms();
+      } else {
+        debugPrint('⏰ No valid shared alarms found or all are in the past, clearing cache');
+        await clearSharedAlarmCache();
+      }
+      
+    } catch (e) {
+      debugPrint('❌ Error force refreshing shared alarms: $e');
+    }
+  }
+  
+  /// Updates the Android SharedPreferences with the latest shared alarm data
+  Future<void> updateSharedAlarmCache(AlarmModel sharedAlarm, int intervalToAlarm) async {
+    try {
+      // Use method channel to update native SharedPreferences
+      await alarmChannel.invokeMethod('updateSharedAlarmCache', {
+        'alarmTime': sharedAlarm.alarmTime,
+        'alarmID': sharedAlarm.firestoreId ?? '',
+        'intervalToAlarm': intervalToAlarm,
+        'isActivityEnabled': sharedAlarm.isActivityEnabled,
+        'isLocationEnabled': sharedAlarm.isLocationEnabled,
+        'location': sharedAlarm.location,
+        'isWeatherEnabled': sharedAlarm.isWeatherEnabled,
+        'weatherTypes': jsonEncode(sharedAlarm.weatherTypes),
+      });
+      debugPrint('✅ Updated native SharedPreferences cache for shared alarm');
+    } catch (e) {
+      debugPrint('❌ Error updating shared alarm cache: $e');
+      // Don't rethrow - this shouldn't break normal alarm operation
+    }
+  }
+  
+  /// Clears the Android SharedPreferences shared alarm cache
+  Future<void> clearSharedAlarmCache() async {
+    try {
+      await alarmChannel.invokeMethod('clearSharedAlarmCache');
+      debugPrint('✅ Cleared native SharedPreferences shared alarm cache');
+    } catch (e) {
+      debugPrint('❌ Error clearing shared alarm cache: $e');
+      // Don't rethrow - this shouldn't break normal alarm operation
+    }
   }
 
   refreshUpcomingAlarms() async {
+    // Check if we're already refreshing
+    if (isRefreshing) {
+      debugPrint('Skipping refresh - already in progress');
+      return;
+    }
+    
     // Check if 2 seconds have passed since the last call
     final currentTime = DateTime.now().millisecondsSinceEpoch;
-
     if (currentTime - lastRefreshTime < 2000) {
       delayToSchedule?.cancel();
+      return;
     }
 
     if (delayToSchedule != null && delayToSchedule!.isActive) {
@@ -304,132 +566,212 @@ class HomeController extends GetxController {
     }
 
     delayToSchedule = Timer(const Duration(seconds: 1), () async {
-      lastRefreshTime = DateTime.now().millisecondsSinceEpoch;
-      // Cancel timer if we have to refresh
-      if (refreshTimer == true) {
-        if (_timer.isActive) _timer.cancel();
-        if (_delayTimer != null) _delayTimer?.cancel();
-        refreshTimer = false;
-      }
+      isRefreshing = true;
+      try {
+        debugPrint('Starting alarm refresh...');
+        lastRefreshTime = DateTime.now().millisecondsSinceEpoch;
+        // Cancel timer if we have to refresh
+        if (refreshTimer == true) {
+          if (_timer.isActive) _timer.cancel();
+          if (_delayTimer != null) _delayTimer?.cancel();
+          refreshTimer = false;
+        }
 
-      // Fake object to get latest alarm
-      AlarmModel alarmRecord = genFakeAlarmModel();
-      AlarmModel isarLatestAlarm =
-          await IsarDb.getLatestAlarm(alarmRecord, true);
+        // Fake object to get latest alarm
+        AlarmModel alarmRecord = genFakeAlarmModel();
+        
+        // Get local non-shared alarms from Isar
+        AlarmModel isarLatestAlarm =
+            await IsarDb.getLatestAlarm(alarmRecord, true);
+        
+        // Get shared alarms from Firestore
+        AlarmModel firestoreLatestAlarm =
+            await FirestoreDb.getLatestAlarm(userModel.value, alarmRecord, true);
+        
+        // Check if the firestore alarm is blocked
+        bool isFirestoreAlarmBlocked = firestoreLatestAlarm.isSharedAlarmEnabled && 
+            isBlockedSharedAlarm(firestoreLatestAlarm.firestoreId);
+        
+        if (isFirestoreAlarmBlocked) {
+          debugPrint('Blocking blocked shared alarm in refresh: ${firestoreLatestAlarm.alarmTime}, ID: ${firestoreLatestAlarm.firestoreId}');
+        }
+        
+        // IMPORTANT: We need to schedule BOTH types of alarms (local and shared)
+        // to ensure that local alarms aren't canceled when shared alarms ring
+        
+        // 1. First, schedule the local alarm if it's valid
+          if (isarLatestAlarm.minutesSinceMidnight > 0 && isarLatestAlarm.isEnabled) {
+          await scheduleAlarmIfNeeded(isarLatestAlarm, false);
+          debugPrint('Scheduled local alarm: ${isarLatestAlarm.alarmTime}');
+          } else {
+          debugPrint('No valid local alarm to schedule');
+        }
+        
+        // 2. Then, schedule the shared alarm if it's valid and not blocked
+        if (firestoreLatestAlarm.minutesSinceMidnight > 0 && 
+            firestoreLatestAlarm.isEnabled &&
+            firestoreLatestAlarm.isSharedAlarmEnabled &&
+            !isFirestoreAlarmBlocked) {
+          await scheduleAlarmIfNeeded(firestoreLatestAlarm, true);
+          debugPrint('Scheduled shared alarm: ${firestoreLatestAlarm.alarmTime}');
+        } else if (isFirestoreAlarmBlocked) {
+          debugPrint('Skipped blocked shared alarm: ${firestoreLatestAlarm.alarmTime}');
+        } else {
+          debugPrint('No valid shared alarm to schedule');
+        }
+        
+        // For display purposes only, determine which is the next to ring
+        AlarmModel displayAlarm;
+        if (isarLatestAlarm.minutesSinceMidnight > 0 && isarLatestAlarm.isEnabled &&
+            firestoreLatestAlarm.minutesSinceMidnight > 0 && firestoreLatestAlarm.isEnabled &&
+            !isFirestoreAlarmBlocked) {
+          // Compare times if both are valid
+          TimeOfDay localTime = Utils.stringToTimeOfDay(isarLatestAlarm.alarmTime);
+          TimeOfDay sharedTime = Utils.stringToTimeOfDay(firestoreLatestAlarm.alarmTime);
+          
+          int localTimeInMinutes = localTime.hour * 60 + localTime.minute;
+          int sharedTimeInMinutes = sharedTime.hour * 60 + sharedTime.minute;
+          
+          if (localTimeInMinutes < sharedTimeInMinutes) {
+            displayAlarm = isarLatestAlarm;
+          } else {
+            displayAlarm = firestoreLatestAlarm;
+          }
+        } else if (isarLatestAlarm.minutesSinceMidnight > 0 && isarLatestAlarm.isEnabled) {
+          displayAlarm = isarLatestAlarm;
+        } else if (firestoreLatestAlarm.minutesSinceMidnight > 0 && firestoreLatestAlarm.isEnabled && !isFirestoreAlarmBlocked) {
+          displayAlarm = firestoreLatestAlarm;
+        } else {
+          // No valid alarms
+          displayAlarm = Utils.getFirstScheduledAlarm(isarLatestAlarm, firestoreLatestAlarm);
+        }
 
-      AlarmModel firestoreLatestAlarm =
-          await FirestoreDb.getLatestAlarm(userModel.value, alarmRecord, true);
-      AlarmModel latestAlarm =
-          Utils.getFirstScheduledAlarm(isarLatestAlarm, firestoreLatestAlarm);
-
-      debugPrint('ISAR: ${isarLatestAlarm.alarmTime}');
-      debugPrint('Fire: ${firestoreLatestAlarm.alarmTime}');
-
-      String timeToAlarm = Utils.timeUntilAlarm(
-        Utils.stringToTimeOfDay(latestAlarm.alarmTime),
-        latestAlarm.days,
-      );
-      alarmTime.value = 'Rings in $timeToAlarm';
-      // This function is necessary when alarms are deleted/enabled
-      await scheduleNextAlarm(
-        alarmRecord,
-        isarLatestAlarm,
-        firestoreLatestAlarm,
-        latestAlarm,
-      );
-
-      if (latestAlarm.minutesSinceMidnight > -1) {
-        // To account for difference between seconds upto the next minute
-        DateTime now = DateTime.now();
-        DateTime nextMinute =
-            DateTime(now.year, now.month, now.day, now.hour, now.minute + 1);
-        Duration delay = nextMinute.difference(now).inMilliseconds > 0
-            ? nextMinute.difference(now)
-            : Duration.zero;
-
-        // Adding a delay till that difference between seconds up to the next
-        // minute
-        _delayTimer = Timer(delay, () {
-          // Update the value of timeToAlarm only once till it settles it's time
-          // with the upcoming alarm
-          // Doing this because of an bug :
-          // If we are not doing the below three lines of code the
-          // time is not updating for 2 min after running
-          // Why is it happening?? -> BECAUSE OUR VALUE WILL BE UPDATED
-          // AFTER 1 MIN ACCORDING TO BELOW TIMER WHICH WILL CAUSE
-          // MISCALCULATION FOR INITIAL MINUTES
-          // This is just to make sure that our calculated time-to-alarm is
-          // up to date with the real time for next alarm
-          timeToAlarm = Utils.timeUntilAlarm(
-            Utils.stringToTimeOfDay(latestAlarm.alarmTime),
-            latestAlarm.days,
-          );
-          alarmTime.value = 'Rings in $timeToAlarm';
-
-          // Running a timer of periodic one minute as it is now in sync with
-          // the current time
-          _timer = Timer.periodic(
-              Duration(
-                milliseconds: Utils.getMillisecondsToAlarm(
-                  DateTime.now(),
-                  DateTime.now().add(const Duration(minutes: 1)),
-                ),
-              ), (timer) {
+        String timeToAlarm = Utils.timeUntilAlarm(
+          Utils.stringToTimeOfDay(displayAlarm.alarmTime),
+          displayAlarm.days,
+        );
+        alarmTime.value = 'Rings in $timeToAlarm';
+        
+        if (displayAlarm.minutesSinceMidnight > -1) {
+          // Cancel any existing timer to prevent leaks
+          if (_timer.isActive) _timer.cancel();
+          if (_delayTimer != null && _delayTimer!.isActive) _delayTimer!.cancel();
+          
+          // Update the countdown immediately
             timeToAlarm = Utils.timeUntilAlarm(
-              Utils.stringToTimeOfDay(latestAlarm.alarmTime),
-              latestAlarm.days,
+            Utils.stringToTimeOfDay(displayAlarm.alarmTime),
+            displayAlarm.days,
             );
             alarmTime.value = 'Rings in $timeToAlarm';
+
+          // Start a periodic timer that updates every 30 seconds for higher accuracy
+          _timer = Timer.periodic(const Duration(seconds: 30), (timer) {
+            try {
+              String updatedTimeToAlarm = Utils.timeUntilAlarm(
+                Utils.stringToTimeOfDay(displayAlarm.alarmTime),
+                displayAlarm.days,
+              );
+              alarmTime.value = 'Rings in $updatedTimeToAlarm';
+              debugPrint('Updated time-to-alarm: $updatedTimeToAlarm');
+            } catch (e) {
+              debugPrint('Error updating time display: $e');
+            }
           });
-        });
-      } else {
-        alarmTime.value = 'No upcoming alarms!';
+        } else {
+          alarmTime.value = 'No upcoming alarms!';
+        }
+        
+        debugPrint('Alarm refresh completed successfully');
+      } catch (e) {
+        debugPrint('Error in refreshUpcomingAlarms: $e');
+      } finally {
+        isRefreshing = false;
       }
     });
   }
 
-  scheduleNextAlarm(
-    AlarmModel alarmRecord,
-    AlarmModel isarLatestAlarm,
-    AlarmModel firestoreLatestAlarm,
-    AlarmModel latestAlarm,
-  ) async {
-    TimeOfDay latestAlarmTimeOfDay =
-        Utils.stringToTimeOfDay(latestAlarm.alarmTime);
-    if (latestAlarm.isEnabled == false) {
-      debugPrint(
-        'STOPPED IF CONDITION with latest = ${latestAlarmTimeOfDay.toString()}',
+  // Helper method to schedule an alarm if needed
+  Future<void> scheduleAlarmIfNeeded(AlarmModel alarm, bool isShared) async {
+    if (!alarm.isEnabled) {
+      debugPrint('Alarm is disabled, not scheduling: ${alarm.alarmTime}');
+      return;
+    }
+    
+    // Calculate time to alarm
+    TimeOfDay alarmTimeOfDay = Utils.stringToTimeOfDay(alarm.alarmTime);
+    int intervalToAlarm = Utils.getMillisecondsToAlarm(
+      DateTime.now(),
+      Utils.timeOfDayToDateTime(alarmTimeOfDay),
       );
-      await alarmChannel.invokeMethod('cancelAllScheduledAlarms');
+    
+    if (intervalToAlarm <= 0) {
+      debugPrint('Alarm time is in the past, not scheduling: ${alarm.alarmTime}');
+      return;
+    }
+    
+    String alarmId = isShared ? (alarm.firestoreId ?? '') : alarm.alarmID.toString();
+    
+    // Check if this same alarm is already scheduled WITH THE SAME TIME
+    bool alreadyScheduled = false;
+    if (isShared) {
+      alreadyScheduled = lastScheduledAlarmIsShared == true && 
+                        lastScheduledAlarmId == alarmId &&
+                        lastScheduledAlarmTime?.hour == alarmTimeOfDay.hour &&
+                        lastScheduledAlarmTime?.minute == alarmTimeOfDay.minute;
     } else {
-      int intervaltoAlarm = Utils.getMillisecondsToAlarm(
-        DateTime.now(),
-        Utils.timeOfDayToDateTime(latestAlarmTimeOfDay),
-      );
-      try {
-        await alarmChannel.invokeMethod('scheduleAlarm', {
-        'isSharedAlarm': latestAlarm.isSharedAlarmEnabled,
-        'isActivityEnabled': latestAlarm.isActivityEnabled,
-        'isLocationEnabled': latestAlarm.isLocationEnabled,
-        'isWeatherEnabled': latestAlarm.isWeatherEnabled,
-        'intervalToAlarm': intervaltoAlarm,
-        'location': latestAlarm.location,
-        'weatherTypes': jsonEncode(latestAlarm.weatherTypes),
-        });
-        print('Scheduled...');
-      } on PlatformException catch (e) {
-        print('Failed to schedule alarm: ${e.message}');
+      alreadyScheduled = lastScheduledLocalAlarmId == alarmId &&
+                        lastScheduledLocalAlarmTime?.hour == alarmTimeOfDay.hour &&
+                        lastScheduledLocalAlarmTime?.minute == alarmTimeOfDay.minute;
+    }
+    
+    if (alreadyScheduled) {
+      debugPrint('${isShared ? "Shared" : "Local"} alarm already scheduled with same time, skipping: ${alarm.alarmTime}');
+      return;
+    }
+    
+    // If we reach here, either it's a new alarm or the time has changed, so schedule it
+    try {
+      debugPrint('Scheduling ${isShared ? "shared" : "local"} alarm: ${alarm.alarmTime}, id: $alarmId');
+      
+      // Schedule the alarm via native code
+      await alarmChannel.invokeMethod('scheduleAlarm', {
+        'isSharedAlarm': isShared,
+        'isActivityEnabled': alarm.isActivityEnabled,
+        'isLocationEnabled': alarm.isLocationEnabled,
+        'isWeatherEnabled': alarm.isWeatherEnabled,
+        'intervalToAlarm': intervalToAlarm,
+        'location': alarm.location,
+        'weatherTypes': jsonEncode(alarm.weatherTypes),
+        'alarmID': alarmId,
+      });
+      
+      // Track each alarm type separately - never override the other type
+      if (isShared) {
+      lastScheduledAlarmId = alarmId;
+        lastScheduledAlarmTime = alarmTimeOfDay;
+        lastScheduledAlarmIsShared = true;
+        debugPrint('Updated shared alarm tracking: $alarmId at ${alarm.alarmTime}');
+      } else {
+        lastScheduledLocalAlarmId = alarmId;
+        lastScheduledLocalAlarmTime = alarmTimeOfDay;
+        debugPrint('Updated local alarm tracking: $alarmId at ${alarm.alarmTime}');
       }
+      
+      debugPrint('✅ Scheduled ${isShared ? "shared" : "local"} alarm successfully');
+    } catch (e) {
+      debugPrint('❌ Error scheduling ${isShared ? "shared" : "local"} alarm: $e');
     }
   }
 
   @override
   void onClose() {
     super.onClose();
-
+    _dismissedAlarmsCleanupTimer?.cancel();
+    _preventReschedulingTimer?.cancel();
     if (delayToSchedule != null) {
       delayToSchedule!.cancel();
     }
+    _sharedAlarmSubscription.cancel();
   }
 
   Future<void> fetchGoogleCalendars() async {
@@ -523,17 +865,15 @@ class HomeController extends GetxController {
 
         try {
           if (isSharedAlarmEnabled) {
-            // AlarmModel? alarmToDelete = await FirestoreDb.getAlarm(userModel.value, alarmId);
-            // if (alarmToDelete != null) {
-            //   deletedAlarms.add(alarmToDelete);
-            //   await FirestoreDb.deleteAlarm(userModel.value, alarmId);
-            //   successCount++;
-            // }
-            // For shared alarms, directly delete from Firestore without trying to get the alarm first
-            await FirestoreDb.deleteAlarm(userModel.value, alarmId);
-            successCount++;
+            
+            AlarmModel? alarmToDelete = await FirestoreDb.getAlarm(userModel.value, alarmId);
+            if (alarmToDelete != null) {
+              deletedAlarms.add(alarmToDelete);
+              await FirestoreDb.deleteAlarm(userModel.value, alarmId);
+              successCount++;
+            }
           } else {
-            // For local alarms, get the alarm first then delete it
+            
             AlarmModel? alarmToDelete = await IsarDb.getAlarm(alarmId);
             if (alarmToDelete != null) {
               deletedAlarms.add(alarmToDelete);
@@ -777,5 +1117,239 @@ class HomeController extends GetxController {
         guardian: profileModel.value.guardian,
         isCall: profileModel.value.isCall,
         ringOn: false);
+  }
+
+  // Method to clear the last scheduled alarm tracking data
+  Future<void> clearLastScheduledAlarm() async {
+    // Check if we have a valid alarm type flag
+    if (lastScheduledAlarmIsShared == null) {
+      debugPrint('⚠️ Warning: lastScheduledAlarmIsShared is null, defaulting to false');
+      lastScheduledAlarmIsShared = false;
+    }
+    
+    bool isShared = lastScheduledAlarmIsShared ?? false;
+    debugPrint('🔔 Clearing ${isShared ? "SHARED" : "LOCAL"} alarm');
+    
+    // Use the cancelSpecificAlarm method in our native channel
+    // This will only cancel the specific alarm type (shared or local) that rang
+    // without canceling other scheduled alarms
+    await alarmChannel.invokeMethod('cancelSpecificAlarm', {
+      'isSharedAlarm': isShared,
+    });
+    
+    // Only clear tracking for the specific type of alarm
+    if (isShared) {
+    lastScheduledAlarmId = null;
+    lastScheduledAlarmTime = null;
+    lastScheduledAlarmIsShared = null;
+      debugPrint('🔔 Cleared last scheduled shared alarm');
+    } else {
+      lastScheduledLocalAlarmId = null;
+      lastScheduledLocalAlarmTime = null;
+      debugPrint('🔔 Cleared last scheduled local alarm');
+    }
+  }
+  
+  // Method to clear alarm tracking for a specific alarm being updated
+  void clearAlarmTracking(String alarmId, bool isShared) {
+    if (isShared) {
+      if (lastScheduledAlarmId == alarmId) {
+        lastScheduledAlarmId = null;
+        lastScheduledAlarmTime = null;
+        lastScheduledAlarmIsShared = null;
+        debugPrint('🔄 Cleared shared alarm tracking for update: $alarmId');
+      }
+    } else {
+      if (lastScheduledLocalAlarmId == alarmId) {
+        lastScheduledLocalAlarmId = null;
+        lastScheduledLocalAlarmTime = null;
+        debugPrint('🔄 Cleared local alarm tracking for update: $alarmId');
+      }
+    }
+  }
+  
+  // Method to clear all alarm prevention and tracking
+  Future<void> clearAllAlarmTracking() async {
+    // For complete cancellation, use the cancelAllAlarms method
+    await alarmChannel.invokeMethod('cancelAllAlarms');
+    
+    // Clear all tracking variables
+    lastScheduledAlarmId = null;
+    lastScheduledAlarmTime = null;
+    lastScheduledAlarmIsShared = null;
+    lastScheduledLocalAlarmId = null;
+    lastScheduledLocalAlarmTime = null;
+    
+    lastDismissedSharedAlarmId = null;
+    lastDismissedSharedAlarmTime = null;
+    preventSharedAlarmRescheduling = false;
+    _preventReschedulingTimer?.cancel();
+    debugPrint('🔔 Cleared all alarms and tracking data');
+  }
+
+  // Method to temporarily prevent shared alarm scheduling (used after dismissal)
+  void temporarilyPreventSharedAlarmRescheduling() {
+    preventSharedAlarmRescheduling = true;
+    // Cancel any existing timer
+    _preventReschedulingTimer?.cancel();
+    // Reset the flag after 5 seconds to allow scheduling again
+    _preventReschedulingTimer = Timer(const Duration(seconds: 5), () {
+      preventSharedAlarmRescheduling = false;
+      debugPrint('Shared alarm scheduling prevention cleared');
+    });
+    debugPrint('Temporarily prevented shared alarm rescheduling');
+  }
+
+  // Method to block a specific shared alarm from being rescheduled
+  void blockSharedAlarmRescheduling(String? firestoreId, String alarmTime) {
+    if (firestoreId == null) return;
+    
+    // Add the alarm ID to the blocked set
+    recentlyDismissedAlarmIds.add(firestoreId);
+    debugPrint('Blocked rescheduling of shared alarm: $alarmTime, ID: $firestoreId');
+    
+    // Cancel any existing cleanup timer
+    _dismissedAlarmsCleanupTimer?.cancel();
+    
+    // Clear the blocked list after 10 seconds to prevent memory leaks
+    // and allow rescheduling in the future if needed
+    _dismissedAlarmsCleanupTimer = Timer(const Duration(seconds: 10), () {
+      recentlyDismissedAlarmIds.clear();
+      debugPrint('Cleared blocked shared alarm IDs list');
+    });
+  }
+  
+  // Method to check if an alarm is in the blocked list
+  bool isBlockedSharedAlarm(String? firestoreId) {
+    if (firestoreId == null) return false;
+    return recentlyDismissedAlarmIds.contains(firestoreId);
+  }
+
+  // Force a refresh of alarm schedules
+  void forceRefreshAlarms() {
+    refreshTimer = true;
+    refreshUpcomingAlarms();
+  }
+  
+  // Force refresh alarms after an alarm update, clearing tracking first
+  void forceRefreshAfterAlarmUpdate(String? alarmId, bool isShared) {
+    debugPrint('🔄 Force refreshing alarms after ${isShared ? "shared" : "local"} alarm update: $alarmId');
+    
+    // Clear tracking for this specific alarm so it will be rescheduled
+    if (alarmId != null) {
+      clearAlarmTracking(alarmId, isShared);
+    }
+    
+    // Force a complete refresh
+    refreshTimer = true;
+    refreshUpcomingAlarms();
+  }
+
+  /// Sets up periodic checks for shared alarm updates (every 30 seconds when app is active)
+  void setupPeriodicSharedAlarmCheck() {
+    Timer.periodic(const Duration(seconds: 30), (timer) async {
+      try {
+        if (userModel.value != null) {
+          // Silently check for shared alarm updates
+          await forceRefreshSharedAlarms();
+        }
+      } catch (e) {
+        debugPrint('Error in periodic shared alarm check: $e');
+      }
+    });
+  }
+
+  /// Shows a notification when a shared alarm is updated by another user
+  void showSharedAlarmUpdateNotification(String alarmTime, String ownerName) {
+    try {
+      // Show a snackbar notification for immediate user feedback
+      Get.snackbar(
+        'Shared Alarm Updated! 🔔',
+        '$ownerName updated the alarm time to $alarmTime',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.blueAccent.withOpacity(0.9),
+        colorText: Colors.white,
+        duration: const Duration(seconds: 5),
+        margin: const EdgeInsets.all(10),
+        borderRadius: 10,
+        icon: const Icon(
+          Icons.alarm,
+          color: Colors.white,
+          size: 30,
+        ),
+        shouldIconPulse: true,
+        barBlur: 20,
+        isDismissible: true,
+        dismissDirection: DismissDirection.horizontal,
+        forwardAnimationCurve: Curves.easeOutBack,
+      );
+      
+      // Also send a native notification for better visibility
+      try {
+        alarmChannel.invokeMethod('showAlarmUpdateNotification', {
+          'title': 'Shared Alarm Updated',
+          'message': '$ownerName updated the alarm time to $alarmTime',
+          'alarmTime': alarmTime,
+        });
+      } catch (e) {
+        debugPrint('⚠️ Could not send native notification: $e');
+      }
+      
+      debugPrint('🔔 Showed alarm update notification: $ownerName -> $alarmTime');
+    } catch (e) {
+      debugPrint('❌ Error showing shared alarm update notification: $e');
+    }
+  }
+
+  /// Sets up a listener for user notifications (works as backup when push notifications fail)
+  void setupUserNotificationListener() {
+    if (userModel.value == null) return;
+    
+    debugPrint('🔔 Setting up user notification listener...');
+    
+    FirebaseFirestore.instance
+        .collection('userNotifications')
+        .doc(userModel.value!.id)
+        .collection('notifications')
+        .where('read', isEqualTo: false)
+        .where('type', isEqualTo: 'alarm_update')
+        .orderBy('timestamp', descending: true)
+        .limit(10)
+        .snapshots()
+        .listen((QuerySnapshot snapshot) {
+      
+      for (DocumentChange change in snapshot.docChanges) {
+        if (change.type == DocumentChangeType.added) {
+          try {
+            Map<String, dynamic> notificationData = change.doc.data() as Map<String, dynamic>;
+            
+            String title = notificationData['title'] ?? 'Alarm Updated';
+            String message = notificationData['message'] ?? 'Your shared alarm has been updated';
+            String alarmId = notificationData['alarmId'] ?? '';
+            String newAlarmTime = notificationData['newAlarmTime'] ?? '';
+            String ownerName = notificationData['ownerName'] ?? 'Someone';
+            
+            debugPrint('📬 Received Firestore notification: $title');
+            
+            // Show the notification to the user
+            showSharedAlarmUpdateNotification(newAlarmTime, ownerName);
+            
+            // Mark the notification as read
+            change.doc.reference.update({'read': true});
+            
+            // Trigger a shared alarm refresh to apply the update
+            if (alarmId.isNotEmpty) {
+              debugPrint('🔄 Triggering alarm refresh due to notification');
+              forceRefreshSharedAlarms();
+            }
+            
+          } catch (e) {
+            debugPrint('❌ Error processing user notification: $e');
+          }
+        }
+      }
+    }, onError: (error) {
+      debugPrint('❌ Error in user notification listener: $error');
+    });
   }
 }

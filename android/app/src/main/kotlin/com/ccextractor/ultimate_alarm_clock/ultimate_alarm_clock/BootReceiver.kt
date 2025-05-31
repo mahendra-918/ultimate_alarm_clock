@@ -13,6 +13,7 @@ import android.os.Build
 import android.os.CountDownTimer
 import androidx.core.app.NotificationCompat
 import com.ccextractor.ultimate_alarm_clock.getLatestTimer
+import com.ccextractor.ultimate_alarm_clock.ultimate_alarm_clock.AlarmUtils
 
 
 class BootReceiver : BroadcastReceiver() {
@@ -23,13 +24,23 @@ class BootReceiver : BroadcastReceiver() {
            val sharedPreferences = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
             val profile = sharedPreferences.getString("flutter.profile", "Default")
 
-            val dbHelper = DatabaseHelper(context)
-            val logdbHelper = LogDatabaseHelper(context)
-            val db = dbHelper.readableDatabase
-            val ringTime = getLatestAlarm(db, true, profile?:"Default", context)
-            db.close()
-            if (ringTime != null) {
-                scheduleAlarm(ringTime["interval"]!! as Long, context, ringTime["isActivity"]!!)
+           // Use the determineNextAlarm function that handles both local and shared alarms
+           val nextAlarm = determineNextAlarm(context, profile ?: "Default")
+           
+           if (nextAlarm != null) {
+               val isSharedAlarm = nextAlarm["isSharedAlarm"] as? Boolean ?: false
+               
+               // Use the updated AlarmUtils that takes an isShared parameter
+               AlarmUtils.scheduleAlarm(
+                   context,
+                   nextAlarm["interval"] as Long,
+                   nextAlarm["isActivity"] as Int,
+                   nextAlarm["isLocation"] as Int,
+                   nextAlarm["location"] as String,
+                   nextAlarm["isWeather"] as Int,
+                   nextAlarm["weatherTypes"] as String,
+                   isSharedAlarm
+               )
             }
 
             val timerdbhelper = TimerDatabaseHelper(context)
@@ -64,52 +75,8 @@ class BootReceiver : BroadcastReceiver() {
         }
     }
 
-    @SuppressLint("ScheduleExactAlarm")
-    fun scheduleAlarm(milliSeconds: Long, context: Context, activityMonitor: Any) {
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val intent = Intent(context, AlarmReceiver::class.java)
-        val pendingIntent = PendingIntent.getBroadcast(
-            context,
-            1,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-        )
-        val activityCheckIntent = Intent(context, ScreenMonitorService::class.java)
-        val pendingActivityCheckIntent = PendingIntent.getService(
-            context,
-            4,
-            activityCheckIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-        )
-        // Schedule the alarm
-        val tenMinutesInMilliseconds = 600000L
-        val preTriggerTime =
-            System.currentTimeMillis() + (milliSeconds - tenMinutesInMilliseconds)
-
-        // Schedule the alarm
-        val triggerTime = System.currentTimeMillis() + milliSeconds
-
-        if (activityMonitor == 1) {
-            val alarmClockInfo = AlarmManager.AlarmClockInfo(preTriggerTime, pendingIntent)
-            alarmManager.setAlarmClock(
-                alarmClockInfo,
-                pendingActivityCheckIntent
-            )
-        } else {
-            val sharedPreferences =
-                context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-            val editor = sharedPreferences.edit()
-            editor.putLong("flutter.is_screen_off", 0L)
-            editor.apply()
-            editor.putLong("flutter.is_screen_on", 0L)
-            editor.apply()
-        }
-        val clockInfo = AlarmManager.AlarmClockInfo(triggerTime, pendingIntent)
-        alarmManager.setAlarmClock(clockInfo, pendingIntent)
-
-    }
-
-
+    // The scheduleAlarm method is no longer needed as we're using AlarmUtils.scheduleAlarm
+    // This removes redundancy and potential conflicts
 
     private fun createNotificationChannel(context: Context) {
 

@@ -27,6 +27,7 @@ import 'package:ultimate_alarm_clock/app/utils/constants.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl_phone_number_input/src/models/country_model.dart';
 import '../../settings/controllers/settings_controller.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AddOrUpdateAlarmController extends GetxController {
   final labelController = TextEditingController();
@@ -637,19 +638,97 @@ class AddOrUpdateAlarmController extends GetxController {
       // online (shared) alarm
       if (await IsarDb.doesAlarmExist(alarmRecord.value.alarmID) == false) {
         alarmData.firestoreId = alarmRecord.value.firestoreId;
+        
+        // IMPORTANT: Cancel the existing alarm before scheduling the new one
+        try {
+          await homeController.alarmChannel.invokeMethod('cancelAlarmById', {
+            'alarmID': alarmData.firestoreId,
+            'isSharedAlarm': true,
+          });
+          debugPrint('🗑️ Canceled existing shared alarm before update: ${alarmData.firestoreId}');
+        } catch (e) {
+          debugPrint('⚠️ Error canceling existing alarm (continuing anyway): $e');
+        }
+        
         await FirestoreDb.updateAlarm(alarmRecord.value.ownerId, alarmData);
-        PushNotifications().triggerRescheduleAlarmNotification(alarmData.firestoreId!);
+        
+        // Try to send push notification (may fail but that's ok)
+        try {
+          PushNotifications().triggerRescheduleAlarmNotification(alarmData.firestoreId!);
+        } catch (e) {
+          debugPrint('Push notification failed (this is ok): $e');
+        }
+        
+        // Force Firestore update with timestamp to trigger real-time listeners
+        await FirestoreDb.triggerRescheduleUpdate(alarmData);
+        
+        // NEW: Send direct notification to shared users as backup
+        try {
+          await sendDirectNotificationToSharedUsers(alarmData);
+        } catch (e) {
+          debugPrint('Direct notification failed (this is ok): $e');
+        }
+        
+        // Force refresh the alarm scheduling after shared alarm update
+        homeController.forceRefreshAfterAlarmUpdate(alarmData.firestoreId, true);
       } else {
         // Deleting alarm on IsarDB to ensure no duplicate entry
-        await IsarDb.deleteAlarm(alarmRecord.value.isarId);
-        createAlarm(alarmData);
+        await IsarDb.deleteAlarm(int.parse(alarmRecord.value.alarmID));
+        
+        // IMPORTANT: Cancel the existing alarm before scheduling the new one
+        try {
+          await homeController.alarmChannel.invokeMethod('cancelAlarmById', {
+            'alarmID': alarmRecord.value.firestoreId,
+            'isSharedAlarm': true,
+          });
+          debugPrint('🗑️ Canceled existing shared alarm before update: ${alarmRecord.value.firestoreId}');
+        } catch (e) {
+          debugPrint('⚠️ Error canceling existing alarm (continuing anyway): $e');
+        }
+        
+        await FirestoreDb.updateAlarm(alarmRecord.value.ownerId, alarmData);
+        
+        // Try to send push notification (may fail but that's ok)
+        try {
+          PushNotifications().triggerRescheduleAlarmNotification(alarmData.firestoreId!);
+        } catch (e) {
+          debugPrint('Push notification failed (this is ok): $e');
+        }
+        
+        // Force Firestore update with timestamp to trigger real-time listeners
+        await FirestoreDb.triggerRescheduleUpdate(alarmData);
+        
+        // NEW: Send direct notification to shared users as backup
+        try {
+          await sendDirectNotificationToSharedUsers(alarmData);
+        } catch (e) {
+          debugPrint('Direct notification failed (this is ok): $e');
+        }
+        
+        // Force refresh the alarm scheduling after shared alarm update
+        homeController.forceRefreshAfterAlarmUpdate(alarmData.firestoreId, true);
       }
     } else {
       // Making sure the alarm wasn't suddenly updated to be an offline alarm
       print('aid = ${alarmRecord.value.alarmID}');
       if (await IsarDb.doesAlarmExist(alarmRecord.value.alarmID) == true) {
         alarmData.isarId = alarmRecord.value.isarId;
+        
+        // IMPORTANT: Cancel the existing local alarm before scheduling the new one
+        try {
+          await homeController.alarmChannel.invokeMethod('cancelAlarmById', {
+            'alarmID': alarmRecord.value.alarmID,
+            'isSharedAlarm': false,
+          });
+          debugPrint('🗑️ Canceled existing local alarm before update: ${alarmRecord.value.alarmID}');
+        } catch (e) {
+          debugPrint('⚠️ Error canceling existing alarm (continuing anyway): $e');
+        }
+        
         await IsarDb.updateAlarm(alarmData);
+        
+        // Force refresh the alarm scheduling after local alarm update
+        homeController.forceRefreshAfterAlarmUpdate(alarmData.alarmID, false);
       } else {
         // Deleting alarm on firestore to ensure no duplicate entry
         await FirestoreDb.deleteAlarm(
@@ -1421,7 +1500,71 @@ class AddOrUpdateAlarmController extends GetxController {
       );
     }
   }
-}
+
+  /// Sends direct notifications to shared users when alarm is updated
+  Future<void> sendDirectNotificationToSharedUsers(AlarmModel alarmData) async {
+    if (alarmData.sharedUserIds == null || alarmData.sharedUserIds!.isEmpty) {
+      debugPrint('No shared users to notify');
+      return;
+    }
+    
+    try {
+      debugPrint('🔔 Sending direct notifications to ${alarmData.sharedUserIds!.length} shared users');
+      debugPrint('   - Alarm time: ${alarmData.alarmTime}');
+      debugPrint('   - Owner: ${alarmData.ownerName}');
+      
+      // Method 1: Try the cloud function approach
+      try {
+        await PushNotifications().triggerSharedItemNotification(alarmData.sharedUserIds!);
+        debugPrint('✅ Cloud function notification sent');
+      } catch (e) {
+        debugPrint('⚠️ Cloud function notification failed: $e');
+      }
+      
+      // Method 2: Create a notification document in Firestore for each user
+      for (String userId in alarmData.sharedUserIds!) {
+        try {
+          await FirebaseFirestore.instance
+            .collection('userNotifications')
+            .doc(userId)
+            .collection('notifications')
+            .add({
+            'type': 'alarm_update',
+            'title': 'Shared Alarm Updated! 🔔',
+            'message': '${alarmData.ownerName ?? 'Someone'} updated the alarm time to ${alarmData.alarmTime}',
+            'alarmId': alarmData.firestoreId,
+            'newAlarmTime': alarmData.alarmTime,
+            'ownerName': alarmData.ownerName,
+            'timestamp': FieldValue.serverTimestamp(),
+            'read': false,
+          });
+          debugPrint('✅ Firestore notification created for user: $userId');
+        } catch (e) {
+          debugPrint('⚠️ Failed to create Firestore notification for $userId: $e');
+        }
+      }
+      
+      // Method 3: Update the shared alarm document with a "lastNotificationSent" field
+      // This can trigger listeners on receiver devices
+      try {
+        await FirebaseFirestore.instance
+          .collection('sharedAlarms')
+          .doc(alarmData.firestoreId)
+          .update({
+          'lastNotificationSent': FieldValue.serverTimestamp(),
+          'notificationMessage': '${alarmData.ownerName ?? 'Someone'} updated the alarm time to ${alarmData.alarmTime}',
+        });
+        debugPrint('✅ Updated shared alarm document with notification trigger');
+      } catch (e) {
+        debugPrint('⚠️ Failed to update alarm document: $e');
+      }
+      
+      debugPrint('🎯 Direct notification process completed');
+    } catch (e) {
+      debugPrint('❌ Error in sendDirectNotificationToSharedUsers: $e');
+      // Don't rethrow - this shouldn't prevent alarm updates
+    }
+  }
 
   int orderedCountryCode(Country countryA, Country countryB) {
     // `??` for null safety of 'dialCode'
@@ -1430,3 +1573,4 @@ class AddOrUpdateAlarmController extends GetxController {
 
     return int.parse(dialCodeA).compareTo(int.parse(dialCodeB));
   }
+}
