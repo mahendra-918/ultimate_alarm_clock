@@ -355,11 +355,13 @@ class AlarmControlController extends GetxController {
         if (isShared && 
             currentlyRingingAlarm.value.ownerId != null && 
             currentlyRingingAlarm.value.firestoreId != null) {  
-          await FirestoreDb.deleteOneTimeAlarm(
-            currentlyRingingAlarm.value.ownerId,
-            currentlyRingingAlarm.value.firestoreId,
+          // For shared alarms, don't delete immediately - mark as dismissed by this user
+          // This allows other users with offsets to still receive their alarms
+          await FirestoreDb.markSharedAlarmDismissedByUser(
+            currentlyRingingAlarm.value.firestoreId!,
+            homeController.userModel.value?.id ?? '',
           );
-          debugPrint('🔔 Deleted one-time shared alarm from Firestore');
+          debugPrint('🔔 Marked one-time shared alarm as dismissed by current user');
         } else if (currentlyRingingAlarm.value.isarId > 0) {
           await IsarDb.deleteAlarm(currentlyRingingAlarm.value.isarId);
           debugPrint('🔔 Deleted one-time local alarm from Isar');
@@ -367,17 +369,19 @@ class AlarmControlController extends GetxController {
       } 
       // Update one-time alarm state if needed
       else if (currentlyRingingAlarm.value.days.every((element) => element == false)) {
-        debugPrint('🔔 Disabling one-time alarm after ring');
-        currentlyRingingAlarm.value.isEnabled = false;
-        if (!isShared && currentlyRingingAlarm.value.isarId > 0) {
+        debugPrint('🔔 Handling one-time alarm after ring');
+        if (isShared && currentlyRingingAlarm.value.firestoreId != null) {
+          // For shared one-time alarms, mark as dismissed by this user instead of disabling globally
+          await FirestoreDb.markSharedAlarmDismissedByUser(
+            currentlyRingingAlarm.value.firestoreId!,
+            homeController.userModel.value?.id ?? '',
+          );
+          debugPrint('🔔 Marked one-time shared alarm as dismissed by current user');
+        } else if (!isShared && currentlyRingingAlarm.value.isarId > 0) {
+          // For local one-time alarms, disable normally
+          currentlyRingingAlarm.value.isEnabled = false;
           await IsarDb.updateAlarm(currentlyRingingAlarm.value);
           debugPrint('🔔 Updated one-time local alarm in Isar');
-        } else if (currentlyRingingAlarm.value.ownerId != null) {
-          await FirestoreDb.updateAlarm(
-            currentlyRingingAlarm.value.ownerId,
-            currentlyRingingAlarm.value,
-          );
-          debugPrint('🔔 Updated one-time shared alarm in Firestore');
         }
       }
       

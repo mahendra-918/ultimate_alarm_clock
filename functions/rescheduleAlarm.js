@@ -21,7 +21,6 @@ export const rescheduleAlarm = onCall(async (request, context) => {
 
     const {offsetDetails: sharedUserOffsetDetails = []} = alarmData;
 
-
     if (sharedUserOffsetDetails.length === 0) {
       return {success: false, message: "No users found"};
     }
@@ -32,11 +31,39 @@ export const rescheduleAlarm = onCall(async (request, context) => {
     const changedUserData = changedUserDocSnap.data();
     const changedUserName = changedUserData?.fullName || "Someone";
 
+    // IMPORTANT: Use the updated main alarm time from the document
+    const updatedMainAlarmTime = alarmData.alarmTime || alarmData.mainAlarmTime;
+    logger.info(`🕐 Using updated main alarm time: ${updatedMainAlarmTime}`);
+
     const messages = [];
 
     for (const userOffset of sharedUserOffsetDetails) {
       const userId = userOffset.userId;
-      const triggerTimeForUser = userOffset.offsettedTime;
+      
+      // IMPORTANT: Calculate the correct trigger time for each user based on updated main time
+      let triggerTimeForUser = updatedMainAlarmTime;
+      
+      // Apply user-specific offset if configured
+      if (userOffset.offsetDuration && userOffset.offsetDuration > 0) {
+        const [hours, minutes] = updatedMainAlarmTime.split(':').map(Number);
+        let totalMinutes = hours * 60 + minutes;
+        
+        if (userOffset.isOffsetBefore) {
+          totalMinutes -= userOffset.offsetDuration;
+        } else {
+          totalMinutes += userOffset.offsetDuration;
+        }
+        
+        // Handle day overflow/underflow
+        if (totalMinutes < 0) totalMinutes += 24 * 60;
+        if (totalMinutes >= 24 * 60) totalMinutes -= 24 * 60;
+        
+        const newHours = Math.floor(totalMinutes / 60);
+        const newMinutes = totalMinutes % 60;
+        triggerTimeForUser = `${newHours.toString().padStart(2, '0')}:${newMinutes.toString().padStart(2, '0')}`;
+      }
+      
+      logger.info(`👤 User ${userId}: Main time ${updatedMainAlarmTime} → Trigger time ${triggerTimeForUser}`);
 
       const userDocSnap = await db.collection("users").doc(userId).get();
       const userData = userDocSnap.data();
@@ -66,6 +93,10 @@ export const rescheduleAlarm = onCall(async (request, context) => {
           data: {
             silent: "true",
             type: "rescheduleAlarm",
+            alarmId: firestoreAlarmId,
+            firestoreAlarmId: firestoreAlarmId,
+            newAlarmTime: triggerTimeForUser,
+            ownerName: changedUserName,
             isLocation: alarmData.isLocationEnabled.toString(),
             isActivity: alarmData.isActivityEnabled.toString(),
             isWeather: alarmData.isWeatherEnabled.toString(),
@@ -75,30 +106,55 @@ export const rescheduleAlarm = onCall(async (request, context) => {
           },
         };
       } else {
-        // Send visible notification to shared users (not owner)
+        // Send visible notification to shared users (not owner) with reschedule data
         message = {
           token,
           android: {
             priority: "high",
+            data: {
+              silent: "false",
+              type: "rescheduleAlarm",
+              alarmId: firestoreAlarmId,
+              firestoreAlarmId: firestoreAlarmId,
+              newAlarmTime: triggerTimeForUser,
+              ownerName: changedUserName,
+              isLocation: alarmData.isLocationEnabled.toString(),
+              isActivity: alarmData.isActivityEnabled.toString(),
+              isWeather: alarmData.isWeatherEnabled.toString(),
+              location: alarmData.location,
+              weatherTypes: JSON.stringify(alarmData.weatherTypes),
+              triggerTime: triggerTimeForUser,
+            },
             notification: {
-              title: "Alarm updated!",
-              body: `${changedUserName} has made changes to your alarm!`,
+              title: "Shared Alarm Updated! 🔔",
+              body: `${changedUserName} updated the alarm time to ${triggerTimeForUser}`,
+              priority: "high",
+              channelId: "alarm_updates",
             },
           },
           apns: {
+            headers: {
+              "apns-priority": "10",
+              "apns-push-type": "alert",
+            },
             payload: {
               aps: {
                 alert: {
-                  title: "Alarm updated!",
-                  body: `${changedUserName} has made changes to your alarm!`,
+                  title: "Shared Alarm Updated! 🔔",
+                  body: `${changedUserName} updated the alarm time to ${triggerTimeForUser}`,
                 },
                 sound: "default",
+                contentAvailable: true,
               },
             },
           },
           data: {
             silent: "false",
             type: "rescheduleAlarm",
+            alarmId: firestoreAlarmId,
+            firestoreAlarmId: firestoreAlarmId,
+            newAlarmTime: triggerTimeForUser,
+            ownerName: changedUserName,
             isLocation: alarmData.isLocationEnabled.toString(),
             isActivity: alarmData.isActivityEnabled.toString(),
             isWeather: alarmData.isWeatherEnabled.toString(),
@@ -110,15 +166,79 @@ export const rescheduleAlarm = onCall(async (request, context) => {
       }
 
       messages.push(message);
+      
+      // IMPORTANT: Add a second data-only message as backup for killed apps
+      const dataOnlyMessage = {
+        token,
+        android: {
+          priority: "high",
+          data: {
+            silent: "true",
+            type: "rescheduleAlarm",
+            alarmId: firestoreAlarmId,
+            firestoreAlarmId: firestoreAlarmId,
+            newAlarmTime: triggerTimeForUser,
+            ownerName: changedUserName,
+            isLocation: alarmData.isLocationEnabled.toString(),
+            isActivity: alarmData.isActivityEnabled.toString(),
+            isWeather: alarmData.isWeatherEnabled.toString(),
+            location: alarmData.location,
+            weatherTypes: JSON.stringify(alarmData.weatherTypes),
+            triggerTime: triggerTimeForUser,
+          },
+        },
+        apns: {
+          headers: {
+            "apns-priority": "10",
+            "apns-push-type": "background",
+          },
+          payload: {
+            aps: {
+              contentAvailable: true,
+            },
+          },
+        },
+        data: {
+          silent: "true",
+          type: "rescheduleAlarm",
+          alarmId: firestoreAlarmId,
+          firestoreAlarmId: firestoreAlarmId,
+          newAlarmTime: triggerTimeForUser,
+          ownerName: changedUserName,
+          isLocation: alarmData.isLocationEnabled.toString(),
+          isActivity: alarmData.isActivityEnabled.toString(),
+          isWeather: alarmData.isWeatherEnabled.toString(),
+          location: alarmData.location,
+          weatherTypes: JSON.stringify(alarmData.weatherTypes),
+          triggerTime: triggerTimeForUser,
+        },
+      };
+      
+      messages.push(dataOnlyMessage);
+      logger.info(`📨 Added 2 messages (notification + data-only) for user ${userId}`);
     }
+    
     if (messages.length > 0) {
-      await admin.messaging().sendEach(messages);
-      return {success: true, sentTo: sharedUserOffsetDetails.length};
+      logger.info(`📤 Sending reschedule notifications to ${messages.length} messages (${sharedUserOffsetDetails.length} users) for alarm ${firestoreAlarmId}`);
+      const response = await admin.messaging().sendEach(messages);
+      
+      // Log detailed delivery results
+      logger.info(`✅ Reschedule notifications sent: ${response.successCount}/${messages.length} successful`);
+      if (response.failureCount > 0) {
+        logger.warn(`❌ ${response.failureCount} messages failed:`);
+        response.responses.forEach((resp, index) => {
+          if (!resp.success) {
+            logger.warn(`   Message ${index}: ${resp.error?.message || 'Unknown error'}`);
+          }
+        });
+      }
+      
+      return {success: true, sentTo: sharedUserOffsetDetails.length, successCount: response.successCount, totalMessages: messages.length};
     } else {
       return {success: false, message: "No valid tokens found"};
     }
   } catch (error) {
-    logger.error("Error sending notification", error);
+    logger.error("Error sending reschedule notification", error);
     throw new Error("Failed to send notification");
   }
 });

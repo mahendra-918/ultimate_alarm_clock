@@ -981,8 +981,30 @@ class HomeView extends GetView<HomeController> {
                                                                                   debugPrint(alarm.isSharedAlarmEnabled.toString());
 
                                                                                         if (alarm.isSharedAlarmEnabled == true) {
+                                                                                          // Cancel the native Android alarm BEFORE deleting from database
+                                                                                          try {
+                                                                                            await controller.alarmChannel.invokeMethod('cancelAlarmById', {
+                                                                                              'alarmID': alarm.firestoreId!,
+                                                                                              'isSharedAlarm': true,
+                                                                                            });
+                                                                                            debugPrint('🗑️ Canceled native shared alarm before deletion: ${alarm.firestoreId}');
+                                                                                          } catch (e) {
+                                                                                            debugPrint('⚠️ Error canceling native shared alarm: $e');
+                                                                                          }
+                                                                                          
                                                                                           await FirestoreDb.deleteAlarm(controller.userModel.value, alarm.firestoreId!);
                                                                                         } else {
+                                                                                          // Cancel the native Android alarm BEFORE deleting from database
+                                                                                          try {
+                                                                                            await controller.alarmChannel.invokeMethod('cancelAlarmById', {
+                                                                                              'alarmID': alarm.alarmID,
+                                                                                              'isSharedAlarm': false,
+                                                                                            });
+                                                                                            debugPrint('🗑️ Canceled native local alarm before deletion: ${alarm.alarmID}');
+                                                                                          } catch (e) {
+                                                                                            debugPrint('⚠️ Error canceling native local alarm: $e');
+                                                                                          }
+                                                                                          
                                                                                           await IsarDb.deleteAlarm(alarm.isarId);
                                                                                         }
 

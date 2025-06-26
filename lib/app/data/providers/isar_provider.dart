@@ -140,6 +140,7 @@ class IsarDb {
         ownerName TEXT NOT NULL,
         lastEditedUserId TEXT,
         mutexLock INTEGER NOT NULL DEFAULT 0,
+        mutexLockTimestamp INTEGER NOT NULL DEFAULT 0,
         mainAlarmTime TEXT,
         label TEXT,
         isOneTime INTEGER NOT NULL DEFAULT 0,

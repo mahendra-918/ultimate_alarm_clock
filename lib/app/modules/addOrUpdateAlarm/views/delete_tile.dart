@@ -67,10 +67,13 @@ class DeleteAfterGoesOff extends StatelessWidget {
             ),
           ),
         ),
-        Obx(
-          () => Container(
-            child: Divider(
-              color: themeController.primaryDisabledTextColor.value,
+        Visibility(
+          visible: isVisible,
+          child: Obx(
+            () => Container(
+              child: Divider(
+                color: themeController.primaryDisabledTextColor.value,
+              ),
             ),
           ),
         ),

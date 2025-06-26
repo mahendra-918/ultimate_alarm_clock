@@ -138,18 +138,20 @@ class FirestoreDb {
       return alarmRecord;
     }
     
-    // Only store in SQLite if it's NOT a shared alarm
-    if (!alarmRecord.isSharedAlarmEnabled) {
+    if (alarmRecord.isSharedAlarmEnabled) {
+      // Store shared alarms in Firestore
+      await _firebaseFirestore
+          .collection('sharedAlarms')
+          .add(AlarmModel.toMap(alarmRecord))
+          .then((value) => alarmRecord.firestoreId = value.id);
+      debugPrint('✅ Created shared alarm in Firestore: ${alarmRecord.firestoreId}');
+    } else {
+      // Store normal alarms in SQLite only
       final sql = await FirestoreDb().getSQLiteDatabase();
       await sql!
           .insert('alarms', alarmRecord.toSQFliteMap())
-          .then((value) => print('insert success'));
+          .then((value) => debugPrint('✅ Created normal alarm in SQLite'));
     }
-
-    // Always store shared alarms in Firestore
-    await _alarmsCollection(user)
-        .add(AlarmModel.toMap(alarmRecord))
-        .then((value) => alarmRecord.firestoreId = value.id);
     
     return alarmRecord;
   }
@@ -470,6 +472,87 @@ static Future<bool> addItemToUserByEmail(String email, dynamic sharedItem) async
     }
   }
 
+  static Future<void> markSharedAlarmDismissedByUser(
+    String firestoreId,
+    String userId,
+  ) async {
+    try {
+      // Add the user to a "dismissedByUsers" array in the alarm document
+      await FirebaseFirestore.instance
+          .collection('sharedAlarms')
+          .doc(firestoreId)
+          .update({
+        'dismissedByUsers': FieldValue.arrayUnion([userId]),
+        'lastDismissedAt': FieldValue.serverTimestamp(),
+      });
+      
+      debugPrint('Marked shared alarm as dismissed by user: $userId');
+      
+      // Check if all users have dismissed the alarm, then delete it
+      final alarmDoc = await FirebaseFirestore.instance
+          .collection('sharedAlarms')
+          .doc(firestoreId)
+          .get();
+      
+      if (alarmDoc.exists) {
+        final data = alarmDoc.data() as Map<String, dynamic>;
+        final sharedUserIds = List<String>.from(data['sharedUserIds'] ?? []);
+        final ownerId = data['ownerId'] as String?;
+        final dismissedByUsers = List<String>.from(data['dismissedByUsers'] ?? []);
+        
+        // Handle offsetDetails - it might be in Map format or old Array format
+        final offsetDetailsRaw = data['offsetDetails'];
+        final Set<String> acceptedUsers = <String>{};
+        
+        if (offsetDetailsRaw is Map) {
+          // New Map format: {userId: {offsetData}}
+          final offsetDetails = Map<String, dynamic>.from(offsetDetailsRaw);
+          acceptedUsers.addAll(offsetDetails.keys.cast<String>());
+        } else if (offsetDetailsRaw is List) {
+          // Old Array format: [{userId: ..., ...}]
+          final offsetDetailsList = List<dynamic>.from(offsetDetailsRaw);
+          for (final item in offsetDetailsList) {
+            if (item is Map && item.containsKey('userId')) {
+              acceptedUsers.add(item['userId'].toString());
+            }
+          }
+        }
+        
+        // Only count users who have actually accepted the alarm (are in offsetDetails)
+        // Plus the owner (who automatically has the alarm)
+        final allUsers = <String>{};
+        if (ownerId != null) {
+          allUsers.add(ownerId);
+        }
+        // Add users who have accepted the alarm
+        allUsers.addAll(acceptedUsers);
+        
+        // Debug logging to understand the user counts
+        debugPrint('🔍 Dismissal check for alarm $firestoreId:');
+        debugPrint('   - sharedUserIds (invited): $sharedUserIds');
+        debugPrint('   - acceptedUsers (from offsetDetails): ${acceptedUsers.toList()}');
+        debugPrint('   - ownerId: $ownerId');
+        debugPrint('   - dismissedByUsers: $dismissedByUsers');
+        debugPrint('   - allUsers (who actually have the alarm): $allUsers');
+        debugPrint('   - dismissedByUsers.length: ${dismissedByUsers.length}');
+        debugPrint('   - allUsers.length: ${allUsers.length}');
+        
+        // If all users who actually have the alarm have dismissed it, delete it completely
+        if (dismissedByUsers.length >= allUsers.length) {
+          await FirebaseFirestore.instance
+              .collection('sharedAlarms')
+              .doc(firestoreId)
+              .delete();
+          debugPrint('✅ All users who have the alarm dismissed it - deleted shared alarm completely: $firestoreId');
+        } else {
+          debugPrint('⏳ Not all users who have the alarm have dismissed yet - keeping alarm: $firestoreId');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error marking shared alarm as dismissed by user: $e');
+    }
+  }
+
   static getAlarm(UserModel? user, String id) async {
     if (user == null) return null;
     return await _alarmsCollection(user).doc(id).get();
@@ -640,22 +723,58 @@ static Future<bool> addItemToUserByEmail(String email, dynamic sharedItem) async
     }
   }
 
-  static acceptSharedAlarm(String alarmOwnerId, AlarmModel alarm)
-  async {
-
+  static acceptSharedAlarm(String alarmOwnerId, AlarmModel alarm) async {
     String? currentUserId = _firebaseAuthInstance.currentUser!.providerData[0].uid;
-await _firebaseFirestore
-    .collection('sharedAlarms')
-    .doc(alarm.firestoreId)
-    .update({
-  'offsetDetails': FieldValue.arrayUnion([{
-    'userId': currentUserId,
-    'isOffsetBefore': true,
-    'offsetDuration': 0,
-    'offsettedTime': alarm.alarmTime,
-  }]),
-  'sharedUserIds': FieldValue.arrayUnion([currentUserId]), 
-});
+    
+    // Get the current alarm document to read existing offsetDetails
+    final alarmDoc = await _firebaseFirestore
+        .collection('sharedAlarms')
+        .doc(alarm.firestoreId)
+        .get();
+    
+    if (alarmDoc.exists) {
+      final data = alarmDoc.data() as Map<String, dynamic>;
+      
+      // Handle offsetDetails - it might be in Map format or old Array format
+      final offsetDetailsRaw = data['offsetDetails'];
+      Map<String, dynamic> offsetDetails = {};
+      
+      if (offsetDetailsRaw is Map) {
+        // New Map format: {userId: {offsetData}}
+        offsetDetails = Map<String, dynamic>.from(offsetDetailsRaw);
+      } else if (offsetDetailsRaw is List) {
+        // Old Array format: [{userId: ..., ...}] - convert to Map format
+        final offsetDetailsList = List<dynamic>.from(offsetDetailsRaw);
+        for (final item in offsetDetailsList) {
+          if (item is Map && item.containsKey('userId')) {
+            final userId = item['userId'].toString();
+            offsetDetails[userId] = {
+              'isOffsetBefore': item['isOffsetBefore'] ?? true,
+              'offsetDuration': item['offsetDuration'] ?? 0,
+              'offsettedTime': item['offsettedTime'] ?? alarm.alarmTime,
+            };
+          }
+        }
+        debugPrint('🔧 Converted offsetDetails from Array to Map format');
+      }
+      
+      // Add this user to offsetDetails using Map structure
+      offsetDetails[currentUserId!] = {
+        'isOffsetBefore': true,
+        'offsetDuration': 0,
+        'offsettedTime': alarm.alarmTime,
+      };
+      
+      await _firebaseFirestore
+          .collection('sharedAlarms')
+          .doc(alarm.firestoreId)
+          .update({
+        'offsetDetails': offsetDetails,
+        'sharedUserIds': FieldValue.arrayUnion([currentUserId]), 
+      });
+      
+      debugPrint('✅ User $currentUserId accepted shared alarm and added to offsetDetails');
+    }
   }
 
   static Future<AlarmModel> saveSharedAlarm(UserModel? user, AlarmModel alarmRecord) async {

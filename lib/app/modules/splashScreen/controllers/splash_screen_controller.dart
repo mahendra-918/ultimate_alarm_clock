@@ -116,8 +116,17 @@ class SplashScreenController extends GetxController {
           // This exists to implement auto-cancellation using screen for the alarm
           if (isAlarmIgnored == true) {
             shouldAlarmRing = false;
-          } else {
+          }
+          
             if (shouldAlarmRing) {
+            // IMPORTANT: For shared alarms, don't refresh Firestore immediately
+            // This prevents the "gone off" issue when the owner dismisses the alarm
+            if (isSharedAlarm) {
+              debugPrint('🔔 Shared alarm is firing - preventing immediate Firestore refresh');
+              // Delay the Firestore refresh to allow alarm to ring properly
+              homeController.handleSharedAlarmFiring();
+            }
+            
               // Get the currently ringing alarm based on its type
               if (isSharedAlarm) {
                 // Get shared alarm from Firestore
@@ -198,7 +207,6 @@ class SplashScreenController extends GetxController {
               Get.offNamed('/bottom-navigation-bar');
 
               alarmChannel.invokeMethod('minimizeApp');
-            }
           }
         }
       }

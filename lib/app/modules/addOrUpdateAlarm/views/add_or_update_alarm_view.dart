@@ -975,46 +975,40 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                         controller: controller,
                                         themeController: themeController,
                                       ),
-                                      Divider(
-                                        color: themeController
-                                            .primaryDisabledTextColor.value,
-                                      ),
                                       ShareAlarm(
                                         controller: controller,
                                         width: width,
                                         themeController: themeController,
                                       ),
                                       Obx(
-                                        () => Container(
-                                          child: (controller
-                                                  .isSharedAlarmEnabled.value)
-                                              ? Divider(
-                                                  color: themeController
-                                                      .primaryDisabledTextColor
-                                                      .value,
-                                                )
-                                              : const SizedBox(),
-                                        ),
-                                      ),
-                                      AlarmOffset(
-                                        controller: controller,
-                                        themeController: themeController,
-                                      ),
-                                      Obx(
-                                        () => Container(
-                                          child: (controller
-                                                  .isSharedAlarmEnabled.value)
-                                              ? Divider(
-                                                  color: themeController
-                                                      .primaryDisabledTextColor
-                                                      .value,
-                                                )
-                                              : const SizedBox(),
-                                        ),
-                                      ),
-                                      SharedUsers(
-                                        controller: controller,
-                                        themeController: themeController,
+                                        () => (controller.isSharedAlarmEnabled.value)
+                                            ? Column(
+                                                children: [
+                                                  Divider(
+                                                    color: themeController
+                                                        .primaryDisabledTextColor
+                                                        .value,
+                                                  ),
+                                                  AlarmOffset(
+                                                    controller: controller,
+                                                    themeController: themeController,
+                                                  ),
+                                                  Divider(
+                                                    color: themeController
+                                                        .primaryDisabledTextColor
+                                                        .value,
+                                                  ),
+                                                  SharedUsers(
+                                                    controller: controller,
+                                                    themeController: themeController,
+                                                  ),
+                                                ],
+                                              )
+                                            : Divider(
+                                                color: themeController
+                                                    .primaryDisabledTextColor
+                                                    .value,
+                                              ),
                                       ),
                                     ],
                                   )

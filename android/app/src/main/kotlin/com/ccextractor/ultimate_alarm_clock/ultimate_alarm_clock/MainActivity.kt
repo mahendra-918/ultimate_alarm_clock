@@ -302,6 +302,36 @@ class MainActivity : FlutterActivity() {
                 
                 showAlarmUpdateNotification(title, message, alarmTime)
                 result.success(null)
+            } else if (call.method == "checkPersistedSharedAlarm") {
+                // Check if we have persisted shared alarm data for Flutter to reschedule
+                val sharedPreferences = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+                val hasActiveSharedAlarm = sharedPreferences.getBoolean("flutter.has_active_shared_alarm", false)
+                
+                if (hasActiveSharedAlarm) {
+                    val alarmTime = sharedPreferences.getString("flutter.shared_alarm_time", "")
+                    val alarmId = sharedPreferences.getString("flutter.shared_alarm_id", "")
+                    val isActivityEnabled = sharedPreferences.getInt("flutter.shared_alarm_activity", 0) == 1
+                    val isLocationEnabled = sharedPreferences.getInt("flutter.shared_alarm_location", 0) == 1
+                    val location = sharedPreferences.getString("flutter.shared_alarm_location_data", "0.0,0.0") ?: "0.0,0.0"
+                    val isWeatherEnabled = sharedPreferences.getInt("flutter.shared_alarm_weather", 0) == 1
+                    val weatherTypes = sharedPreferences.getString("flutter.shared_alarm_weather_types", "[]") ?: "[]"
+                    
+                    val persistedAlarmData = mapOf(
+                        "alarmTime" to alarmTime,
+                        "alarmId" to alarmId,
+                        "isActivityEnabled" to isActivityEnabled,
+                        "isLocationEnabled" to isLocationEnabled,
+                        "location" to location,
+                        "isWeatherEnabled" to isWeatherEnabled,
+                        "weatherTypes" to weatherTypes
+                    )
+                    
+                    Log.d("MainActivity", "Found persisted shared alarm: $persistedAlarmData")
+                    result.success(persistedAlarmData)
+                } else {
+                    Log.d("MainActivity", "No persisted shared alarm found")
+                    result.success(null)
+                }
             } else {
                 result.notImplemented()
             }
