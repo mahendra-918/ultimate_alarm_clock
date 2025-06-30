@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:collection/collection.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -19,6 +20,7 @@ import 'package:ultimate_alarm_clock/app/data/providers/isar_provider.dart';
 import 'package:ultimate_alarm_clock/app/data/providers/push_notifications.dart';
 import 'package:ultimate_alarm_clock/app/data/providers/secure_storage_provider.dart';
 import 'package:ultimate_alarm_clock/app/data/models/ringtone_model.dart';
+import 'package:ultimate_alarm_clock/app/data/models/system_ringtone_model.dart';
 import 'package:ultimate_alarm_clock/app/modules/home/controllers/home_controller.dart';
 import 'package:ultimate_alarm_clock/app/modules/settings/controllers/theme_controller.dart';
 import 'package:ultimate_alarm_clock/app/utils/audio_utils.dart';
@@ -28,6 +30,7 @@ import 'package:uuid/uuid.dart';
 import 'package:intl_phone_number_input/src/models/country_model.dart';
 import '../../settings/controllers/settings_controller.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ultimate_alarm_clock/app/utils/system_ringtone_service.dart';
 
 class AddOrUpdateAlarmController extends GetxController {
   final labelController = TextEditingController();
@@ -88,6 +91,7 @@ class AddOrUpdateAlarmController extends GetxController {
   final RxBool isOneTime = true.obs;
   final RxString label = ''.obs;
   final RxInt snoozeDuration = 1.obs;
+  final RxInt maxSnoozeCount = 3.obs;
   var customRingtoneName = 'Digital Alarm 1'.obs;
   var customRingtoneNames = [].obs;
   var previousRingtone = '';
@@ -117,6 +121,15 @@ class AddOrUpdateAlarmController extends GetxController {
   final RxInt hours = 0.obs, minutes = 0.obs, meridiemIndex = 0.obs;
   final List<RxString> meridiem = ['AM'.obs, 'PM'.obs];
 
+  
+  TextEditingController inputHrsController = TextEditingController();
+  TextEditingController inputMinutesController = TextEditingController();
+  
+  
+  final isTimePicker = false.obs;
+  final isAM = true.obs;
+  int? _previousDisplayHour;
+
   Future<List<UserModel?>> fetchUserDetailsForSharedUsers() async {
     List<UserModel?> userDetails = [];
 
@@ -130,13 +143,17 @@ class AddOrUpdateAlarmController extends GetxController {
   RxBool isDailySelected = false.obs;
   RxBool isWeekdaysSelected = false.obs;
   RxBool isCustomSelected = false.obs;
-  RxBool isPlaying = false.obs; // Observable boolean to track playing state
+  final RxBool isPlaying = false.obs;
 
   // to check whether alarm data is updated or not
   Map<String, dynamic> initialValues = {};
   Map<String, dynamic> changedFields = {};
 
   RxInt alarmSettingType = 0.obs;
+
+  final RxBool isSystemRingtonesLoading = false.obs;
+  final RxMap<String, List<SystemRingtoneModel>> categorizedSystemRingtones = <String, List<SystemRingtoneModel>>{}.obs;
+  final RxString playingSystemRingtoneUri = ''.obs;
 
   late ProfileModel profileModel;
   final storage = Get.find<GetStorageProvider>();
@@ -809,6 +826,7 @@ class AddOrUpdateAlarmController extends GetxController {
       isActivityMonitorenabled.value =
           alarmRecord.value.isActivityEnabled ? 1 : 0;
       snoozeDuration.value = alarmRecord.value.snoozeDuration;
+      maxSnoozeCount.value = alarmRecord.value.maxSnoozeCount;
       gradient.value = alarmRecord.value.gradient;
       volMin.value = alarmRecord.value.volMin;
       volMax.value = alarmRecord.value.volMax;
@@ -967,6 +985,7 @@ class AddOrUpdateAlarmController extends GetxController {
       'selectedTime': selectedTime.value,
       'daysRepeating': daysRepeating.value,
       'snoozeDuration': snoozeDuration.value,
+      'maxSnoozeCount': maxSnoozeCount.value,
       'deleteAfterGoesOff': deleteAfterGoesOff.value,
       'label': label.value,
       'note': note.value,
@@ -998,6 +1017,10 @@ class AddOrUpdateAlarmController extends GetxController {
     }
 
     // If there's an argument sent, we are in update mode
+
+
+    isTimePicker.value = true;
+    initTimeTextField();
   }
 
   void addListeners() {
@@ -1103,20 +1126,24 @@ class AddOrUpdateAlarmController extends GetxController {
   void onClose() async {
     super.onClose();
 
+    await SystemRingtoneService.stopSystemRingtone();
+    playingSystemRingtoneUri.value = '';
+
     if (Get.arguments == null) {
       // Shared alarm was not suddenly enabled, so we can update doc
       // on firestore
       // We also make sure the doc was not already locked
       // If it was suddenly enabled, it will be created newly anyway
-    //   if (isSharedAlarmEnabled.value == true &&
-    //       alarmRecord.value.isSharedAlarmEnabled == true &&
-    //       alarmRecord.value.mutexLock == false) {
-    //     AlarmModel updatedModel = updatedAlarmModel();
-    //     updatedModel.firestoreId = alarmRecord.value.firestoreId;
-    //     await FirestoreDb.updateAlarm(updatedModel.ownerId, updatedModel);
-    //   }
-    // }
-  }
+      if (isSharedAlarmEnabled.value == true &&
+          alarmRecord.value.isSharedAlarmEnabled == true &&
+          alarmRecord.value.mutexLock == false) {
+        AlarmModel updatedModel = updatedAlarmModel();
+        updatedModel.firestoreId = alarmRecord.value.firestoreId;
+        await FirestoreDb.updateAlarm(updatedModel.ownerId, updatedModel);
+      }
+    }
+    inputHrsController.dispose();
+    inputMinutesController.dispose();
   }
 
   AlarmModel updatedAlarmModel() {
@@ -1137,6 +1164,7 @@ class AddOrUpdateAlarmController extends GetxController {
     
     return AlarmModel(
       snoozeDuration: snoozeDuration.value,
+      maxSnoozeCount: maxSnoozeCount.value,
       volMax: volMax.value,
       volMin: volMin.value,
       gradient: gradient.value,
@@ -1301,20 +1329,16 @@ class AddOrUpdateAlarmController extends GetxController {
 
       if (customRingtone != null) {
         int currentCounterOfUsage = customRingtone.currentCounterOfUsage;
+        bool isSystemRingtone = customRingtone.isSystemRingtone;
 
-        if (currentCounterOfUsage == 0) {
+        if (currentCounterOfUsage == 0 || isSystemRingtone) {
           customRingtoneNames.removeAt(ringtoneIndex);
           await IsarDb.deleteCustomRingtone(ringtoneId: customRingtoneId);
 
-          final documentsDirectory = await getApplicationDocumentsDirectory();
-          final ringtoneFilePath =
-              '${documentsDirectory.path}/ringtones/$ringtoneName';
-
-          if (await File(ringtoneFilePath).exists()) {
-            await File(ringtoneFilePath).delete();
+          if (isSystemRingtone) {
             Get.snackbar(
-              'Ringtone Deleted',
-              'The selected ringtone has been successfully deleted.',
+              'System Ringtone Removed',
+              'The system ringtone has been removed from your list.',
               margin: const EdgeInsets.all(15),
               animationDuration: const Duration(seconds: 1),
               snackPosition: SnackPosition.BOTTOM,
@@ -1322,15 +1346,32 @@ class AddOrUpdateAlarmController extends GetxController {
               colorText: kprimaryTextColor,
             );
           } else {
-            Get.snackbar(
-              'Ringtone Not Found',
-              'The selected ringtone does not exist and cannot be deleted.',
-              margin: const EdgeInsets.all(15),
-              animationDuration: const Duration(seconds: 1),
-              snackPosition: SnackPosition.BOTTOM,
-              barBlur: 15,
-              colorText: kprimaryTextColor,
-            );
+            final documentsDirectory = await getApplicationDocumentsDirectory();
+            final ringtoneFilePath =
+                '${documentsDirectory.path}/ringtones/$ringtoneName';
+
+            if (await File(ringtoneFilePath).exists()) {
+              await File(ringtoneFilePath).delete();
+              Get.snackbar(
+                'Ringtone Deleted',
+                'The selected ringtone has been successfully deleted.',
+                margin: const EdgeInsets.all(15),
+                animationDuration: const Duration(seconds: 1),
+                snackPosition: SnackPosition.BOTTOM,
+                barBlur: 15,
+                colorText: kprimaryTextColor,
+              );
+            } else {
+              Get.snackbar(
+                'Ringtone Not Found',
+                'The selected ringtone does not exist and cannot be deleted.',
+                margin: const EdgeInsets.all(15),
+                animationDuration: const Duration(seconds: 1),
+                snackPosition: SnackPosition.BOTTOM,
+                barBlur: 15,
+                colorText: kprimaryTextColor,
+              );
+            }
           }
         } else {
           Get.snackbar(
@@ -1522,7 +1563,6 @@ class AddOrUpdateAlarmController extends GetxController {
     }
   }
 
-  
   Future<void> initializeSharedAlarmSettings() async {
     try {
       debugPrint('Initializing shared alarm settings...');
@@ -1657,11 +1697,150 @@ class AddOrUpdateAlarmController extends GetxController {
     }
   }
 
+  void changeDatePicker() {
+    isTimePicker.value = !isTimePicker.value;
+    if (isTimePicker.value) {
+      initTimeTextField();
+    }
+  }
+  
+  void changePeriod(String period) {
+    isAM.value = period == 'AM';
+  }
+  
+  void confirmTimeInput() {
+    setTime();
+    changeDatePicker();
+  }
+  
+  void toggleIfAtBoundary() {
+    if (!settingsController.is24HrsEnabled.value) {
+      final rawHourText = inputHrsController.text.trim();
+      int newHour;
+      try {
+        newHour = int.parse(rawHourText);
+      } catch (e) {
+        debugPrint("toggleIfAtBoundary error parsing hour: $e");
+        return;
+      }
+
+      if (newHour == 0) {
+        newHour = 12;
+      }
+      if (_previousDisplayHour != null) {
+        if ((_previousDisplayHour == 11 && newHour == 12) ||
+            (_previousDisplayHour == 12 && newHour == 11)) {
+          isAM.value = !isAM.value;
+        }
+      }
+      _previousDisplayHour = newHour;
+    }
+  }
+  
+  void setTime() {
+    selectedTime.value = selectedTime.value;
+    toggleIfAtBoundary();
+
+    try {
+      int hour = int.parse(inputHrsController.text);
+      if (!settingsController.is24HrsEnabled.value) {
+        if (isAM.value) {
+          if (hour == 12) hour = 0; 
+        } else {
+          if (hour != 12) hour = hour + 12;
+        }
+      }
+
+      int minute = int.parse(inputMinutesController.text);
+      final time = TimeOfDay(hour: hour, minute: minute);
+      DateTime today = DateTime.now();
+      DateTime tomorrow = today.add(const Duration(days: 1));
+
+      bool isNextDay = (time.hour == today.hour && time.minute < today.minute) || (time.hour < today.hour);
+      bool isNextMonth = isNextDay && (today.day > tomorrow.day);
+      bool isNextYear = isNextMonth && (today.month > tomorrow.month);
+      int day = isNextDay ? tomorrow.day : today.day;
+      int month = isNextMonth ? tomorrow.month : today.month;
+      int year = isNextYear ? tomorrow.year : today.year;
+      selectedTime.value = DateTime(year, month, day, time.hour, time.minute);
+
+      if (!settingsController.is24HrsEnabled.value) {
+        if (selectedTime.value.hour == 0) {
+          hours.value = 12;
+        } else if (selectedTime.value.hour > 12) {
+          hours.value = selectedTime.value.hour - 12;
+        } else {
+          hours.value = selectedTime.value.hour;
+        }
+      } else {
+        hours.value = convert24(selectedTime.value.hour, meridiemIndex.value);
+      }
+      minutes.value = selectedTime.value.minute;
+      if (selectedTime.value.hour >= 12) {
+        meridiemIndex.value = 1;
+      } else {
+        meridiemIndex.value = 0;
+      }
+    } catch (e) {
+      debugPrint(e.toString());
+    }
+  }
+
+  int convert24(int value, int meridiemIndex) {
+    if (!settingsController.is24HrsEnabled.value) {
+      if (meridiemIndex == 0) {
+        if (value == 12) {
+          value = value - 12;
+        }
+      } else {
+        if (value != 12) {
+          value = value + 12;
+        }
+      }
+    }
+    return value;
+  }
+  
+  void initTimeTextField() {
+    isAM.value = selectedTime.value.hour < 12;
+    
+    inputHrsController.text = settingsController.is24HrsEnabled.value
+        ? selectedTime.value.hour.toString()
+        : (selectedTime.value.hour == 0
+            ? '12'
+            : (selectedTime.value.hour > 12
+                ? (selectedTime.value.hour - 12).toString()
+                : selectedTime.value.hour.toString()));
+    inputMinutesController.text = selectedTime.value.minute.toString().padLeft(2, '0');
+  }
+
   int orderedCountryCode(Country countryA, Country countryB) {
     // `??` for null safety of 'dialCode'
     String dialCodeA = countryA.dialCode ?? '0';
     String dialCodeB = countryB.dialCode ?? '0';
 
     return int.parse(dialCodeA).compareTo(int.parse(dialCodeB));
+  }
+}
+
+class LimitRange extends TextInputFormatter {
+  LimitRange(this.minRange, this.maxRange) : assert(minRange < maxRange);
+  final int minRange;
+  final int maxRange;
+
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    try {
+      if (newValue.text.isEmpty) {
+        return newValue;
+      }
+      int value = int.parse(newValue.text);
+      if (value < minRange) return TextEditingValue(text: minRange.toString());
+      else if (value > maxRange) return TextEditingValue(text: maxRange.toString());
+      return newValue;
+    } catch (e) {
+      debugPrint(e.toString());
+      return newValue;
+    }
   }
 }

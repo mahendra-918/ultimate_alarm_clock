@@ -101,6 +101,9 @@ class SplashScreenController extends GetxController {
   @override
   void onInit() async {
     super.onInit();
+    
+    await IsarDb.fixMaxSnoozeCountInAlarms();
+    
     currentlyRingingAlarm.value = homeController.genFakeAlarmModel();
     alarmChannel.setMethodCallHandler((call) async {
       if (call.method == 'appStartup') {
@@ -149,6 +152,14 @@ class SplashScreenController extends GetxController {
               
               // Store the alarm type in HomeController for proper cleanup later
               homeController.lastScheduledAlarmIsShared = isSharedAlarm;
+              
+              // Update max snooze count from database if needed
+              if (currentlyRingingAlarm.value.alarmID != null) {
+                final dbAlarm = await IsarDb.getAlarm(currentlyRingingAlarm.value.isarId);
+                if (dbAlarm != null && dbAlarm.maxSnoozeCount != currentlyRingingAlarm.value.maxSnoozeCount) {
+                  currentlyRingingAlarm.value.maxSnoozeCount = dbAlarm.maxSnoozeCount;
+                }
+              }
               
               // Navigate to the alarm ring screen
               Get.offNamed('/alarm-ring', arguments: currentlyRingingAlarm.value);

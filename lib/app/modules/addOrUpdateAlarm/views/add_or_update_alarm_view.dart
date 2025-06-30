@@ -6,7 +6,6 @@ import 'package:get_storage/get_storage.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:numberpicker/numberpicker.dart';
 import 'package:ultimate_alarm_clock/app/data/models/alarm_model.dart';
-import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/controllers/input_time_controller.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/share_alarm_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/alarm_offset_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/ascending_volume.dart';
@@ -26,7 +25,7 @@ import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/setting_
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/shake_to_dismiss_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/shared_alarm_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/shared_users_tile.dart';
-import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/snooze_duration_tile.dart';
+import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/snooze_settings_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/weather_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/settings/controllers/settings_controller.dart';
 import 'package:ultimate_alarm_clock/app/modules/settings/controllers/theme_controller.dart';
@@ -37,13 +36,9 @@ import 'alarm_date_tile.dart';
 import 'guardian_angel.dart';
 
 class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
-  AddOrUpdateAlarmView({super.key}) {
-    inputTimeController.initTimeTextField();
-  }
+  AddOrUpdateAlarmView({super.key});
 
   final ThemeController themeController = Get.find<ThemeController>();
-  final InputTimeController inputTimeController =
-      Get.put(InputTimeController());
   final SettingsController settingsController = Get.find<SettingsController>();
 
   @override
@@ -182,10 +177,9 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                           return InkWell(
                                             onTap: () {
                                               Utils.hapticFeedback();
-                                              inputTimeController
-                                                  .changeDatePicker();
+                                              controller.changeDatePicker();
                                             },
-                                            child: inputTimeController
+                                            child: controller
                                                     .isTimePicker.value
                                                 ? Obx(
                                                     () => Row(
@@ -227,7 +221,7 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                                             } else {
                                                               // In 12-hour mode, convert based on AM/PM
                                                               hourValue =
-                                                                  inputTimeController
+                                                                  controller
                                                                       .convert24(
                                                                 value,
                                                                 controller
@@ -260,13 +254,13 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                                             );
 
                                                             // Update text controllers to reflect current format
-                                                            inputTimeController
+                                                            controller
                                                                     .inputHrsController
                                                                     .text =
                                                                 controller
                                                                     .hours.value
                                                                     .toString();
-                                                            inputTimeController
+                                                            controller
                                                                     .inputMinutesController
                                                                     .text =
                                                                 controller
@@ -278,7 +272,7 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                                             if (!settingsController
                                                                 .is24HrsEnabled
                                                                 .value) {
-                                                              inputTimeController
+                                                              controller
                                                                   .changePeriod(
                                                                 controller.meridiemIndex
                                                                             .value ==
@@ -288,7 +282,7 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                                               );
                                                             }
 
-                                                            inputTimeController
+                                                            controller
                                                                 .setTime();
                                                           },
                                                           infiniteLoop: true,
@@ -379,20 +373,20 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                                               controller.minutes
                                                                   .value,
                                                             );
-                                                            inputTimeController
+                                                            controller
                                                                     .inputHrsController
                                                                     .text =
                                                                 controller
                                                                     .hours.value
                                                                     .toString();
-                                                            inputTimeController
+                                                            controller
                                                                     .inputMinutesController
                                                                     .text =
                                                                 controller
                                                                     .minutes
                                                                     .value
                                                                     .toString();
-                                                            inputTimeController
+                                                            controller
                                                                 .changePeriod(
                                                               controller.meridiemIndex
                                                                           .value ==
@@ -503,7 +497,7 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                                                     .selectedTime
                                                                     .value
                                                                     .day,
-                                                                inputTimeController
+                                                                controller
                                                                     .convert24(
                                                                   controller
                                                                       .hours
@@ -516,21 +510,21 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                                                     .minutes
                                                                     .value,
                                                               );
-                                                              inputTimeController
+                                                              controller
                                                                       .inputHrsController
                                                                       .text =
                                                                   controller
                                                                       .hours
                                                                       .value
                                                                       .toString();
-                                                              inputTimeController
+                                                              controller
                                                                       .inputMinutesController
                                                                       .text =
                                                                   controller
                                                                       .minutes
                                                                       .value
                                                                       .toString();
-                                                              inputTimeController
+                                                              controller
                                                                   .changePeriod(
                                                                 controller.meridiemIndex
                                                                             .value ==
@@ -591,19 +585,19 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                                         width: 80,
                                                         child: TextField(
                                                           onChanged: (_) {
-                                                            if (int.parse(inputTimeController
+                                                            if (int.parse(controller
                                                                         .inputHrsController
                                                                         .text) ==
                                                                     12 &&
-                                                                int.parse(inputTimeController
+                                                                int.parse(controller
                                                                         .inputMinutesController
                                                                         .text) ==
                                                                     0) {
-                                                              inputTimeController
+                                                              controller
                                                                   .isAM
                                                                   .toggle();
                                                             }
-                                                            inputTimeController
+                                                            controller
                                                                 .setTime();
                                                           },
                                                           decoration:
@@ -615,7 +609,7 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                                           textAlign:
                                                               TextAlign.center,
                                                           controller:
-                                                              inputTimeController
+                                                              controller
                                                                   .inputHrsController,
                                                           keyboardType:
                                                               TextInputType
@@ -649,7 +643,7 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                                         width: 80,
                                                         child: TextField(
                                                           onChanged: (_) {
-                                                            inputTimeController
+                                                            controller
                                                                 .setTime();
                                                           },
                                                           decoration:
@@ -661,7 +655,7 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                                           textAlign:
                                                               TextAlign.center,
                                                           controller:
-                                                              inputTimeController
+                                                              controller
                                                                   .inputMinutesController,
                                                           keyboardType:
                                                               TextInputType
@@ -692,7 +686,7 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                                           underline:
                                                               Container(),
                                                           value:
-                                                              inputTimeController
+                                                              controller
                                                                       .isAM
                                                                       .value
                                                                   ? 'AM'
@@ -715,11 +709,11 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                                           }).toList(),
                                                           onChanged:
                                                               (getPeriod) {
-                                                            inputTimeController
+                                                            controller
                                                                 .changePeriod(
                                                                     getPeriod!);
 
-                                                            inputTimeController
+                                                            controller
                                                                 .setTime();
                                                           },
                                                         ),
@@ -729,14 +723,14 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                                       ),
                                                       Visibility(
                                                         visible:
-                                                            inputTimeController
+                                                            controller
                                                                 .isTimePicker
                                                                 .isFalse,
                                                         child: InkWell(
                                                           onTap: () {
                                                             Utils
                                                                 .hapticFeedback();
-                                                            inputTimeController
+                                                            controller
                                                                 .confirmTimeInput();
                                                           },
                                                           child: Container(
@@ -829,7 +823,7 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                               )
                                             : const SizedBox(),
                                       ),
-                                      SnoozeDurationTile(
+                                      SnoozeSettingsTile(
                                         controller: controller,
                                         themeController: themeController,
                                       ),

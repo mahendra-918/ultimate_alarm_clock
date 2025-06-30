@@ -145,6 +145,7 @@ class IsarDb {
         label TEXT,
         isOneTime INTEGER NOT NULL DEFAULT 0,
         snoozeDuration INTEGER,
+        maxSnoozeCount INTEGER DEFAULT 3,
         gradient INTEGER,
         ringtoneName TEXT,
         note TEXT,
@@ -253,6 +254,7 @@ class IsarDb {
   static Future<AlarmModel> addAlarm(AlarmModel alarmRecord) async {
     final isarProvider = IsarDb();
     final db = await isarProvider.db;
+    
     await db.writeTxn(() async {
       await db.alarmModels.put(alarmRecord);
     });
@@ -435,6 +437,7 @@ class IsarDb {
 
         return aTimeUntilNextAlarm < bTimeUntilNextAlarm ? a : b;
       });
+      
       return closestAlarm;
     }
   }
@@ -455,6 +458,27 @@ class IsarDb {
         alarmRecord.toSQFliteMap(),
         where: 'alarmID = ?',
         whereArgs: [alarmRecord.alarmID],
+      );
+    }
+  }
+
+  
+  static Future<void> fixMaxSnoozeCountInAlarms() async {
+    final isarProvider = IsarDb();
+    final db = await isarProvider.db;
+    final sql = await IsarDb().getAlarmSQLiteDatabase();
+    
+  
+    final alarms = await db.alarmModels.where().findAll();
+    
+  
+    for (final alarm in alarms) {
+  
+      await sql!.update(
+        'alarms',
+        {'maxSnoozeCount': alarm.maxSnoozeCount},
+        where: 'alarmID = ?',
+        whereArgs: [alarm.alarmID],
       );
     }
   }
