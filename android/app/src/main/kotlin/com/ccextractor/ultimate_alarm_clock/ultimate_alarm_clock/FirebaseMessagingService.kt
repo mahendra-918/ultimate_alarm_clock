@@ -36,7 +36,7 @@ class FirebaseMessagingService : FirebaseMessagingService() {
                 Log.d("FCM", "🔔 Received reschedule alarm notification")
                 handleRescheduleAlarm(data)
                 
-                // Always show a notification to the user when app is closed
+                
                 val alarmTime = data["newAlarmTime"] ?: "Unknown"
                 val ownerName = data["ownerName"] ?: "Someone"
                 showNotification(
@@ -46,7 +46,7 @@ class FirebaseMessagingService : FirebaseMessagingService() {
             }
             "sharedAlarm" -> {
                 Log.d("FCM", "🔔 Received shared alarm notification")
-                // Handle other shared alarm notifications if needed
+                
                 showNotification(
                     remoteMessage.notification?.title ?: "Shared Alarm",
                     remoteMessage.notification?.body ?: "You have a new shared alarm"
@@ -54,7 +54,7 @@ class FirebaseMessagingService : FirebaseMessagingService() {
             }
             else -> {
                 Log.d("FCM", "🔔 Received general notification")
-                // Handle other notification types
+                
                 if (remoteMessage.notification != null) {
                     showNotification(
                         remoteMessage.notification!!.title ?: "Notification",
@@ -77,10 +77,10 @@ class FirebaseMessagingService : FirebaseMessagingService() {
                 return
             }
             
-            // Get SharedPreferences to access shared alarm data
+            
             val sharedPreferences = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
             
-            // Check if we have this shared alarm stored locally
+            
             val currentAlarmId = sharedPreferences.getString("flutter.shared_alarm_id", "")
             val hasActiveSharedAlarm = sharedPreferences.getBoolean("flutter.has_active_shared_alarm", false)
             
@@ -91,11 +91,11 @@ class FirebaseMessagingService : FirebaseMessagingService() {
                 return
             }
             
-            // Cancel the existing alarm
+            
             Log.d("FCM", "🗑️ Canceling existing shared alarm")
             cancelSharedAlarm()
             
-            // Parse the new alarm time to calculate interval
+            
             val newIntervalToAlarm = parseAlarmTimeToInterval(newAlarmTime)
             if (newIntervalToAlarm <= 0) {
                 Log.e("FCM", "❌ New alarm time is in the past or invalid: $newAlarmTime")
@@ -104,7 +104,7 @@ class FirebaseMessagingService : FirebaseMessagingService() {
                 return
             }
             
-            // Get existing alarm configuration from SharedPreferences
+            
             val isActivityEnabled = sharedPreferences.getInt("flutter.shared_alarm_activity", 0) == 1
             val isLocationEnabled = sharedPreferences.getInt("flutter.shared_alarm_location", 0) == 1
             val location = sharedPreferences.getString("flutter.shared_alarm_location_data", "0.0,0.0") ?: "0.0,0.0"
@@ -113,7 +113,7 @@ class FirebaseMessagingService : FirebaseMessagingService() {
             
             Log.d("FCM", "🔧 Rescheduling with config - activity: $isActivityEnabled, location: $isLocationEnabled, weather: $isWeatherEnabled")
             
-            // Schedule the new alarm using AlarmUtils
+            
             AlarmUtils.scheduleAlarm(
                 this,
                 newIntervalToAlarm,
@@ -126,14 +126,14 @@ class FirebaseMessagingService : FirebaseMessagingService() {
                 alarmId
             )
             
-            // Update SharedPreferences with new alarm time
+            
             val editor = sharedPreferences.edit()
             editor.putString("flutter.shared_alarm_time", newAlarmTime)
             editor.apply()
             
             Log.d("FCM", "✅ Successfully rescheduled shared alarm to: $newAlarmTime")
             
-            // Show a notification to the user about the reschedule
+            
             showNotification(
                 "Alarm Updated",
                 "Your shared alarm has been updated to $newAlarmTime"
@@ -146,7 +146,7 @@ class FirebaseMessagingService : FirebaseMessagingService() {
     
     private fun parseAlarmTimeToInterval(alarmTime: String): Long {
         try {
-            // Parse time format "HH:mm"
+            
             val parts = alarmTime.split(":")
             if (parts.size != 2) return 0
             
@@ -161,7 +161,7 @@ class FirebaseMessagingService : FirebaseMessagingService() {
             calendar.set(Calendar.SECOND, 0)
             calendar.set(Calendar.MILLISECOND, 0)
             
-            // If the time is in the past, set it for tomorrow
+            
             if (calendar.before(now)) {
                 calendar.add(Calendar.DAY_OF_MONTH, 1)
             }
@@ -217,7 +217,7 @@ class FirebaseMessagingService : FirebaseMessagingService() {
         try {
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             
-            // Create notification channel for Android O and above
+            
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val channel = NotificationChannel(
                     "alarm_updates",
@@ -227,7 +227,7 @@ class FirebaseMessagingService : FirebaseMessagingService() {
                 notificationManager.createNotificationChannel(channel)
             }
             
-            // Create the notification
+            
             val notification = NotificationCompat.Builder(this, "alarm_updates")
                 .setContentTitle(title)
                 .setContentText(message)

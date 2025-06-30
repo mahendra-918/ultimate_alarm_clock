@@ -47,7 +47,7 @@ class MainActivity : FlutterActivity() {
         val alarmConfig = hashMapOf("shouldAlarmRing" to false, "alarmIgnore" to false, "isSharedAlarm" to false)
         private var ringtone: Ringtone? = null
         
-        // Define specific request codes for different alarm types
+        
         const val REQUEST_CODE_LOCAL_ALARM = 101
         const val REQUEST_CODE_SHARED_ALARM = 102
         const val REQUEST_CODE_LOCAL_ACTIVITY = 201
@@ -67,13 +67,13 @@ class MainActivity : FlutterActivity() {
         timerNotification = TimerNotification()
         context.registerReceiver(timerNotification, intentFilter, Context.RECEIVER_EXPORTED)
         
-        // Initialize alarm manager once
+        
         alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
     }
     
     override fun onDestroy() {
         super.onDestroy()
-        // Unregister the receiver to prevent memory leaks
+        
         if (timerNotification != null) {
             try {
                 context.unregisterReceiver(timerNotification)
@@ -100,13 +100,13 @@ class MainActivity : FlutterActivity() {
             }
             isAlarm = intent.getStringExtra(ALARM_TYPE)
             
-            // Check for shared alarm flag
+            
             isSharedAlarm = intent.getBooleanExtra(SHARED_ALARM_KEY, false)
             if (isSharedAlarm) {
                 alarmConfig["isSharedAlarm"] = true
                 println("NATIVE RECEIVED SHARED ALARM FLAG")
             } else {
-                // Explicitly set to false to ensure it's never undefined
+            
                 alarmConfig["isSharedAlarm"] = false
                 println("NATIVE RECEIVED LOCAL ALARM FLAG")
             }
@@ -125,10 +125,10 @@ class MainActivity : FlutterActivity() {
             cleanIntent.removeExtra(EXTRA_KEY)
             cleanIntent.removeExtra(SHARED_ALARM_KEY)
             
-            // Pass alarmConfig to Flutter with correct information about alarm type
+            
             methodChannel1.invokeMethod("appStartup", alarmConfig)
             
-            // Reset alarmConfig for next time
+            
             alarmConfig["shouldAlarmRing"] = false
             alarmConfig["isSharedAlarm"] = false
         }
@@ -167,7 +167,7 @@ class MainActivity : FlutterActivity() {
                 val weatherTypes = call.argument<String>("weatherTypes") ?: "[]"
                 val alarmID = call.argument<String>("alarmID") ?: ""
                 
-                // Only cancel the specific type of alarm we're about to schedule
+            
                 if (isSharedAlarm) {
                     println("CANCELING ONLY SHARED ALARMS BEFORE SCHEDULING")
                     cancelAlarm(REQUEST_CODE_SHARED_ALARM, true)
@@ -178,21 +178,21 @@ class MainActivity : FlutterActivity() {
                     cancelAlarm(REQUEST_CODE_LOCAL_ACTIVITY, false)
                 }
 
-                // Save shared alarm data to SharedPreferences if needed
+                
                 if (isSharedAlarm) {
                     val sharedPreferences = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
                     val editor = sharedPreferences.edit()
                     editor.putBoolean("flutter.has_active_shared_alarm", true)
                     editor.putString("flutter.shared_alarm_id", alarmID)
                     
-                    // Parse the alarm time from interval
+                
                     val calendar = Calendar.getInstance()
                     calendar.timeInMillis = System.currentTimeMillis() + intervalToAlarm
                     val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
                     val alarmTime = timeFormat.format(calendar.time)
                     editor.putString("flutter.shared_alarm_time", alarmTime)
                     
-                    // Save other alarm parameters
+                
                     editor.putInt("flutter.shared_alarm_activity", if (isActivityEnabled) 1 else 0)
                     editor.putInt("flutter.shared_alarm_location", if (isLocationEnabled) 1 else 0)
                     editor.putString("flutter.shared_alarm_location_data", location)
@@ -223,7 +223,7 @@ class MainActivity : FlutterActivity() {
                 cancelAllAlarms()
                 result.success("All alarms canceled")
             } else if (call.method == "cancelSpecificAlarm") {
-                // New method to cancel only the specific alarm that just rang
+                
                 val isSharedAlarm = call.argument<Boolean>("isSharedAlarm") ?: false
                 println("FLUTTER CALLED CANCEL SPECIFIC ALARM: ${if (isSharedAlarm) "SHARED" else "LOCAL"}")
                 cancelSpecificAlarm(isSharedAlarm)
@@ -241,18 +241,18 @@ class MainActivity : FlutterActivity() {
                 stopDefaultAlarm()
                 result.success(null)
             } else if (call.method == "cancelAlarmById") {
-                // New method to cancel a specific alarm by its ID
+                
                 val alarmID = call.argument<String>("alarmID") ?: ""
                 val isSharedAlarm = call.argument<Boolean>("isSharedAlarm") ?: false
                 
                 println("FLUTTER CALLED CANCEL ALARM BY ID: $alarmID, isShared: $isSharedAlarm")
                 
-                // Use the updated AlarmUtils to cancel by ID
+                
                 AlarmUtils.cancelAlarmById(context, alarmID, isSharedAlarm)
                 
                 result.success("Alarm canceled by ID")
             } else if (call.method == "updateSharedAlarmCache") {
-                // Update SharedPreferences with latest shared alarm data
+                
                 val alarmTime = call.argument<String>("alarmTime") ?: ""
                 val alarmID = call.argument<String>("alarmID") ?: ""
                 val intervalToAlarm = call.argument<Number>("intervalToAlarm")?.toLong() ?: 0L
@@ -279,7 +279,7 @@ class MainActivity : FlutterActivity() {
                 Log.d("MainActivity", "Successfully updated shared alarm cache")
                 result.success("Shared alarm cache updated")
             } else if (call.method == "clearSharedAlarmCache") {
-                // Clear SharedPreferences shared alarm data
+                
                 val sharedPreferences = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
                 val editor = sharedPreferences.edit()
                 editor.putBoolean("flutter.has_active_shared_alarm", false)
@@ -295,7 +295,7 @@ class MainActivity : FlutterActivity() {
                 Log.d("MainActivity", "Cleared shared alarm cache")
                 result.success(null)
             } else if (call.method == "showAlarmUpdateNotification") {
-                // Show a notification about alarm update
+                
                 val title = call.argument<String>("title") ?: "Alarm Updated"
                 val message = call.argument<String>("message") ?: "Your shared alarm has been updated"
                 val alarmTime = call.argument<String>("alarmTime") ?: ""
@@ -303,7 +303,7 @@ class MainActivity : FlutterActivity() {
                 showAlarmUpdateNotification(title, message, alarmTime)
                 result.success(null)
             } else if (call.method == "checkPersistedSharedAlarm") {
-                // Check if we have persisted shared alarm data for Flutter to reschedule
+                
                 val sharedPreferences = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
                 val hasActiveSharedAlarm = sharedPreferences.getBoolean("flutter.has_active_shared_alarm", false)
                 
@@ -356,13 +356,13 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun cancelAllAlarms() {
-        // Cancel all possible alarms to be absolutely sure nothing is left
+        
         cancelAlarm(REQUEST_CODE_LOCAL_ALARM, false)
         cancelAlarm(REQUEST_CODE_SHARED_ALARM, true)
         cancelAlarm(REQUEST_CODE_LOCAL_ACTIVITY, false)
         cancelAlarm(REQUEST_CODE_SHARED_ACTIVITY, true)
         
-        // Clear shared alarm data
+        
         clearSharedAlarmData()
         
         lastScheduledAlarmTime = 0
@@ -371,19 +371,19 @@ class MainActivity : FlutterActivity() {
         Log.d("MainActivity", "All alarms canceled")
     }
     
-    // Add a new method to cancel only a specific type of alarm (either shared or local)
-    // without affecting other scheduled alarms
+    
+    
     private fun cancelSpecificAlarm(isShared: Boolean) {
         Log.d("MainActivity", "===== CANCELING SPECIFIC ALARM: ${if (isShared) "SHARED" else "LOCAL"} =====")
         
         if (isShared) {
-            // Cancel only the shared alarm that just rang
+
             cancelAlarm(REQUEST_CODE_SHARED_ALARM, true)
             cancelAlarm(REQUEST_CODE_SHARED_ACTIVITY, true)
             clearSharedAlarmData() // Clear shared alarm data since it just rang
             Log.d("MainActivity", "Shared alarm canceled - Local alarms should be preserved")
             
-            // Debug: Check if we have any local alarms still active
+            
             try {
                 val pendingIntent = PendingIntent.getBroadcast(
                     this,
@@ -405,7 +405,7 @@ class MainActivity : FlutterActivity() {
             cancelAlarm(REQUEST_CODE_LOCAL_ACTIVITY, false)
             Log.d("MainActivity", "Local alarm canceled - Shared alarms should be preserved")
             
-            // Debug: Check if we have any shared alarms still active
+            
             try {
                 val pendingIntent = PendingIntent.getBroadcast(
                     this,
@@ -451,7 +451,7 @@ class MainActivity : FlutterActivity() {
             }
         }
         
-        // Check if there's actually a pending intent to cancel
+        
         val checkIntent = PendingIntent.getBroadcast(
             this,
             requestCode,
@@ -508,13 +508,13 @@ class MainActivity : FlutterActivity() {
         val triggerAtMillis = System.currentTimeMillis() + intervalToAlarm
         val alarmType = if (isShared) "shared" else "local"
         
-        // Check if we're trying to schedule the same alarm again
+        
         if (triggerAtMillis == lastScheduledAlarmTime && alarmType == lastScheduledAlarmType) {
             Log.d("MainActivity", "Skipping duplicate alarm schedule: $alarmType at ${Date(triggerAtMillis)}")
             return
         }
         
-        // Create the alarm intent
+        
         val intent = Intent(this, AlarmReceiver::class.java).apply {
             putExtra("isActivity", isActivity)
             putExtra("isLocation", isLocation)
@@ -526,7 +526,7 @@ class MainActivity : FlutterActivity() {
             }
         }
         
-        // Use the appropriate request code
+        
         val requestCode = if (isShared) REQUEST_CODE_SHARED_ALARM else REQUEST_CODE_LOCAL_ALARM
         
         val pendingIntent = PendingIntent.getBroadcast(
@@ -536,7 +536,7 @@ class MainActivity : FlutterActivity() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
         )
         
-        // Schedule the main alarm
+        
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 alarmManager?.setExactAndAllowWhileIdle(
@@ -552,13 +552,13 @@ class MainActivity : FlutterActivity() {
                 )
             }
             
-            // Save this as the last scheduled alarm
+        
             lastScheduledAlarmTime = triggerAtMillis
             lastScheduledAlarmType = alarmType
             
             Log.d("MainActivity", "$alarmType alarm scheduled for ${Date(triggerAtMillis)}")
             
-            // For activity monitoring (if enabled)
+        
             if (isActivity == 1) {
                 scheduleActivityMonitoring(isShared, triggerAtMillis)
             }
@@ -574,7 +574,7 @@ class MainActivity : FlutterActivity() {
             }
         }
         
-        // Use the appropriate request code
+        
         val requestCode = if (isShared) REQUEST_CODE_SHARED_ACTIVITY else REQUEST_CODE_LOCAL_ACTIVITY
         
         val pendingActivityCheckIntent = PendingIntent.getService(
@@ -584,7 +584,7 @@ class MainActivity : FlutterActivity() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
         )
         
-        // Schedule the activity check to run 15 minutes before the alarm
+        
         val activityCheckTime = triggerAtMillis - (15 * 60 * 1000)
         
         try {
@@ -614,7 +614,7 @@ class MainActivity : FlutterActivity() {
             val profile = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
                 .getString("flutter.profile", "Default") ?: "Default"
             
-            // Use our helper function to determine which alarm should be scheduled next
+            
             val nextAlarm = determineNextAlarm(context, profile)
             
             if (nextAlarm == null) {
@@ -653,7 +653,7 @@ class MainActivity : FlutterActivity() {
         try {
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             
-            // Create notification channel for Android O and above
+            
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val channel = NotificationChannel(
                     "alarm_updates",
@@ -669,7 +669,7 @@ class MainActivity : FlutterActivity() {
                 notificationManager.createNotificationChannel(channel)
             }
             
-            // Create the notification
+            
             val notification = NotificationCompat.Builder(this, "alarm_updates")
                 .setContentTitle(title)
                 .setContentText(message)

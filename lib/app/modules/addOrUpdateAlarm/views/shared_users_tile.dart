@@ -330,16 +330,16 @@ class SharedUsers extends StatelessWidget {
                                       controller.alarmID,
                                     );
                                     
-                                    // Update sharedUserIds value after removing the user
+                                    
                                     controller.sharedUserIds.remove(user.id);
 
-                                    // Remove the user from userDetails list
+                                    
                                     userDetails.remove(user);
 
-                                    // Update the list
+                                    
                                     userDetails.refresh();
                                     
-                                    // Show success message
+                                    
                                     Get.snackbar(
                                       'Success'.tr,
                                       'User removed successfully'.tr,

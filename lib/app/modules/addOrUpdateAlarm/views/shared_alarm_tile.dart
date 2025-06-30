@@ -157,16 +157,16 @@ class SharedAlarm extends StatelessWidget {
                       bool newValue = !controller.isSharedAlarmEnabled.value;
                       debugPrint('Toggling shared alarm to: $newValue');
                       
-                      // Update the value
+                      
                       controller.isSharedAlarmEnabled.value = newValue;
                       
-                      // If enabling shared alarm, ensure proper initialization
+                      
                       if (newValue) {
                         await controller.initializeSharedAlarmSettings();
                       }
                     } catch (e) {
                       debugPrint('Error toggling shared alarm: $e');
-                      // Revert the change if there's an error
+                      
                       controller.isSharedAlarmEnabled.value = !controller.isSharedAlarmEnabled.value;
                     }
                   },
@@ -185,13 +185,13 @@ class SharedAlarm extends StatelessWidget {
                           
                         controller.isSharedAlarmEnabled.value = value;
                           
-                          // If enabling shared alarm, ensure proper initialization
+                          
                           if (value) {
                             await controller.initializeSharedAlarmSettings();
                           }
                         } catch (e) {
                           debugPrint('Error in switch toggle: $e');
-                          // Don't revert here as the switch will handle its own state
+                         
                         }
                       },
                       value: controller.isSharedAlarmEnabled.value,

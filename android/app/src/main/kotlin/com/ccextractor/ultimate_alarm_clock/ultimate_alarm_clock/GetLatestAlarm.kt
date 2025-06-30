@@ -49,7 +49,7 @@ fun getLatestAlarm(db: SQLiteDatabase, wantNextAlarm: Boolean, profile: String,c
         do {
             alarm = AlarmModel.fromCursor(cursor)
             if (alarm.ringOn == 0) {
-                // Normal alarm processing
+                
                 var dayfromToday = 0
                 var timeDif = getTimeDifferenceInMillis(alarm.alarmTime)
                 Log.d("LocalAlarm", "Checking alarm (ID=${alarm.alarmId}): time=${alarm.alarmTime}, days=${alarm.days}, timeDiff=$timeDif")
@@ -103,7 +103,7 @@ fun getLatestAlarm(db: SQLiteDatabase, wantNextAlarm: Boolean, profile: String,c
                     }
                 }
             } else {
-                // Handle ringOn alarms
+                
                 val dayfromToday = getDaysFromCurrentDate(alarm.alarmDate)
                 Log.d("LocalAlarm", "Checking ringOn alarm (ID=${alarm.alarmId}): time=${alarm.alarmTime}, date=${alarm.alarmDate}, daysFromToday=$dayfromToday")
                 
@@ -159,7 +159,7 @@ fun getLatestAlarm(db: SQLiteDatabase, wantNextAlarm: Boolean, profile: String,c
                 "isWeather" to setAlarm.isWeatherEnabled,
                 "weatherTypes" to setAlarm.weatherTypes,
                 "alarmID" to setAlarm.alarmId,
-                "isSharedAlarm" to false  // Explicitly mark as a local alarm
+                "isSharedAlarm" to false 
             )
             Log.d("LocalAlarm", "Returning local alarm data: $a")
             return a
@@ -296,18 +296,12 @@ fun getDaysFromCurrentDate(dateString: String): Long {
     return TimeUnit.MILLISECONDS.toDays(differenceInMillis)
 }
 
-/**
- * Checks if there's an active shared alarm that should be considered
- * when determining the next alarm to trigger.
- * 
- * @param context The application context
- * @return A map containing shared alarm details if one exists and is earlier than the given time, null otherwise
- */
+
 fun checkActiveSharedAlarm(context: Context): Map<String, Any>? {
-    // Get shared preferences to check if we have stored shared alarm data
+
     val sharedPreferences = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
     
-    // Check if we have an active shared alarm
+
     val hasSharedAlarm = sharedPreferences.getBoolean("flutter.has_active_shared_alarm", false)
     
     if (!hasSharedAlarm) {
@@ -315,7 +309,7 @@ fun checkActiveSharedAlarm(context: Context): Map<String, Any>? {
         return null
     }
     
-    // Get shared alarm details
+
     val sharedAlarmTime = sharedPreferences.getString("flutter.shared_alarm_time", null)
     val sharedAlarmId = sharedPreferences.getString("flutter.shared_alarm_id", null)
     
@@ -332,12 +326,12 @@ fun checkActiveSharedAlarm(context: Context): Map<String, Any>? {
     val isWeatherEnabled = sharedPreferences.getInt("flutter.shared_alarm_weather", 0)
     val weatherTypes = sharedPreferences.getString("flutter.shared_alarm_weather_types", "[]") ?: "[]"
     
-    // Calculate time to alarm
+
     val timeToAlarm = getTimeDifferenceInMillis(sharedAlarmTime)
     
     Log.d("SharedAlarm", "Time until shared alarm: $timeToAlarm ms")
     
-    // Only return if this is a future alarm
+
     if (timeToAlarm > -1) {
         val alarmData = mapOf<String, Any>(
             "interval" to timeToAlarm,
@@ -357,7 +351,7 @@ fun checkActiveSharedAlarm(context: Context): Map<String, Any>? {
     return null
 }
 
-// This function helps native code determine which alarm should be scheduled next
+
 fun determineNextAlarm(context: Context, profile: String): Map<String, Any>? {
     // Get the next local alarm
     val dbHelper = DatabaseHelper(context)
@@ -365,20 +359,20 @@ fun determineNextAlarm(context: Context, profile: String): Map<String, Any>? {
     val localAlarm = getLatestAlarm(db, true, profile, context)
     db.close()
     
-    // Get the next shared alarm
+
     val sharedAlarm = checkActiveSharedAlarm(context)
     
-    // Log for debugging
+
     Log.d("NextAlarm", "Local alarm: $localAlarm")
     Log.d("NextAlarm", "Shared alarm: $sharedAlarm")
     
-    // If we have no alarms, return null
+
     if (localAlarm == null && sharedAlarm == null) {
         Log.d("NextAlarm", "No alarms found")
         return null
     }
     
-    // If we only have one type, return that
+
     if (localAlarm == null) {
         Log.d("NextAlarm", "Only shared alarm available, returning shared")
         return sharedAlarm?.let {
@@ -390,7 +384,7 @@ fun determineNextAlarm(context: Context, profile: String): Map<String, Any>? {
     
     if (sharedAlarm == null) {
         Log.d("NextAlarm", "Only local alarm available, returning local")
-        // Make sure we set isSharedAlarm explicitly
+
         val mutableLocalAlarm = localAlarm.toMutableMap()
         if (!mutableLocalAlarm.containsKey("isSharedAlarm")) {
             mutableLocalAlarm.put("isSharedAlarm", false)
@@ -398,7 +392,7 @@ fun determineNextAlarm(context: Context, profile: String): Map<String, Any>? {
         return mutableLocalAlarm
     }
     
-    // Otherwise, return the one that's coming sooner
+
     val localInterval = localAlarm["interval"] as Long
     val sharedInterval = sharedAlarm["interval"] as Long
     

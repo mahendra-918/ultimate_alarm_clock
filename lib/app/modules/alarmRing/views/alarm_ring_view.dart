@@ -192,27 +192,27 @@ class AlarmControlView extends GetView<AlarmControlController> {
                           Utils.hapticFeedback();
                           debugPrint('🔔 Dismiss button pressed');
                           
-                          // Cancel guardian timer if active
+                          
                           if (controller.currentlyRingingAlarm.value.isGuardian) {
                             controller.guardianTimer.cancel();
                             debugPrint('🔔 Guardian timer canceled');
                           }
                           
-                          // If this is a shared alarm, block it from immediate rescheduling
+                          
                           if (controller.currentlyRingingAlarm.value.isSharedAlarmEnabled) {
                             controller.rememberDismissedAlarm();
                             debugPrint('🔔 Blocked shared alarm: ${controller.currentlyRingingAlarm.value.alarmTime}, ID: ${controller.currentlyRingingAlarm.value.firestoreId}');
                           }
                           
-                          // Cancel any existing alarms to prevent duplicates
+                          
                           await controller.homeController.clearLastScheduledAlarm();
                           debugPrint('🔔 Cleared all scheduled alarms');
                           
-                          // Set flag for HomeController to handle rescheduling
+                          
                           controller.homeController.refreshTimer = true;
                           debugPrint('🔔 Set refresh flag for alarm scheduling');
                           
-                          // Navigate to next screen based on challenges
+                          
                           if (Utils.isChallengeEnabled(
                             controller.currentlyRingingAlarm.value,
                           )) {

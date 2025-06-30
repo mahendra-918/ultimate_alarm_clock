@@ -55,24 +55,24 @@ class AlarmControlController extends GetxController {
   RxInt guardianCoundown = 120.obs;
   RxBool isPreviewMode = false.obs;
 
-  // This method only gets information about the next alarm - it does not schedule anything
+  
   Future<AlarmModel> getNextAlarm() async {
     UserModel? _userModel = await SecureStorageProvider().retrieveUserModel();
     AlarmModel _alarmRecord = homeController.genFakeAlarmModel();
     
-    // Get non-shared alarms from Isar
+  
     AlarmModel isarLatestAlarm =
         await IsarDb.getLatestAlarm(_alarmRecord, true);
     
-    // Get shared alarms from Firestore
+  
     AlarmModel firestoreLatestAlarm =
         await FirestoreDb.getLatestAlarm(_userModel, _alarmRecord, true);
     
-    // Determine which alarm should be scheduled next
+  
     AlarmModel latestAlarm =
         Utils.getFirstScheduledAlarm(isarLatestAlarm, firestoreLatestAlarm);
     
-    // Log which type of alarm is being used
+  
     if (latestAlarm.isSharedAlarmEnabled) {
       debugPrint('Next alarm is a SHARED alarm from Firestore: ${latestAlarm.alarmTime}');
     } else {
@@ -379,7 +379,7 @@ class AlarmControlController extends GetxController {
           debugPrint('🔔 Marked one-time shared alarm as dismissed by current user');
         } else if (!isShared && currentlyRingingAlarm.value.isarId > 0) {
           // For local one-time alarms, disable normally
-          currentlyRingingAlarm.value.isEnabled = false;
+        currentlyRingingAlarm.value.isEnabled = false;
           await IsarDb.updateAlarm(currentlyRingingAlarm.value);
           debugPrint('🔔 Updated one-time local alarm in Isar');
         }

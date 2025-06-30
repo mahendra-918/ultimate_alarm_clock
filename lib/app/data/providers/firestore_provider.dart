@@ -139,14 +139,14 @@ class FirestoreDb {
     }
     
     if (alarmRecord.isSharedAlarmEnabled) {
-      // Store shared alarms in Firestore
+      
       await _firebaseFirestore
           .collection('sharedAlarms')
           .add(AlarmModel.toMap(alarmRecord))
           .then((value) => alarmRecord.firestoreId = value.id);
       debugPrint('✅ Created shared alarm in Firestore: ${alarmRecord.firestoreId}');
     } else {
-      // Store normal alarms in SQLite only
+      
       final sql = await FirestoreDb().getSQLiteDatabase();
       await sql!
           .insert('alarms', alarmRecord.toSQFliteMap())
@@ -218,7 +218,7 @@ class FirestoreDb {
 
     late List<AlarmModel> alarms = [];
 
-    // Get shared alarms from Firestore ONLY
+    
     QuerySnapshot snapshotSharedAlarms = await _firebaseFirestore
         .collection('sharedAlarms')
         .where('isEnabled', isEqualTo: true)
@@ -290,7 +290,7 @@ class FirestoreDb {
   }
 
   static updateAlarm(String? userId, AlarmModel alarmRecord) async {
-    // Only update SQLite if it's NOT a shared alarm
+    
     if (!alarmRecord.isSharedAlarmEnabled) {
       final sql = await FirestoreDb().getSQLiteDatabase();
       await sql!.update(
@@ -301,7 +301,7 @@ class FirestoreDb {
       );
     }
     
-    // Always update Firestore for shared alarms
+    
     await _firebaseFirestore
         .collection('sharedAlarms')
         .doc(alarmRecord.firestoreId)
@@ -386,26 +386,26 @@ static Future<List<String>> getUserIdsByEmails(List emails) async {
     };
 
     try {
-      // Process all email operations in parallel with error handling
+      
       final results = await Future.wait(
         emails.map((email) => addItemToUserByEmail(email, sharedItem).catchError((e) {
           debugPrint('Error sharing to $email: $e');
-          return false; // Return false to indicate failure
+          return false;
         })),
-        eagerError: false // Don't stop on first error
+        eagerError: false 
       );
       
-      // Check if any operations succeeded
+      
       if (results.any((success) => success != false)) {
         debugPrint('Alarm shared with at least one recipient');
       } else {
         debugPrint('Failed to share alarm with any recipients');
-        // Don't throw error - let the alarm still be created locally
+      
         debugPrint('Continuing with alarm creation despite sharing failures');
       }
     } catch (e) {
       debugPrint('Error in shareAlarm: $e');
-      // Don't rethrow - continue with alarm creation
+      
       debugPrint('Continuing with alarm creation despite sharing error: $e');
     }
   }
@@ -423,12 +423,12 @@ static Future<bool> addItemToUserByEmail(String email, dynamic sharedItem) async
       await _firebaseFirestore.collection('users').doc(docId).update({
         'receivedItems': FieldValue.arrayUnion([sharedItem])
       });
-      return true; // Success
+      return true;
     }
-    return false; // User not found
+    return false; 
   } catch (e) {
     debugPrint('Error adding item to user $email: $e');
-    return false; // Failed
+    return false; 
   }
 }
 
@@ -462,7 +462,7 @@ static Future<bool> addItemToUserByEmail(String email, dynamic sharedItem) async
           .doc(firestoreId)
           .delete();
       
-      // Check if it exists in SQLite and delete if found
+      
       final sql = await FirestoreDb().getSQLiteDatabase();
       await sql!.delete('alarms', where: 'firestoreId = ?', whereArgs: [firestoreId]);
 
@@ -477,7 +477,7 @@ static Future<bool> addItemToUserByEmail(String email, dynamic sharedItem) async
     String userId,
   ) async {
     try {
-      // Add the user to a "dismissedByUsers" array in the alarm document
+      
       await FirebaseFirestore.instance
           .collection('sharedAlarms')
           .doc(firestoreId)
@@ -488,7 +488,7 @@ static Future<bool> addItemToUserByEmail(String email, dynamic sharedItem) async
       
       debugPrint('Marked shared alarm as dismissed by user: $userId');
       
-      // Check if all users have dismissed the alarm, then delete it
+      
       final alarmDoc = await FirebaseFirestore.instance
           .collection('sharedAlarms')
           .doc(firestoreId)
@@ -500,16 +500,16 @@ static Future<bool> addItemToUserByEmail(String email, dynamic sharedItem) async
         final ownerId = data['ownerId'] as String?;
         final dismissedByUsers = List<String>.from(data['dismissedByUsers'] ?? []);
         
-        // Handle offsetDetails - it might be in Map format or old Array format
+      
         final offsetDetailsRaw = data['offsetDetails'];
         final Set<String> acceptedUsers = <String>{};
         
         if (offsetDetailsRaw is Map) {
-          // New Map format: {userId: {offsetData}}
+      
           final offsetDetails = Map<String, dynamic>.from(offsetDetailsRaw);
           acceptedUsers.addAll(offsetDetails.keys.cast<String>());
         } else if (offsetDetailsRaw is List) {
-          // Old Array format: [{userId: ..., ...}]
+      
           final offsetDetailsList = List<dynamic>.from(offsetDetailsRaw);
           for (final item in offsetDetailsList) {
             if (item is Map && item.containsKey('userId')) {
@@ -518,16 +518,16 @@ static Future<bool> addItemToUserByEmail(String email, dynamic sharedItem) async
           }
         }
         
-        // Only count users who have actually accepted the alarm (are in offsetDetails)
-        // Plus the owner (who automatically has the alarm)
+      
+      
         final allUsers = <String>{};
         if (ownerId != null) {
           allUsers.add(ownerId);
         }
-        // Add users who have accepted the alarm
+      
         allUsers.addAll(acceptedUsers);
         
-        // Debug logging to understand the user counts
+      
         debugPrint('🔍 Dismissal check for alarm $firestoreId:');
         debugPrint('   - sharedUserIds (invited): $sharedUserIds');
         debugPrint('   - acceptedUsers (from offsetDetails): ${acceptedUsers.toList()}');
@@ -537,7 +537,7 @@ static Future<bool> addItemToUserByEmail(String email, dynamic sharedItem) async
         debugPrint('   - dismissedByUsers.length: ${dismissedByUsers.length}');
         debugPrint('   - allUsers.length: ${allUsers.length}');
         
-        // If all users who actually have the alarm have dismissed it, delete it completely
+      
         if (dismissedByUsers.length >= allUsers.length) {
           await FirebaseFirestore.instance
               .collection('sharedAlarms')
@@ -604,13 +604,13 @@ static Future<bool> addItemToUserByEmail(String email, dynamic sharedItem) async
     if (user == null) return;
     
     try {
-      // Delete from Firestore (for shared alarms)
+      
       await _firebaseFirestore
           .collection('sharedAlarms')
           .doc(id)
           .delete();
       
-      // Also attempt to delete from SQLite if it exists there
+      
       final sql = await FirestoreDb().getSQLiteDatabase();
       await sql!.delete('alarms', where: 'firestoreId = ?', whereArgs: [id]);
     } catch (e) {
@@ -726,7 +726,7 @@ static Future<bool> addItemToUserByEmail(String email, dynamic sharedItem) async
   static acceptSharedAlarm(String alarmOwnerId, AlarmModel alarm) async {
     String? currentUserId = _firebaseAuthInstance.currentUser!.providerData[0].uid;
     
-    // Get the current alarm document to read existing offsetDetails
+    
     final alarmDoc = await _firebaseFirestore
         .collection('sharedAlarms')
         .doc(alarm.firestoreId)
@@ -735,15 +735,15 @@ static Future<bool> addItemToUserByEmail(String email, dynamic sharedItem) async
     if (alarmDoc.exists) {
       final data = alarmDoc.data() as Map<String, dynamic>;
       
-      // Handle offsetDetails - it might be in Map format or old Array format
+      
       final offsetDetailsRaw = data['offsetDetails'];
       Map<String, dynamic> offsetDetails = {};
       
       if (offsetDetailsRaw is Map) {
-        // New Map format: {userId: {offsetData}}
+
         offsetDetails = Map<String, dynamic>.from(offsetDetailsRaw);
       } else if (offsetDetailsRaw is List) {
-        // Old Array format: [{userId: ..., ...}] - convert to Map format
+
         final offsetDetailsList = List<dynamic>.from(offsetDetailsRaw);
         for (final item in offsetDetailsList) {
           if (item is Map && item.containsKey('userId')) {
@@ -758,20 +758,20 @@ static Future<bool> addItemToUserByEmail(String email, dynamic sharedItem) async
         debugPrint('🔧 Converted offsetDetails from Array to Map format');
       }
       
-      // Add this user to offsetDetails using Map structure
+
       offsetDetails[currentUserId!] = {
         'isOffsetBefore': true,
         'offsetDuration': 0,
         'offsettedTime': alarm.alarmTime,
       };
       
-      await _firebaseFirestore
-          .collection('sharedAlarms')
-          .doc(alarm.firestoreId)
-          .update({
+await _firebaseFirestore
+    .collection('sharedAlarms')
+    .doc(alarm.firestoreId)
+    .update({
         'offsetDetails': offsetDetails,
-        'sharedUserIds': FieldValue.arrayUnion([currentUserId]), 
-      });
+  'sharedUserIds': FieldValue.arrayUnion([currentUserId]), 
+});
       
       debugPrint('✅ User $currentUserId accepted shared alarm and added to offsetDetails');
     }
@@ -782,10 +782,10 @@ static Future<bool> addItemToUserByEmail(String email, dynamic sharedItem) async
       return alarmRecord;
     }
     
-    // Make sure it's marked as a shared alarm
+
     alarmRecord.isSharedAlarmEnabled = true;
     
-    // Store only in Firestore
+
     await _firebaseFirestore
         .collection('sharedAlarms')
         .add(AlarmModel.toMap(alarmRecord))
@@ -796,15 +796,15 @@ static Future<bool> addItemToUserByEmail(String email, dynamic sharedItem) async
 
   static Future<void> triggerRescheduleUpdate(AlarmModel alarmData) async {
     try {
-      // Update the alarm document with a timestamp to trigger real-time listeners
-      // This ensures receivers get notified even if push notifications fail
+
+
       await _firebaseFirestore
           .collection('sharedAlarms')
           .doc(alarmData.firestoreId)
           .update({
         'lastUpdated': FieldValue.serverTimestamp(),
         'lastEditedUserId': _firebaseAuthInstance.currentUser?.providerData[0].uid,
-        // Force update the main alarm fields to ensure change detection
+
         'alarmTime': alarmData.alarmTime,
         'minutesSinceMidnight': alarmData.minutesSinceMidnight,
         'isEnabled': alarmData.isEnabled,

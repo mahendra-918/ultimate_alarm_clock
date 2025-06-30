@@ -985,22 +985,22 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                             ? Column(
                                                 children: [
                                                   Divider(
-                                                    color: themeController
-                                                        .primaryDisabledTextColor
-                                                        .value,
-                                                  ),
-                                                  AlarmOffset(
-                                                    controller: controller,
-                                                    themeController: themeController,
-                                                  ),
+                                                  color: themeController
+                                                      .primaryDisabledTextColor
+                                                      .value,
+                                      ),
+                                      AlarmOffset(
+                                        controller: controller,
+                                        themeController: themeController,
+                                      ),
                                                   Divider(
-                                                    color: themeController
-                                                        .primaryDisabledTextColor
-                                                        .value,
-                                                  ),
-                                                  SharedUsers(
-                                                    controller: controller,
-                                                    themeController: themeController,
+                                                  color: themeController
+                                                      .primaryDisabledTextColor
+                                                      .value,
+                                      ),
+                                      SharedUsers(
+                                        controller: controller,
+                                        themeController: themeController,
                                                   ),
                                                 ],
                                               )

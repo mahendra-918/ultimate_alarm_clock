@@ -30,14 +30,14 @@ class BootReceiver : BroadcastReceiver() {
            val sharedPreferences = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
             val profile = sharedPreferences.getString("flutter.profile", "Default")
 
-            // 1. First, handle local alarms using the existing logic
+
             val nextLocalAlarm = determineNextAlarm(context, profile ?: "Default")
             
             if (nextLocalAlarm != null) {
                 val isSharedAlarm = nextLocalAlarm["isSharedAlarm"] as? Boolean ?: false
                 
                 if (!isSharedAlarm) {
-                    // Schedule local alarm
+
                     AlarmUtils.scheduleAlarm(
                         context,
                         nextLocalAlarm["interval"] as Long,
@@ -46,17 +46,17 @@ class BootReceiver : BroadcastReceiver() {
                         nextLocalAlarm["location"] as String,
                         nextLocalAlarm["isWeather"] as Int,
                         nextLocalAlarm["weatherTypes"] as String,
-                        false, // isShared = false
-                        "" // alarmID
+                        false,
+                        ""
                     )
                     Log.d("BootReceiver", "✅ Rescheduled local alarm after boot")
                 }
             }
             
-            // 2. Then, handle shared alarms separately
+            
             rescheduleSharedAlarmAfterBoot(context, sharedPreferences)
             
-            // 3. Handle timers (existing logic)
+            
             rescheduleTimerAfterBoot(context)
         }
     }
@@ -81,7 +81,7 @@ class BootReceiver : BroadcastReceiver() {
             
             Log.d("BootReceiver", "🔍 Found shared alarm to reschedule: ID=$sharedAlarmId, time=$sharedAlarmTime")
             
-            // Calculate time to alarm
+            
             val intervalToAlarm = calculateTimeToAlarm(sharedAlarmTime)
             
             if (intervalToAlarm <= 0) {
@@ -90,7 +90,7 @@ class BootReceiver : BroadcastReceiver() {
                 return
             }
             
-            // Get alarm configuration from SharedPreferences
+            
             val isActivityEnabled = sharedPreferences.getInt("flutter.shared_alarm_activity", 0)
             val isLocationEnabled = sharedPreferences.getInt("flutter.shared_alarm_location", 0)
             val location = sharedPreferences.getString("flutter.shared_alarm_location_data", "0.0,0.0") ?: "0.0,0.0"
@@ -99,7 +99,7 @@ class BootReceiver : BroadcastReceiver() {
             
             Log.d("BootReceiver", "🔧 Rescheduling shared alarm with config - activity: $isActivityEnabled, location: $isLocationEnabled, weather: $isWeatherEnabled")
             
-            // Schedule the shared alarm
+            
                AlarmUtils.scheduleAlarm(
                    context,
                 intervalToAlarm,
@@ -108,7 +108,7 @@ class BootReceiver : BroadcastReceiver() {
                 location,
                 isWeatherEnabled,
                 weatherTypes,
-                true, // isShared = true
+                true,
                 sharedAlarmId
             )
             
@@ -121,7 +121,7 @@ class BootReceiver : BroadcastReceiver() {
     
     private fun calculateTimeToAlarm(alarmTime: String): Long {
         try {
-            // Parse time format "HH:mm"
+            
             val parts = alarmTime.split(":")
             if (parts.size != 2) return 0
             
@@ -136,7 +136,7 @@ class BootReceiver : BroadcastReceiver() {
             calendar.set(Calendar.SECOND, 0)
             calendar.set(Calendar.MILLISECOND, 0)
             
-            // If the time is in the past, set it for tomorrow
+            
             if (calendar.before(now)) {
                 calendar.add(Calendar.DAY_OF_MONTH, 1)
             }

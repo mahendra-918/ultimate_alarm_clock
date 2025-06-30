@@ -10,7 +10,6 @@ import java.util.Locale
 
 class AlarmReceiver : BroadcastReceiver() {
     companion object {
-        // Keep track of recently triggered alarms to prevent duplicates
         private var lastTriggeredTime = 0L
         private var lastTriggeredType = ""
         private const val DUPLICATE_PREVENTION_WINDOW = 10000 // 10 seconds
@@ -21,8 +20,6 @@ class AlarmReceiver : BroadcastReceiver() {
             Log.e("AlarmReceiver", "Received null context or intent")
             return
         }
-
-        // Get all intent extras for debugging
         val extras = intent.extras
         Log.d("AlarmReceiver", "All intent extras: ${extras?.keySet()?.joinToString(", ") { "$it: ${extras.get(it)}" }}")
 
@@ -31,33 +28,26 @@ class AlarmReceiver : BroadcastReceiver() {
         val alarmType = if (isSharedAlarm) "shared" else "local"
         
         Log.d("AlarmReceiver", "===== ALARM FIRED: $alarmType ALARM =====")
-        
-        // Check for duplicate alarms firing too close together
         if (currentTime - lastTriggeredTime < DUPLICATE_PREVENTION_WINDOW && 
             alarmType == lastTriggeredType) {
             Log.d("AlarmReceiver", "Preventing duplicate $alarmType alarm trigger (within ${DUPLICATE_PREVENTION_WINDOW}ms)")
             return
         }
         
-        // Update last triggered info
         lastTriggeredTime = currentTime
         lastTriggeredType = alarmType
         
         val logdbHelper = LogDatabaseHelper(context)
         val flutterIntent = Intent(context, MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-
-            // Make sure we're setting all the required flags
             putExtra("initialRoute", "/")
             putExtra("alarmRing", "true")
             putExtra("isAlarm", "true")
-            
-            // Pass along if this is a shared alarm to help Flutter identify it
             if (isSharedAlarm) {
                 putExtra("isSharedAlarm", true)
                 Log.d("AlarmReceiver", "Setting isSharedAlarm=true in Flutter intent")
             } else {
-                // Explicitly set to false to avoid any ambiguity
+
                 putExtra("isSharedAlarm", false)
                 Log.d("AlarmReceiver", "This is a local alarm - setting isSharedAlarm=false")
             }
@@ -66,25 +56,20 @@ class AlarmReceiver : BroadcastReceiver() {
         val sharedPreferences =
             context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
 
-        // Log the alarm type for debugging
         Log.d("AlarmReceiver", "ALARM TRIGGERED: $alarmType alarm at ${getCurrentTime()}")
         println("ANDROID ALARM TRIGGERED: $alarmType alarm at ${getCurrentTime()}")
         
-        // Check if other alarm types are still scheduled
         checkOtherScheduledAlarms(context, isSharedAlarm)
         
-        // Determine which set of preferences to use based on alarm type
         val prefix = if (isSharedAlarm) "flutter.shared_" else "flutter."
         val screenOnTimeInMillis = sharedPreferences.getLong("${prefix}is_screen_on", 0L)
         val screenOffTimeInMillis = sharedPreferences.getLong("${prefix}is_screen_off", 0L)
         
-        // Stop the activity monitoring service
         val activityCheckIntent = Intent(context, ScreenMonitorService::class.java)
         context.stopService(activityCheckIntent)
         
         val isLocationEnabled = sharedPreferences.getInt("flutter.is_location_on", 0)
 
-        // Only check screen activity if the alarm has activity monitoring enabled
         val isActivityEnabled = intent.getIntExtra("isActivity", 0) == 1
         
         if (!isActivityEnabled || Math.abs(screenOnTimeInMillis - screenOffTimeInMillis) < 180000 || screenOnTimeInMillis - screenOffTimeInMillis == 0L) {
@@ -129,12 +114,9 @@ class AlarmReceiver : BroadcastReceiver() {
         )
     }
 
-    /**
-     * Checks if there are any other alarm types still scheduled
-     */
+
     private fun checkOtherScheduledAlarms(context: Context, isCurrentAlarmShared: Boolean) {
         try {
-            // Check for the opposite alarm type
             val requestCode = if (isCurrentAlarmShared) 
                 MainActivity.REQUEST_CODE_LOCAL_ALARM 
             else 

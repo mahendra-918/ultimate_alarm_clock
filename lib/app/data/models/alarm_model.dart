@@ -118,22 +118,22 @@ class AlarmModel {
     // Making sure the alarms work with the offsets
     isSharedAlarmEnabled = documentSnapshot['isSharedAlarmEnabled'];
     
-    // Handle offsetDetails - it might be in Map format or old Array format
+    
     final offsetDetailsRaw = documentSnapshot['offsetDetails'];
     if (offsetDetailsRaw is Map) {
-      // New Map format: {userId: {offsetData}}
+    
       final offsetDetailsMap = Map<String, dynamic>.from(offsetDetailsRaw);
-      // Convert Map to List format for backward compatibility
+    
       offsetDetails = offsetDetailsMap.entries.map((entry) {
         final data = Map<String, dynamic>.from(entry.value);
-        data['userId'] = entry.key; // Add userId to the data
+        data['userId'] = entry.key;
         return data;
       }).toList();
     } else if (offsetDetailsRaw is List) {
-      // Old Array format: [{userId: ..., ...}]
+      
       offsetDetails = (offsetDetailsRaw as List<dynamic>)
-        .map((item) => item as Map<String, dynamic>)
-        .toList();
+    .map((item) => item as Map<String, dynamic>)
+    .toList();
     } else {
       offsetDetails = null;
     }
@@ -142,23 +142,23 @@ class AlarmModel {
       mainAlarmTime = documentSnapshot['alarmTime'];
       // Using offsetted time only if it is enabled
 
-      if (offsetDetails != null) {
-        final userOffset = offsetDetails!
-            .where((entry) => entry['userId'] == user.id)
-            .toList();
+if (offsetDetails != null) {
+  final userOffset = offsetDetails!
+      .where((entry) => entry['userId'] == user.id)
+      .toList();
 
-        if (userOffset.isNotEmpty) {
-          final data = userOffset.first;
+  if (userOffset.isNotEmpty) {
+    final data = userOffset.first;
 
-          alarmTime = (data['offsetDuration'] != 0)
-              ? data['offsettedTime']
-              : documentSnapshot['alarmTime'];
+    alarmTime = (data['offsetDuration'] != 0)
+        ? data['offsettedTime']
+        : documentSnapshot['alarmTime'];
 
-          minutesSinceMidnight = Utils.timeOfDayToInt(
-            Utils.stringToTimeOfDay(data['offsettedTime']),
-          );
-        }
-      }
+    minutesSinceMidnight = Utils.timeOfDayToInt(
+      Utils.stringToTimeOfDay(data['offsettedTime']),
+    );
+  }
+}
     } else {
       alarmTime = documentSnapshot['alarmTime'];
       minutesSinceMidnight = documentSnapshot['minutesSinceMidnight'];

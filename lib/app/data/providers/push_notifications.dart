@@ -135,7 +135,7 @@ Future<void> triggerRescheduleAlarmNotification(String firestoreAlarmId) async {
     print('❌ Error calling reschedule function: $e');
     print('   This means the Firebase Cloud Function is not working properly.');
     print('   The local alarm updates should still work correctly.');
-    // Don't rethrow - this shouldn't prevent alarm operations
+
   }
 }
 
@@ -166,11 +166,11 @@ Future<void> triggerSharedItemNotification(List receivingUserIds) async {
     print('❌ Error calling shared item notification function: $e');
     print('   This means the Firebase Cloud Function is not working properly.');
     print('   The alarm sharing will continue without notifications.');
-    // Don't rethrow - this shouldn't prevent alarm creation
+
   }
 }
 
-/// Sends direct FCM message as backup when cloud functions fail
+
 Future<bool> sendDirectFCMMessage({
   required List<String> receivingUserIds,
   required String alarmId,
@@ -181,14 +181,9 @@ Future<bool> sendDirectFCMMessage({
     print('   - Alarm ID: $alarmId');
     print('   - New time: $newAlarmTime');
     
-    // Note: Direct FCM messaging requires server-side implementation with server keys
-    // The current architecture relies on cloud functions which are currently failing
-    // 
-    // Alternative approach: Enhanced real-time Firestore listeners and app startup checks
-    // have been implemented to handle this scenario without requiring push notifications
     print('🔄 Using enhanced Firestore real-time sync instead of push notifications');
     
-    // Return true to indicate we attempted the alternative approach
+    
     return true;
     
   } catch (e) {

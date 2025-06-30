@@ -91,8 +91,8 @@ class NotificationsView extends GetView<NotificationsController> {
               },
               child: ListView.builder(
                 padding: const EdgeInsets.all(16),
-                itemCount: controller.notifications.length,
-                itemBuilder: (context, index) {
+                    itemCount: controller.notifications.length,
+                    itemBuilder: (context, index) {
                   final notification = controller.notifications[index];
                   return _buildNotificationCard(notification, index);
                 },
@@ -159,7 +159,7 @@ class NotificationsView extends GetView<NotificationsController> {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () => _showAcceptDialog(notification, index),
-          child: Padding(
+                              child: Padding(
             padding: const EdgeInsets.all(20),
             child: Row(
               children: [
@@ -193,17 +193,17 @@ class NotificationsView extends GetView<NotificationsController> {
                 const SizedBox(width: 16),
                 // Content
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
                         isAlarm ? 'Shared Alarm' : 'Shared Profile',
-                        style: TextStyle(
+                                          style: TextStyle(
                           fontSize: 12,
                           color: Colors.white.withOpacity(0.6),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
                       const SizedBox(height: 4),
                       Text(
                         isAlarm ? notification['alarmTime'] : notification['profileName'],
@@ -214,15 +214,15 @@ class NotificationsView extends GetView<NotificationsController> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Text(
+                                        Text(
                         'From ${notification['owner']}',
-                        style: TextStyle(
+                                          style: TextStyle(
                           fontSize: 14,
                           color: Colors.white.withOpacity(0.7),
-                        ),
-                      ),
-                    ],
-                  ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                 ),
                 // Action indicator
                 Container(
@@ -230,20 +230,20 @@ class NotificationsView extends GetView<NotificationsController> {
                   decoration: BoxDecoration(
                     color: kprimaryColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
+                                            ),
+                                            child: Text(
                     'Tap to accept',
-                    style: TextStyle(
+                                                    style: TextStyle(
                       fontSize: 12,
                       color: kprimaryColor,
                       fontWeight: FontWeight.w500,
-                    ),
+                                                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
-        ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
       ),
     );
   }
@@ -257,10 +257,10 @@ class NotificationsView extends GetView<NotificationsController> {
         child: Container(
           margin: const EdgeInsets.all(16),
           padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: ksecondaryBackgroundColor,
+            decoration: BoxDecoration(
+              color: ksecondaryBackgroundColor,
             borderRadius: BorderRadius.circular(20),
-          ),
+            ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -289,7 +289,7 @@ class NotificationsView extends GetView<NotificationsController> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ),
+                ),
               ),
               const SizedBox(height: 20),
               
@@ -335,8 +335,8 @@ class NotificationsView extends GetView<NotificationsController> {
                   color: kprimaryBackgroundColor.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Column(
-                  children: [
+            child: Column(
+              children: [
                     Text(
                       isAlarm ? notification['alarmTime'] : notification['profileName'],
                       style: TextStyle(
@@ -490,7 +490,7 @@ class NotificationsView extends GetView<NotificationsController> {
                             debugPrint('📁 Importing profile...');
                             await controller.importProfile(
                               notification['owner'],
-                              notification['profileName'],
+                        notification['profileName'],
                             );
                             debugPrint('✅ Profile imported successfully');
                           }
@@ -550,9 +550,9 @@ class NotificationsView extends GetView<NotificationsController> {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ),
-                  ),
-                ],
+            ),
+          ),
+        ],
               ),
             ],
           ),

@@ -31,7 +31,7 @@ export const rescheduleAlarm = onCall(async (request, context) => {
     const changedUserData = changedUserDocSnap.data();
     const changedUserName = changedUserData?.fullName || "Someone";
 
-    // IMPORTANT: Use the updated main alarm time from the document
+    
     const updatedMainAlarmTime = alarmData.alarmTime || alarmData.mainAlarmTime;
     logger.info(`🕐 Using updated main alarm time: ${updatedMainAlarmTime}`);
 
@@ -40,10 +40,10 @@ export const rescheduleAlarm = onCall(async (request, context) => {
     for (const userOffset of sharedUserOffsetDetails) {
       const userId = userOffset.userId;
       
-      // IMPORTANT: Calculate the correct trigger time for each user based on updated main time
+    
       let triggerTimeForUser = updatedMainAlarmTime;
       
-      // Apply user-specific offset if configured
+    
       if (userOffset.offsetDuration && userOffset.offsetDuration > 0) {
         const [hours, minutes] = updatedMainAlarmTime.split(':').map(Number);
         let totalMinutes = hours * 60 + minutes;
@@ -54,7 +54,7 @@ export const rescheduleAlarm = onCall(async (request, context) => {
           totalMinutes += userOffset.offsetDuration;
         }
         
-        // Handle day overflow/underflow
+        
         if (totalMinutes < 0) totalMinutes += 24 * 60;
         if (totalMinutes >= 24 * 60) totalMinutes -= 24 * 60;
         
@@ -106,7 +106,7 @@ export const rescheduleAlarm = onCall(async (request, context) => {
           },
         };
       } else {
-        // Send visible notification to shared users (not owner) with reschedule data
+        
         message = {
           token,
           android: {
@@ -167,7 +167,7 @@ export const rescheduleAlarm = onCall(async (request, context) => {
 
       messages.push(message);
       
-      // IMPORTANT: Add a second data-only message as backup for killed apps
+      
       const dataOnlyMessage = {
         token,
         android: {
@@ -222,7 +222,7 @@ export const rescheduleAlarm = onCall(async (request, context) => {
       logger.info(`📤 Sending reschedule notifications to ${messages.length} messages (${sharedUserOffsetDetails.length} users) for alarm ${firestoreAlarmId}`);
       const response = await admin.messaging().sendEach(messages);
       
-      // Log detailed delivery results
+      
       logger.info(`✅ Reschedule notifications sent: ${response.successCount}/${messages.length} successful`);
       if (response.failureCount > 0) {
         logger.warn(`❌ ${response.failureCount} messages failed:`);

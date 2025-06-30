@@ -634,14 +634,14 @@ class AddOrUpdateAlarmController extends GetxController {
   updateAlarm(AlarmModel alarmData) async {
     // Adding the ID's so it can update depending on the db
     if (isSharedAlarmEnabled.value == true) {
-      // Check if this is a conversion from normal to shared alarm
+      
       bool isConversion = await IsarDb.doesAlarmExist(alarmRecord.value.alarmID) && 
                          (alarmRecord.value.firestoreId == null || alarmRecord.value.firestoreId!.isEmpty);
       
       if (isConversion) {
         debugPrint('🔄 Converting normal alarm to shared alarm');
         
-        // Cancel the existing local alarm
+      
         try {
           await homeController.alarmChannel.invokeMethod('cancelAlarmById', {
             'alarmID': alarmRecord.value.alarmID,
@@ -652,21 +652,21 @@ class AddOrUpdateAlarmController extends GetxController {
           debugPrint('⚠️ Error canceling local alarm: $e');
         }
         
-        // Delete from local database using Isar ID
+      
         await IsarDb.deleteAlarm(alarmRecord.value.isarId);
         debugPrint('🗑️ Deleted alarm from local database using isarId: ${alarmRecord.value.isarId}');
         
-        // Create as new shared alarm in Firestore
+      
         alarmRecord.value = await FirestoreDb.addAlarm(userModel.value, alarmData);
         debugPrint('✅ Created new shared alarm in Firestore: ${alarmRecord.value.firestoreId}');
         
       } else if (alarmRecord.value.firestoreId != null && alarmRecord.value.firestoreId!.isNotEmpty) {
-        // This is updating an existing shared alarm
+      
         debugPrint('📝 Updating existing shared alarm: ${alarmRecord.value.firestoreId}');
         
         alarmData.firestoreId = alarmRecord.value.firestoreId;
         
-        // Cancel the existing shared alarm
+      
         try {
           await homeController.alarmChannel.invokeMethod('cancelAlarmById', {
             'alarmID': alarmData.firestoreId,
@@ -677,42 +677,42 @@ class AddOrUpdateAlarmController extends GetxController {
           debugPrint('⚠️ Error canceling existing alarm (continuing anyway): $e');
         }
         
-        // Update in Firestore
+      
         await FirestoreDb.updateAlarm(alarmRecord.value.ownerId, alarmData);
         
-        // Try to send push notification (may fail but that's ok)
+      
         try {
           PushNotifications().triggerRescheduleAlarmNotification(alarmData.firestoreId!);
         } catch (e) {
           debugPrint('Push notification failed (this is ok): $e');
         }
         
-        // Force Firestore update with timestamp to trigger real-time listeners
+      
         await FirestoreDb.triggerRescheduleUpdate(alarmData);
         
-        // Send direct notification to shared users as backup
+      
         try {
           await sendDirectNotificationToSharedUsers(alarmData);
         } catch (e) {
           debugPrint('Direct notification failed (this is ok): $e');
         }
         
-        // Force refresh the alarm scheduling after shared alarm update
+      
         homeController.forceRefreshAfterAlarmUpdate(alarmData.firestoreId, true);
       } else {
-        // This shouldn't happen, but handle it gracefully
+      
         debugPrint('⚠️ Unexpected state: shared alarm enabled but no valid ID found');
         alarmRecord.value = await FirestoreDb.addAlarm(userModel.value, alarmData);
       }
     } else {
-      // Check if this is a conversion from shared to normal alarm
+      
       bool isConversion = (alarmRecord.value.firestoreId != null && alarmRecord.value.firestoreId!.isNotEmpty) &&
                          !await IsarDb.doesAlarmExist(alarmRecord.value.alarmID);
       
       if (isConversion) {
         debugPrint('🔄 Converting shared alarm to normal alarm');
         
-        // Cancel the existing shared alarm
+      
         try {
           await homeController.alarmChannel.invokeMethod('cancelAlarmById', {
             'alarmID': alarmRecord.value.firestoreId,
@@ -723,21 +723,21 @@ class AddOrUpdateAlarmController extends GetxController {
           debugPrint('⚠️ Error canceling shared alarm: $e');
         }
         
-        // Delete from Firestore
+      
         await FirestoreDb.deleteAlarm(userModel.value, alarmRecord.value.firestoreId!);
         debugPrint('🗑️ Deleted alarm from Firestore');
         
-        // Create as new normal alarm in Isar
+      
         alarmRecord.value = await IsarDb.addAlarm(alarmData);
         debugPrint('✅ Created new normal alarm in local database: ${alarmRecord.value.alarmID}');
         
       } else if (await IsarDb.doesAlarmExist(alarmRecord.value.alarmID) == true) {
-        // This is updating an existing normal alarm
+      
         debugPrint('📝 Updating existing normal alarm: ${alarmRecord.value.alarmID}');
         
         alarmData.isarId = alarmRecord.value.isarId;
         
-        // Cancel the existing local alarm before scheduling the new one
+      
         try {
           await homeController.alarmChannel.invokeMethod('cancelAlarmById', {
             'alarmID': alarmRecord.value.alarmID,
@@ -748,13 +748,13 @@ class AddOrUpdateAlarmController extends GetxController {
           debugPrint('⚠️ Error canceling existing alarm (continuing anyway): $e');
         }
         
-        // Update in Isar
+      
         await IsarDb.updateAlarm(alarmData);
         
-        // Force refresh the alarm scheduling after local alarm update
+      
         homeController.forceRefreshAfterAlarmUpdate(alarmData.alarmID, false);
       } else {
-        // This shouldn't happen, but handle it gracefully
+      
         debugPrint('⚠️ Unexpected state: normal alarm but no valid local ID found');
         alarmRecord.value = await IsarDb.addAlarm(alarmData);
       }
@@ -1522,31 +1522,31 @@ class AddOrUpdateAlarmController extends GetxController {
     }
   }
 
-  /// Initializes shared alarm settings when shared alarm is enabled
+  
   Future<void> initializeSharedAlarmSettings() async {
     try {
       debugPrint('Initializing shared alarm settings...');
       
-      // Ensure user is logged in
+  
       if (userModel.value == null) {
         debugPrint('Cannot initialize shared alarm: User not logged in');
         throw Exception('User must be logged in to enable shared alarms');
       }
       
-      // Initialize owner information if not already set
+  
       if (ownerId.value.isEmpty) {
         ownerId.value = userModel.value!.id;
         ownerName.value = userModel.value!.fullName;
         debugPrint('Set owner: ${ownerName.value} (${ownerId.value})');
       }
       
-      // Initialize shared user list if empty
+  
       if (sharedUserIds.isEmpty) {
         sharedUserIds.value = [];
         debugPrint('Initialized empty shared users list');
       }
       
-      // Initialize offset details if empty
+  
       if (offsetDetails.isEmpty || offsetDetails.first.isEmpty) {
         offsetDetails.value = [{
           'userId': userModel.value!.id,
@@ -1556,13 +1556,13 @@ class AddOrUpdateAlarmController extends GetxController {
         debugPrint('Initialized offset details for user');
       }
       
-      // Set main alarm time if not already set
+  
       if (mainAlarmTime.value.difference(DateTime.now()).inMinutes <= 0) {
         mainAlarmTime.value = selectedTime.value;
         debugPrint('Set main alarm time: ${mainAlarmTime.value}');
       }
       
-      // Initialize user offset details
+  
       final userOffset = offsetDetails.value
           .firstWhereOrNull((entry) => entry['userId'] == userModel.value!.id);
       
@@ -1571,7 +1571,7 @@ class AddOrUpdateAlarmController extends GetxController {
         offsetDuration.value = userOffset['offsetDuration'] ?? 0;
         isOffsetBefore.value = userOffset['isOffsetBefore'] ?? true;
       } else {
-        // Add current user to offset details if not present
+  
         Map<String, dynamic> newUserOffset = {
           'userId': userModel.value!.id,
           'offsetDuration': 0,
@@ -1586,13 +1586,13 @@ class AddOrUpdateAlarmController extends GetxController {
       debugPrint('✅ Shared alarm settings initialized successfully');
     } catch (e) {
       debugPrint('❌ Error initializing shared alarm settings: $e');
-      // Disable shared alarm if initialization fails
+  
       isSharedAlarmEnabled.value = false;
       rethrow;
     }
   }
 
-  /// Sends direct notifications to shared users when alarm is updated
+  
   Future<void> sendDirectNotificationToSharedUsers(AlarmModel alarmData) async {
     if (alarmData.sharedUserIds == null || alarmData.sharedUserIds!.isEmpty) {
       debugPrint('No shared users to notify');
@@ -1604,7 +1604,7 @@ class AddOrUpdateAlarmController extends GetxController {
       debugPrint('   - Alarm time: ${alarmData.alarmTime}');
       debugPrint('   - Owner: ${alarmData.ownerName}');
       
-      // Method 1: Try the cloud function approach
+  
       try {
         await PushNotifications().triggerSharedItemNotification(alarmData.sharedUserIds!);
         debugPrint('✅ Cloud function notification sent');
@@ -1612,7 +1612,7 @@ class AddOrUpdateAlarmController extends GetxController {
         debugPrint('⚠️ Cloud function notification failed: $e');
       }
       
-      // Method 2: Create a notification document in Firestore for each user
+  
       for (String userId in alarmData.sharedUserIds!) {
         try {
           await FirebaseFirestore.instance
@@ -1635,8 +1635,8 @@ class AddOrUpdateAlarmController extends GetxController {
         }
       }
       
-      // Method 3: Update the shared alarm document with a "lastNotificationSent" field
-      // This can trigger listeners on receiver devices
+  
+
       try {
         await FirebaseFirestore.instance
           .collection('sharedAlarms')
@@ -1653,7 +1653,7 @@ class AddOrUpdateAlarmController extends GetxController {
       debugPrint('🎯 Direct notification process completed');
     } catch (e) {
       debugPrint('❌ Error in sendDirectNotificationToSharedUsers: $e');
-      // Don't rethrow - this shouldn't prevent alarm updates
+
     }
   }
 

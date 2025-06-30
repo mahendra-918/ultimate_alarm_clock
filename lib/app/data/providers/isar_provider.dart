@@ -257,7 +257,7 @@ class IsarDb {
       await db.alarmModels.put(alarmRecord);
     });
     
-    // Only store in SQLite if it's NOT a shared alarm
+    
     if (!alarmRecord.isSharedAlarmEnabled) {
       final sql = await IsarDb().getAlarmSQLiteDatabase();
       final sqlmap = alarmRecord.toSQFliteMap();
@@ -377,13 +377,13 @@ class IsarDb {
       );
     }
 
-    // Get all enabled alarms that are NOT shared alarms
+
     List<AlarmModel> alarms = await db.alarmModels
         .where()
         .filter()
         .isEnabledEqualTo(true)
         .and()
-        .isSharedAlarmEnabledEqualTo(false) // Only get non-shared alarms
+        .isSharedAlarmEnabledEqualTo(false)
         .and()
         .profileEqualTo(currentProfile)
         .findAll();
@@ -447,7 +447,7 @@ class IsarDb {
     });
     await IsarDb().insertLog('Alarm updated ${alarmRecord.alarmTime}', status: Status.success, type: LogType.normal);
     
-    // Only update SQLite if it's NOT a shared alarm
+    
     if (!alarmRecord.isSharedAlarmEnabled) {
       final sql = await IsarDb().getAlarmSQLiteDatabase();
       await sql!.update(
@@ -530,7 +530,7 @@ class IsarDb {
     });
     await IsarDb().insertLog('Alarm deleted ${tobedeleted.alarmTime}');
     
-    // Only delete from SQLite if it's NOT a shared alarm
+
     if (!tobedeleted.isSharedAlarmEnabled) {
       final sql = await IsarDb().getAlarmSQLiteDatabase();
       await sql!.delete(

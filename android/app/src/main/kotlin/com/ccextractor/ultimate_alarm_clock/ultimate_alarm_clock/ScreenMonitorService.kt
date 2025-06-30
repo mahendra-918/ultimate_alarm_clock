@@ -84,14 +84,14 @@ class ScreenMonitorService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Check if this is for a shared alarm
+        
         isSharedAlarm = intent?.getBooleanExtra("isSharedAlarm", false) ?: false
         
-        // Log the service start with alarm type
+        
         val alarmType = if (isSharedAlarm) "shared" else "local"
         Log.d("ScreenMonitorService", "Started monitoring screen for $alarmType alarm")
         
-        // Initialize screen state for the appropriate alarm type
+        
         val currentDate = Date()
         val currentTimeMillis = currentDate.time
         if (displayManager.getDisplay(0).getState() == Display.STATE_ON) {
@@ -100,7 +100,7 @@ class ScreenMonitorService : Service() {
             updateScreenStatus(currentTimeMillis, false, isSharedAlarm)
         }
         
-        // Use a different notification ID for shared alarms to avoid conflicts
+        
         val notifId = if (isSharedAlarm) notificationId + 1000 else notificationId
         
         startForeground(notifId, getNotification(isSharedAlarm), ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED)
@@ -144,8 +144,8 @@ class ScreenBroadcastReceiver : BroadcastReceiver() {
         val editor = sharedPreferences.edit()
         Log.d("ScreenBroadcastReceiver", "time: $mSec")
         
-        // Update both regular and shared alarm screen status
-        // This is simpler than trying to figure out which type of alarm this is for
+        
+        
         if (action == Intent.ACTION_SCREEN_ON) {
             editor.putLong("flutter.is_screen_on", mSec)
             editor.putLong("flutter.shared_is_screen_on", mSec)
