@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:numberpicker/numberpicker.dart';
 import 'package:ultimate_alarm_clock/app/data/models/alarm_model.dart';
-import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/alarm_id_tile.dart';
+import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/share_alarm_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/alarm_offset_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/ascending_volume.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/choose_ringtone_tile.dart';
@@ -968,46 +969,40 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                         controller: controller,
                                         themeController: themeController,
                                       ),
-                                      Divider(
-                                        color: themeController
-                                            .primaryDisabledTextColor.value,
-                                      ),
-                                      AlarmIDTile(
+                                      ShareAlarm(
                                         controller: controller,
                                         width: width,
                                         themeController: themeController,
                                       ),
                                       Obx(
-                                        () => Container(
-                                          child: (controller
-                                                  .isSharedAlarmEnabled.value)
-                                              ? Divider(
+                                        () => (controller.isSharedAlarmEnabled.value)
+                                            ? Column(
+                                                children: [
+                                                  Divider(
                                                   color: themeController
                                                       .primaryDisabledTextColor
                                                       .value,
-                                                )
-                                              : const SizedBox(),
-                                        ),
                                       ),
                                       AlarmOffset(
                                         controller: controller,
                                         themeController: themeController,
                                       ),
-                                      Obx(
-                                        () => Container(
-                                          child: (controller
-                                                  .isSharedAlarmEnabled.value)
-                                              ? Divider(
+                                                  Divider(
                                                   color: themeController
                                                       .primaryDisabledTextColor
                                                       .value,
-                                                )
-                                              : const SizedBox(),
-                                        ),
                                       ),
                                       SharedUsers(
                                         controller: controller,
                                         themeController: themeController,
+                                                  ),
+                                                ],
+                                              )
+                                            : Divider(
+                                                color: themeController
+                                                    .primaryDisabledTextColor
+                                                    .value,
+                                              ),
                                       ),
                                     ],
                                   )
@@ -1051,8 +1046,8 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                   .ignoreBatteryOptimizations.isGranted)) {
                             if (!controller.homeController.isProfile.value) {
                               if (controller.userModel.value != null) {
-                                controller.offsetDetails[
-                                    controller.userModel.value!.id] = {
+                                controller.userOffsetDetails.value = {
+                                  'userId': controller.userId.value,
                                   'offsettedTime': Utils.timeOfDayToString(
                                     TimeOfDay.fromDateTime(
                                       Utils.calculateOffsetAlarmTime(
@@ -1068,7 +1063,7 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                       controller.isOffsetBefore.value,
                                 };
                               } else {
-                                controller.offsetDetails.value = {};
+                                controller.userOffsetDetails.value = {};
                               }
                               AlarmModel alarmRecord = AlarmModel(
                                 deleteAfterGoesOff:
@@ -1159,8 +1154,20 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                               // Adding offset details to the database if
                               // its a shared alarm
                               if (controller.isSharedAlarmEnabled.value) {
-                                alarmRecord.offsetDetails =
-                                    controller.offsetDetails;
+
+                              final userOffset = controller.offsetDetails
+                              .firstWhereOrNull((entry) => entry['userId'] == controller.userId.value);
+
+                              if(userOffset != null)
+                              {
+                                controller.offsetDetails.value.removeWhere((ele) => ele['userId'] == controller.userId.value);
+                              }
+
+                              controller.offsetDetails.add(Map<String, dynamic>.from(controller.userOffsetDetails.value));
+
+
+                              alarmRecord.offsetDetails = controller.offsetDetails;
+
                                 alarmRecord.mainAlarmTime =
                                     Utils.timeOfDayToString(
                                   TimeOfDay.fromDateTime(

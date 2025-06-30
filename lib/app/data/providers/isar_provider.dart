@@ -56,6 +56,7 @@ class IsarDb {
 
     final dir = await getDatabasesPath();
     final dbPath = '$dir/alarms.db';
+    // await deleteDatabase(dbPath);
     db = await openDatabase(dbPath, version: 1, onCreate: _onCreate);
     return db;
   }
@@ -63,6 +64,7 @@ class IsarDb {
   Future<Database?> getTimerSQLiteDatabase() async {
     Database? db;
     final dir = await getDatabasesPath();
+    // await deleteDatabase(dir);
     db = await openDatabase(
       '$dir/timer.db',
       version: 1,
@@ -138,6 +140,7 @@ class IsarDb {
         ownerName TEXT NOT NULL,
         lastEditedUserId TEXT,
         mutexLock INTEGER NOT NULL DEFAULT 0,
+        mutexLockTimestamp INTEGER NOT NULL DEFAULT 0,
         mainAlarmTime TEXT,
         label TEXT,
         isOneTime INTEGER NOT NULL DEFAULT 0,
@@ -250,15 +253,20 @@ class IsarDb {
 
   static Future<AlarmModel> addAlarm(AlarmModel alarmRecord) async {
     final isarProvider = IsarDb();
-    final sql = await IsarDb().getAlarmSQLiteDatabase();
     final db = await isarProvider.db;
     
     await db.writeTxn(() async {
       await db.alarmModels.put(alarmRecord);
     });
-    final sqlmap = alarmRecord.toSQFliteMap();
-    print(sqlmap);
-    await sql!.insert('alarms', sqlmap);
+    
+    
+    if (!alarmRecord.isSharedAlarmEnabled) {
+      final sql = await IsarDb().getAlarmSQLiteDatabase();
+      final sqlmap = alarmRecord.toSQFliteMap();
+      print(sqlmap);
+      await sql!.insert('alarms', sqlmap);
+    }
+    
     List a = await IsarDb().getLogs();
     print(a);
     return alarmRecord;
@@ -339,7 +347,7 @@ class IsarDb {
     final db = await isarProvider.db;
     final alarms =
         await db.alarmModels.where().filter().alarmIDEqualTo(alarmID).findAll();
-    print('checkEmpty ${alarms[0].alarmID} ${alarms.isNotEmpty}');
+    // print('checkEmpty ${alarms[0].alarmID} ${alarms.isNotEmpty}');
 
     return alarms.isNotEmpty;
   }
@@ -371,11 +379,14 @@ class IsarDb {
       );
     }
 
-    // Get all enabled alarms
+
     List<AlarmModel> alarms = await db.alarmModels
         .where()
         .filter()
         .isEnabledEqualTo(true)
+        .and()
+        .isSharedAlarmEnabledEqualTo(false)
+        .and()
         .profileEqualTo(currentProfile)
         .findAll();
 
@@ -433,18 +444,22 @@ class IsarDb {
 
   static Future<void> updateAlarm(AlarmModel alarmRecord) async {
     final isarProvider = IsarDb();
-    final sql = await IsarDb().getAlarmSQLiteDatabase();
     final db = await isarProvider.db;
     await db.writeTxn(() async {
       await db.alarmModels.put(alarmRecord);
     });
     await IsarDb().insertLog('Alarm updated ${alarmRecord.alarmTime}', status: Status.success, type: LogType.normal);
-    await sql!.update(
-      'alarms',
-      alarmRecord.toSQFliteMap(),
-      where: 'alarmID = ?',
-      whereArgs: [alarmRecord.alarmID],
-    );
+    
+    
+    if (!alarmRecord.isSharedAlarmEnabled) {
+      final sql = await IsarDb().getAlarmSQLiteDatabase();
+      await sql!.update(
+        'alarms',
+        alarmRecord.toSQFliteMap(),
+        where: 'alarmID = ?',
+        whereArgs: [alarmRecord.alarmID],
+      );
+    }
   }
 
   
@@ -530,17 +545,24 @@ class IsarDb {
   static Future<void> deleteAlarm(int id) async {
     final isarProvider = IsarDb();
     final db = await isarProvider.db;
-    final sql = await IsarDb().getAlarmSQLiteDatabase();
     final tobedeleted = await db.alarmModels.get(id);
+    
+    if (tobedeleted == null) return;
+    
     await db.writeTxn(() async {
       await db.alarmModels.delete(id);
     });
-    await IsarDb().insertLog('Alarm deleted ${tobedeleted!.alarmTime}');
-    await sql!.delete(
-      'alarms',
-      where: 'alarmID = ?',
-      whereArgs: [tobedeleted!.alarmID],
-    );
+    await IsarDb().insertLog('Alarm deleted ${tobedeleted.alarmTime}');
+    
+
+    if (!tobedeleted.isSharedAlarmEnabled) {
+      final sql = await IsarDb().getAlarmSQLiteDatabase();
+      await sql!.delete(
+        'alarms',
+        where: 'alarmID = ?',
+        whereArgs: [tobedeleted.alarmID],
+      );
+    }
   }
 
   // Timer Functions
