@@ -31,7 +31,6 @@ export const rescheduleAlarm = onCall(async (request, context) => {
     const changedUserData = changedUserDocSnap.data();
     const changedUserName = changedUserData?.fullName || "Someone";
 
-    
     const updatedMainAlarmTime = alarmData.alarmTime || alarmData.mainAlarmTime;
     logger.info(`🕐 Using updated main alarm time: ${updatedMainAlarmTime}`);
 
@@ -39,31 +38,30 @@ export const rescheduleAlarm = onCall(async (request, context) => {
 
     for (const userOffset of sharedUserOffsetDetails) {
       const userId = userOffset.userId;
-      
-    
+
       let triggerTimeForUser = updatedMainAlarmTime;
-      
-    
+
       if (userOffset.offsetDuration && userOffset.offsetDuration > 0) {
-        const [hours, minutes] = updatedMainAlarmTime.split(':').map(Number);
+        const [hours, minutes] = updatedMainAlarmTime.split(":").map(Number);
         let totalMinutes = hours * 60 + minutes;
-        
+
         if (userOffset.isOffsetBefore) {
           totalMinutes -= userOffset.offsetDuration;
         } else {
           totalMinutes += userOffset.offsetDuration;
         }
-        
-        
+
         if (totalMinutes < 0) totalMinutes += 24 * 60;
         if (totalMinutes >= 24 * 60) totalMinutes -= 24 * 60;
-        
+
         const newHours = Math.floor(totalMinutes / 60);
         const newMinutes = totalMinutes % 60;
-        triggerTimeForUser = `${newHours.toString().padStart(2, '0')}:${newMinutes.toString().padStart(2, '0')}`;
+        triggerTimeForUser = `${newHours.toString().padStart(2, "0")}:` +
+          `${newMinutes.toString().padStart(2, "0")}`;
       }
-      
-      logger.info(`👤 User ${userId}: Main time ${updatedMainAlarmTime} → Trigger time ${triggerTimeForUser}`);
+
+      logger.info(`👤 User ${userId}: Main time ${updatedMainAlarmTime} → ` +
+        `Trigger time ${triggerTimeForUser}`);
 
       const userDocSnap = await db.collection("users").doc(userId).get();
       const userData = userDocSnap.data();
@@ -106,7 +104,6 @@ export const rescheduleAlarm = onCall(async (request, context) => {
           },
         };
       } else {
-        
         message = {
           token,
           android: {
@@ -127,7 +124,8 @@ export const rescheduleAlarm = onCall(async (request, context) => {
             },
             notification: {
               title: "Shared Alarm Updated! 🔔",
-              body: `${changedUserName} updated the alarm time to ${triggerTimeForUser}`,
+              body: `${changedUserName} updated the alarm time to ` +
+                `${triggerTimeForUser}`,
               priority: "high",
               channelId: "alarm_updates",
             },
@@ -141,7 +139,8 @@ export const rescheduleAlarm = onCall(async (request, context) => {
               aps: {
                 alert: {
                   title: "Shared Alarm Updated! 🔔",
-                  body: `${changedUserName} updated the alarm time to ${triggerTimeForUser}`,
+                  body: `${changedUserName} updated the alarm time to ` +
+                    `${triggerTimeForUser}`,
                 },
                 sound: "default",
                 contentAvailable: true,
@@ -166,8 +165,7 @@ export const rescheduleAlarm = onCall(async (request, context) => {
       }
 
       messages.push(message);
-      
-      
+
       const dataOnlyMessage = {
         token,
         android: {
@@ -213,27 +211,36 @@ export const rescheduleAlarm = onCall(async (request, context) => {
           triggerTime: triggerTimeForUser,
         },
       };
-      
+
       messages.push(dataOnlyMessage);
-      logger.info(`📨 Added 2 messages (notification + data-only) for user ${userId}`);
+      logger.info(`📨 Added 2 messages (notification + data-only) for ` +
+        `user ${userId}`);
     }
-    
+
     if (messages.length > 0) {
-      logger.info(`📤 Sending reschedule notifications to ${messages.length} messages (${sharedUserOffsetDetails.length} users) for alarm ${firestoreAlarmId}`);
+      logger.info(`📤 Sending reschedule notifications to ` +
+        `${messages.length} messages (${sharedUserOffsetDetails.length} ` +
+        `users) for alarm ${firestoreAlarmId}`);
       const response = await admin.messaging().sendEach(messages);
-      
-      
-      logger.info(`✅ Reschedule notifications sent: ${response.successCount}/${messages.length} successful`);
+
+      logger.info(`✅ Reschedule notifications sent: ` +
+        `${response.successCount}/${messages.length} successful`);
       if (response.failureCount > 0) {
         logger.warn(`❌ ${response.failureCount} messages failed:`);
         response.responses.forEach((resp, index) => {
           if (!resp.success) {
-            logger.warn(`   Message ${index}: ${resp.error?.message || 'Unknown error'}`);
+            logger.warn(`   Message ${index}: ` +
+              `${resp.error?.message || "Unknown error"}`);
           }
         });
       }
-      
-      return {success: true, sentTo: sharedUserOffsetDetails.length, successCount: response.successCount, totalMessages: messages.length};
+
+      return {
+        success: true,
+        sentTo: sharedUserOffsetDetails.length,
+        successCount: response.successCount,
+        totalMessages: messages.length,
+      };
     } else {
       return {success: false, message: "No valid tokens found"};
     }
