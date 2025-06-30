@@ -11,7 +11,6 @@ import android.content.pm.ServiceInfo
 import android.content.SharedPreferences
 import android.hardware.display.DisplayManager
 import android.os.IBinder
-import android.os.SystemClock.sleep
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.ultimate_alarm_clock.Utilities.LocationHelper
@@ -33,7 +32,8 @@ class LocationFetcherService : Service() {
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var displayManager: DisplayManager
 
-    override fun onCreate() = runBlocking {
+    override fun onCreate() {
+        runBlocking {
         super.onCreate()
 
         sharedPreferences = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
@@ -53,6 +53,8 @@ class LocationFetcherService : Service() {
         var location = fetchLocationDeffered.await()
         Log.d("Location", location)
         val setLocationString = sharedPreferences.getString("flutter.set_location", "")
+        val locationConditionType = sharedPreferences.getInt("flutter.location_condition_type", 0)
+        
         val current = location.split(",")
         if (current.size == 2) {
             try {
@@ -80,22 +82,69 @@ class LocationFetcherService : Service() {
             Location(destinationLatitude, destinationLongitude)
         )
         Log.d("Distance", "distance ${distance}")
-        if (distance >= 500.0) {
+        Log.d("LocationCondition", "type ${locationConditionType}")
+        
+        val isWithin500m = distance < 500.0
+        var shouldRingAlarm = false
+        var logMessage = ""
+        
+        when (locationConditionType) {
+            0 -> { // Off - should not reach here, but handle gracefully
+                shouldRingAlarm = true
+                logMessage = "Location condition is off, alarm rings normally"
+            }
+            1 -> { // Ring when AT location (within 500m)
+                shouldRingAlarm = isWithin500m
+                logMessage = if (isWithin500m) {
+                    "Alarm is ringing. You are ${distance}m from chosen location (within 500m)"
+                } else {
+                    "Alarm didn't ring. You are ${distance}m away from chosen location (beyond 500m)"
+                }
+            }
+            2 -> { // Cancel when AT location (within 500m) - original behavior
+                shouldRingAlarm = !isWithin500m
+                logMessage = if (isWithin500m) {
+                    "Alarm didn't ring. You are only ${distance}m away from chosen location"
+                } else {
+                    "Alarm is ringing. You are ${distance}m away from chosen location"
+                }
+            }
+            3 -> { // Ring when AWAY from location (beyond 500m)
+                shouldRingAlarm = !isWithin500m
+                logMessage = if (isWithin500m) {
+                    "Alarm didn't ring. You are only ${distance}m from chosen location (within 500m)"
+                } else {
+                    "Alarm is ringing. You are ${distance}m away from chosen location (beyond 500m)"
+                }
+            }
+            4 -> { // Cancel when AWAY from location (beyond 500m)
+                shouldRingAlarm = isWithin500m
+                logMessage = if (isWithin500m) {
+                    "Alarm is ringing. You are ${distance}m from chosen location (within 500m)"
+                } else {
+                    "Alarm didn't ring. You are ${distance}m away from chosen location (beyond 500m)"
+                }
+            }
+            else -> { // Default fallback
+                shouldRingAlarm = true
+                logMessage = "Unknown location condition type, alarm rings normally"
+            }
+        }
 
+        if (shouldRingAlarm) {
             val flutterIntent =
                 Intent(this@LocationFetcherService, MainActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                     putExtra("initialRoute", "/")
                     putExtra("alarmRing", "true")
                     putExtra("isAlarm", "true")
-
                 }
 
             Timer().schedule(9000){
-            println("ANDROID STARTING APP")
-            this@LocationFetcherService.startActivity(flutterIntent)
+                println("ANDROID STARTING APP")
+                this@LocationFetcherService.startActivity(flutterIntent)
                 logdbHelper.insertLog(
-                    "Alarm is ringing. Alarm rings because you are ${distance}m away from chosen location",
+                    logMessage,
                     status = LogDatabaseHelper.Status.SUCCESS,
                     type = LogDatabaseHelper.LogType.NORMAL,
                     hasRung = 1
@@ -104,12 +153,9 @@ class LocationFetcherService : Service() {
                     stopSelf()
                 }
             }
-
-
-        }
-        if(distance < 500.0){
+        } else {
             logdbHelper.insertLog(
-                "Alarm didn't ring. Because you are only ${distance}m away from chosen location",
+                logMessage,
                 status = LogDatabaseHelper.Status.WARNING,
                 type = LogDatabaseHelper.LogType.NORMAL,
                 hasRung = 0
@@ -117,11 +163,10 @@ class LocationFetcherService : Service() {
             Timer().schedule(9000){
                 Timer().schedule(3000){
                     stopSelf()
-
                 }
             }
         }
-
+        }
     }
 
     suspend fun fetchLocation(): String {
@@ -145,7 +190,6 @@ class LocationFetcherService : Service() {
         }
     }
 
-
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         return START_STICKY
     }
@@ -161,8 +205,8 @@ class LocationFetcherService : Service() {
             )
 
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Fetching Location for alarm")
-            .setContentText("Waiting...")
+            .setContentTitle("Checking Location for alarm")
+            .setContentText("Evaluating location condition...")
             .setSmallIcon(R.mipmap.launcher_icon) // Replace with your icon drawable
             .setContentIntent(pendingIntent)
             .setOngoing(true)

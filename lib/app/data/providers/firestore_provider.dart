@@ -28,8 +28,19 @@ class FirestoreDb {
     final dir = await getDatabasesPath();
     final dbPath = '$dir/alarms.db';
     print(dir);
-    db = await openDatabase(dbPath, version: 1, onCreate: _onCreate);
+    db = await openDatabase(dbPath, version: 3, onCreate: _onCreate, onUpgrade: _onUpgrade);
     return db;
+  }
+
+  void _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      
+      await db.execute('ALTER TABLE alarms ADD COLUMN weatherConditionType INTEGER NOT NULL DEFAULT 2');
+    }
+    if (oldVersion < 3) {
+      
+      await db.execute('ALTER TABLE alarms ADD COLUMN activityConditionType INTEGER NOT NULL DEFAULT 2');
+    }
   }
 
   void _onCreate(Database db, int version) async {
@@ -42,8 +53,11 @@ class FirestoreDb {
         alarmID TEXT NOT NULL UNIQUE,
         isEnabled INTEGER NOT NULL DEFAULT 1,
         isLocationEnabled INTEGER NOT NULL DEFAULT 0,
+        locationConditionType INTEGER NOT NULL DEFAULT 2,
         isSharedAlarmEnabled INTEGER NOT NULL DEFAULT 0,
         isWeatherEnabled INTEGER NOT NULL DEFAULT 0,
+        weatherConditionType INTEGER NOT NULL DEFAULT 2,
+        activityConditionType INTEGER NOT NULL DEFAULT 2,
         location TEXT,
         activityInterval INTEGER,
         minutesSinceMidnight INTEGER NOT NULL,
@@ -120,9 +134,27 @@ class FirestoreDb {
     if (user == null) {
       return alarmRecord;
     }
-    await sql!
-        .insert('alarms', alarmRecord.toSQFliteMap())
-        .then((value) => print('insert success'));
+    
+    try {
+      // Try to insert with all fields including new columns
+      await sql!
+          .insert('alarms', alarmRecord.toSQFliteMap())
+          .then((value) => print('insert success'));
+    } catch (e) {
+      if (e.toString().contains('locationConditionType') || e.toString().contains('weatherConditionType') || e.toString().contains('activityConditionType')) {
+        // If new columns don't exist, insert without them for backward compatibility
+        Map<String, dynamic> fallbackMap = Map.from(alarmRecord.toSQFliteMap());
+        fallbackMap.remove('locationConditionType');
+        fallbackMap.remove('weatherConditionType');
+        fallbackMap.remove('activityConditionType');
+        await sql!
+            .insert('alarms', fallbackMap)
+            .then((value) => print('insert success (backward compatibility)'));
+      } else {
+        rethrow; // Re-throw other errors
+      }
+    }
+    
     await _alarmsCollection(user)
         .add(AlarmModel.toMap(alarmRecord))
         .then((value) => alarmRecord.firestoreId = value.id);
@@ -284,12 +316,34 @@ class FirestoreDb {
 
   static updateAlarm(String? userId, AlarmModel alarmRecord) async {
     final sql = await FirestoreDb().getSQLiteDatabase();
-    await sql!.update(
-      'alarms',
-      alarmRecord.toSQFliteMap(),
-      where: 'alarmID = ?',
-      whereArgs: [alarmRecord.alarmID],
-    );
+    
+    try {
+      
+      await sql!.update(
+        'alarms',
+        alarmRecord.toSQFliteMap(),
+        where: 'alarmID = ?',
+        whereArgs: [alarmRecord.alarmID],
+      );
+    } catch (e) {
+      if (e.toString().contains('locationConditionType') || e.toString().contains('weatherConditionType') || e.toString().contains('activityConditionType')) {
+      
+        Map<String, dynamic> fallbackMap = Map.from(alarmRecord.toSQFliteMap());
+        fallbackMap.remove('locationConditionType');
+        fallbackMap.remove('weatherConditionType');
+        fallbackMap.remove('activityConditionType');
+        await sql!.update(
+          'alarms',
+          fallbackMap,
+          where: 'alarmID = ?',
+          whereArgs: [alarmRecord.alarmID],
+        );
+        debugPrint('Updated alarm without new columns (backward compatibility)');
+      } else {
+        rethrow;
+      }
+    }
+    
     await _firebaseFirestore
         .collection('users')
         .doc(userId)

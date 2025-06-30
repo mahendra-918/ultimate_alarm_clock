@@ -149,10 +149,13 @@ class MainActivity : FlutterActivity() {
                     scheduleAlarm(
                         ringTime["interval"]!! as Long,
                         ringTime["isActivity"]!! as Int,
+                        ringTime["activityConditionType"]!! as Int,
+                        ringTime["activityInterval"]!! as Int,
                         ringTime["isLocation"]!! as Int,
                         ringTime["location"]!! as String,
                         ringTime["isWeather"]!! as Int,
-                        ringTime["weatherTypes"]!! as String
+                        ringTime["weatherTypes"]!! as String,
+                        ringTime["weatherConditionType"]!! as Int
                     )
                 } else {
                     println("FLUTTER CALLED CANCEL ALARMS")
@@ -203,10 +206,13 @@ class MainActivity : FlutterActivity() {
     private fun scheduleAlarm(
         milliSeconds: Long,
         activityMonitor: Int,
+        activityConditionType: Int,
+        activityInterval: Int,
         locationMonitor: Int,
         setLocation: String,
         isWeather: Int,
-        weatherTypes: String
+        weatherTypes: String,
+        weatherConditionType: Int
     ) {
 
         val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -230,6 +236,12 @@ class MainActivity : FlutterActivity() {
             System.currentTimeMillis() + (milliSeconds - tenMinutesInMilliseconds)
         val triggerTime = System.currentTimeMillis() + milliSeconds
         if (activityMonitor == 1) {
+            val sharedPreferences = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val editor = sharedPreferences.edit()
+            editor.putInt("flutter.activity_condition_type", activityConditionType)
+            editor.putInt("flutter.activity_interval", activityInterval)
+            editor.apply()
+            
             val alarmClockInfo = AlarmManager.AlarmClockInfo(preTriggerTime, pendingIntent)
             alarmManager.setAlarmClock(
                 alarmClockInfo,
@@ -240,16 +252,19 @@ class MainActivity : FlutterActivity() {
                 getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
             val editor = sharedPreferences.edit()
             editor.putLong("flutter.is_screen_off", 0L)
-            editor.apply()
             editor.putLong("flutter.is_screen_on", 0L)
+            editor.putInt("flutter.activity_condition_type", 0)
+            editor.putInt("flutter.activity_interval", 30)
             editor.apply()
         }
-        if (locationMonitor == 1) {
+        if (locationMonitor > 0) {
             val sharedPreferences =
                 getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
             val editor = sharedPreferences.edit()
             editor.putString("flutter.set_location", setLocation)
+            editor.putInt("flutter.location_condition_type", locationMonitor)
             Log.d("location", setLocation)
+            Log.d("locationConditionType", locationMonitor.toString())
             editor.apply()
             editor.putInt("flutter.is_location_on", 1)
             editor.apply()
@@ -260,17 +275,17 @@ class MainActivity : FlutterActivity() {
                 locationAlarmIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
             )
-            val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerTime - 10000, pendingIntent)
-            alarmManager.setAlarmClock(
-                alarmClockInfo,
-                pendingLocationAlarmIntent
-            )
+            // For location monitoring, only schedule the LocationFetcherService, not the main alarm
+            val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerTime - 10000, pendingLocationAlarmIntent)
+            alarmManager.setAlarmClock(alarmClockInfo, pendingLocationAlarmIntent)
         } else if (isWeather == 1) {
             val sharedPreferences =
                 getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
             val editor = sharedPreferences.edit()
             editor.putString("flutter.weatherTypes", getWeatherConditions(weatherTypes))
+            editor.putInt("flutter.weatherConditionType", weatherConditionType)
             Log.d("we", getWeatherConditions(weatherTypes))
+            Log.d("weatherConditionType", weatherConditionType.toString())
             editor.apply()
             val weatherAlarmIntent = Intent(this, WeatherFetcherService::class.java)
             val pendingWeatherAlarmIntent = PendingIntent.getService(
@@ -279,12 +294,11 @@ class MainActivity : FlutterActivity() {
                 weatherAlarmIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
             )
-            val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerTime - 10000, pendingIntent)
-            alarmManager.setAlarmClock(
-                alarmClockInfo,
-                pendingWeatherAlarmIntent
-            )
+            // For weather monitoring, only schedule the WeatherFetcherService, not the main alarm
+            val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerTime - 10000, pendingWeatherAlarmIntent)
+            alarmManager.setAlarmClock(alarmClockInfo, pendingWeatherAlarmIntent)
         } else {
+            // For normal alarms or activity monitoring, schedule the main alarm
             val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerTime, pendingIntent)
             alarmManager.setAlarmClock(alarmClockInfo, pendingIntent)
         }
@@ -294,6 +308,8 @@ class MainActivity : FlutterActivity() {
 
     private fun cancelAllScheduledAlarms() {
         val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        
+        
         val intent = Intent(this, AlarmReceiver::class.java)
         val pendingIntent = PendingIntent.getBroadcast(
             this,
@@ -302,6 +318,7 @@ class MainActivity : FlutterActivity() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
         )
 
+        // Cancel activity monitor service
         val activityCheckIntent = Intent(this, ScreenMonitorService::class.java)
         val pendingActivityCheckIntent = PendingIntent.getService(
             this,
@@ -310,12 +327,33 @@ class MainActivity : FlutterActivity() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
         )
 
-        // Cancel any existing alarms by providing the same pending intent
+        // Cancel location fetcher service
+        val locationAlarmIntent = Intent(this, LocationFetcherService::class.java)
+        val pendingLocationAlarmIntent = PendingIntent.getService(
+            this,
+            5,
+            locationAlarmIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+        )
+
+        // Cancel weather fetcher service
+        val weatherAlarmIntent = Intent(this, WeatherFetcherService::class.java)
+        val pendingWeatherAlarmIntent = PendingIntent.getService(
+            this,
+            6,
+            weatherAlarmIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+        )
+
+        // Cancel all scheduled alarms and services
         alarmManager.cancel(pendingIntent)
         pendingIntent.cancel()
         alarmManager.cancel(pendingActivityCheckIntent)
         pendingActivityCheckIntent.cancel()
-
+        alarmManager.cancel(pendingLocationAlarmIntent)
+        pendingLocationAlarmIntent.cancel()
+        alarmManager.cancel(pendingWeatherAlarmIntent)
+        pendingWeatherAlarmIntent.cancel()
     }
 
     private fun playDefaultAlarm(context: Context) {

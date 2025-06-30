@@ -17,8 +17,11 @@ class AlarmModel {
   late String alarmID;
   late bool isEnabled;
   late bool isLocationEnabled;
+  late int locationConditionType; 
   late bool isSharedAlarmEnabled;
   late bool isWeatherEnabled;
+  late int weatherConditionType; 
+  late int activityConditionType;
   late bool isMathsEnabled;
   late bool isShakeEnabled;
   late bool isQrEnabled;
@@ -77,8 +80,11 @@ class AlarmModel {
       required this.isActivityEnabled,
       required this.minutesSinceMidnight,
       required this.isLocationEnabled,
+      required this.locationConditionType,
       required this.isSharedAlarmEnabled,
       required this.isWeatherEnabled,
+      required this.weatherConditionType,
+      required this.activityConditionType,
       required this.location,
       required this.weatherTypes,
       required this.isMathsEnabled,
@@ -154,7 +160,10 @@ class AlarmModel {
     activityInterval = documentSnapshot['activityInterval'];
 
     isLocationEnabled = documentSnapshot['isLocationEnabled'];
+    locationConditionType = documentSnapshot['locationConditionType'] ?? 2; 
     isWeatherEnabled = documentSnapshot['isWeatherEnabled'];
+    weatherConditionType = documentSnapshot['weatherConditionType'] ?? 2; 
+    activityConditionType = documentSnapshot['activityConditionType'] ?? 2; 
     weatherTypes = List<int>.from(documentSnapshot['weatherTypes']);
     location = documentSnapshot['location'];
     isMathsEnabled = documentSnapshot['isMathsEnabled'];
@@ -190,8 +199,11 @@ class AlarmModel {
       alarmID: map['alarmID'],
       isEnabled: map['isEnabled'] == 1,
       isLocationEnabled: map['isLocationEnabled'] == 1,
+      locationConditionType: map['locationConditionType'] ?? 2, 
       isSharedAlarmEnabled: map['isSharedAlarmEnabled'] == 1,
       isWeatherEnabled: map['isWeatherEnabled'] == 1,
+      weatherConditionType: map['weatherConditionType'] ?? 2, 
+      activityConditionType: map['activityConditionType'] ?? 2, 
       location: map['location'],
       activityInterval: map['activityInterval'],
       minutesSinceMidnight: map['minutesSinceMidnight'],
@@ -245,8 +257,11 @@ class AlarmModel {
       'alarmID': alarmID,
       'isEnabled': isEnabled ? 1 : 0,
       'isLocationEnabled': isLocationEnabled ? 1 : 0,
+      'locationConditionType': locationConditionType,
       'isSharedAlarmEnabled': isSharedAlarmEnabled ? 1 : 0,
       'isWeatherEnabled': isWeatherEnabled ? 1 : 0,
+      'weatherConditionType': weatherConditionType,
+      'activityConditionType': activityConditionType,
       'location': location,
       'activityInterval': activityInterval,
       'minutesSinceMidnight': minutesSinceMidnight,
@@ -313,7 +328,10 @@ class AlarmModel {
     activityInterval = alarmData['activityInterval'];
 
     isLocationEnabled = alarmData['isLocationEnabled'];
+    locationConditionType = alarmData['locationConditionType'] ?? 2; 
     isWeatherEnabled = alarmData['isWeatherEnabled'];
+    weatherConditionType = alarmData['weatherConditionType'] ?? 2; 
+    activityConditionType = alarmData['activityConditionType'] ?? 2; 
     weatherTypes = List<int>.from(alarmData['weatherTypes']);
     location = alarmData['location'];
 
@@ -373,9 +391,12 @@ class AlarmModel {
       'isActivityEnabled': alarmRecord.isActivityEnabled,
       'weatherTypes': alarmRecord.weatherTypes,
       'isWeatherEnabled': alarmRecord.isWeatherEnabled,
+      'weatherConditionType': alarmRecord.weatherConditionType,
+      'activityConditionType': alarmRecord.activityConditionType,
       'activityInterval': alarmRecord.activityInterval,
       'minutesSinceMidnight': alarmRecord.minutesSinceMidnight,
       'isLocationEnabled': alarmRecord.isLocationEnabled,
+      'locationConditionType': alarmRecord.locationConditionType,
       'location': alarmRecord.location,
       'isSharedAlarmEnabled': alarmRecord.isSharedAlarmEnabled,
       'isMathsEnabled': alarmRecord.isMathsEnabled,

@@ -1115,11 +1115,17 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                 ),
                                 isLocationEnabled:
                                     controller.isLocationEnabled.value,
+                                locationConditionType:
+                                    controller.locationConditionType.value.index,
                                 weatherTypes: Utils.getIntFromWeatherTypes(
                                   controller.selectedWeather.toList(),
                                 ),
                                 isWeatherEnabled:
                                     controller.isWeatherEnabled.value,
+                                weatherConditionType:
+                                    controller.weatherConditionType.value.index,
+                                activityConditionType:
+                                    controller.activityConditionType.value.index,
                                 location: Utils.geoPointToString(
                                   Utils.latLngToGeoPoint(
                                     controller.selectedPoint.value,

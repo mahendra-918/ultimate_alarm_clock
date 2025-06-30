@@ -29,7 +29,18 @@ class BootReceiver : BroadcastReceiver() {
             val ringTime = getLatestAlarm(db, true, profile?:"Default", context)
             db.close()
             if (ringTime != null) {
-                scheduleAlarm(ringTime["interval"]!! as Long, context, ringTime["isActivity"]!!)
+                scheduleAlarm(
+                    ringTime["interval"]!! as Long,
+                    context,
+                    ringTime["isActivity"]!! as Int,
+                    ringTime["activityConditionType"]!! as Int,
+                    ringTime["activityInterval"]!! as Int,
+                    ringTime["isLocation"]!! as Int,
+                    ringTime["location"]!! as String,
+                    ringTime["isWeather"]!! as Int,
+                    ringTime["weatherTypes"]!! as String,
+                    ringTime["weatherConditionType"]!! as Int
+                )
             }
 
             val timerdbhelper = TimerDatabaseHelper(context)
@@ -65,7 +76,18 @@ class BootReceiver : BroadcastReceiver() {
     }
 
     @SuppressLint("ScheduleExactAlarm")
-    fun scheduleAlarm(milliSeconds: Long, context: Context, activityMonitor: Any) {
+    fun scheduleAlarm(
+        milliSeconds: Long,
+        context: Context,
+        activityMonitor: Int,
+        activityConditionType: Int,
+        activityInterval: Int,
+        locationMonitor: Int,
+        setLocation: String,
+        isWeather: Int,
+        weatherTypes: String,
+        weatherConditionType: Int
+    ) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val intent = Intent(context, AlarmReceiver::class.java)
         val pendingIntent = PendingIntent.getBroadcast(
@@ -85,11 +107,16 @@ class BootReceiver : BroadcastReceiver() {
         val tenMinutesInMilliseconds = 600000L
         val preTriggerTime =
             System.currentTimeMillis() + (milliSeconds - tenMinutesInMilliseconds)
-
-        // Schedule the alarm
         val triggerTime = System.currentTimeMillis() + milliSeconds
-
+        
         if (activityMonitor == 1) {
+            
+            val sharedPreferences = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val editor = sharedPreferences.edit()
+            editor.putInt("flutter.activity_condition_type", activityConditionType)
+            editor.putInt("flutter.activity_interval", activityInterval)
+            editor.apply()
+            
             val alarmClockInfo = AlarmManager.AlarmClockInfo(preTriggerTime, pendingIntent)
             alarmManager.setAlarmClock(
                 alarmClockInfo,
@@ -100,13 +127,53 @@ class BootReceiver : BroadcastReceiver() {
                 context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
             val editor = sharedPreferences.edit()
             editor.putLong("flutter.is_screen_off", 0L)
-            editor.apply()
             editor.putLong("flutter.is_screen_on", 0L)
+            editor.putInt("flutter.activity_condition_type", 0)
+            editor.putInt("flutter.activity_interval", 30)
             editor.apply()
         }
-        val clockInfo = AlarmManager.AlarmClockInfo(triggerTime, pendingIntent)
-        alarmManager.setAlarmClock(clockInfo, pendingIntent)
-
+        
+        if (locationMonitor > 0) {
+            val sharedPreferences =
+                context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val editor = sharedPreferences.edit()
+            editor.putString("flutter.set_location", setLocation)
+            editor.putInt("flutter.location_condition_type", locationMonitor)
+            editor.apply()
+            editor.putInt("flutter.is_location_on", 1)
+            editor.apply()
+            val locationAlarmIntent = Intent(context, LocationFetcherService::class.java)
+            val pendingLocationAlarmIntent = PendingIntent.getService(
+                context,
+                5,
+                locationAlarmIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+            )
+            
+            val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerTime - 10000, pendingLocationAlarmIntent)
+            alarmManager.setAlarmClock(alarmClockInfo, pendingLocationAlarmIntent)
+        } else if (isWeather == 1) {
+            val sharedPreferences =
+                context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val editor = sharedPreferences.edit()
+            editor.putString("flutter.weatherTypes", getWeatherConditions(weatherTypes))
+            editor.putInt("flutter.weatherConditionType", weatherConditionType)
+            editor.apply()
+            val weatherAlarmIntent = Intent(context, WeatherFetcherService::class.java)
+            val pendingWeatherAlarmIntent = PendingIntent.getService(
+                context,
+                6,
+                weatherAlarmIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+            )
+            
+            val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerTime - 10000, pendingWeatherAlarmIntent)
+            alarmManager.setAlarmClock(alarmClockInfo, pendingWeatherAlarmIntent)
+        } else {
+            
+            val clockInfo = AlarmManager.AlarmClockInfo(triggerTime, pendingIntent)
+            alarmManager.setAlarmClock(clockInfo, pendingIntent)
+        }
     }
 
 
@@ -143,6 +210,10 @@ class BootReceiver : BroadcastReceiver() {
             .setDeleteIntent(deletePendingIntent)
             .build()
         notificationManager.notify(1, notification)
+    }
+
+    private fun getWeatherConditions(weatherTypes: String): String {
+        return weatherTypes
     }
 
     private fun formatDuration(milliseconds: Long): String {
