@@ -13,6 +13,11 @@ import android.os.Build
 import android.os.CountDownTimer
 import androidx.core.app.NotificationCompat
 import com.ccextractor.ultimate_alarm_clock.getLatestTimer
+import com.ccextractor.ultimate_alarm_clock.ultimate_alarm_clock.AlarmUtils
+import android.util.Log
+import java.util.Calendar
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 
 class BootReceiver : BroadcastReceiver() {
@@ -20,29 +25,152 @@ class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
 
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
+            Log.d("BootReceiver", "📱 Device boot completed - checking for alarms to reschedule")
+            
            val sharedPreferences = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
             val profile = sharedPreferences.getString("flutter.profile", "Default")
 
-            val dbHelper = DatabaseHelper(context)
-            val logdbHelper = LogDatabaseHelper(context)
-            val db = dbHelper.readableDatabase
-            val ringTime = getLatestAlarm(db, true, profile?:"Default", context)
-            db.close()
-            if (ringTime != null) {
-                scheduleAlarm(
-                    ringTime["interval"]!! as Long,
-                    context,
-                    ringTime["isActivity"]!! as Int,
-                    ringTime["activityConditionType"]!! as Int,
-                    ringTime["activityInterval"]!! as Int,
-                    ringTime["isLocation"]!! as Int,
-                    ringTime["location"]!! as String,
-                    ringTime["isWeather"]!! as Int,
-                    ringTime["weatherTypes"]!! as String,
-                    ringTime["weatherConditionType"]!! as Int
-                )
+            val nextLocalAlarm = determineNextAlarm(context, profile ?: "Default")
+            
+            if (nextLocalAlarm != null) {
+                val isSharedAlarm = nextLocalAlarm["isSharedAlarm"] as? Boolean ?: false
+                
+                if (!isSharedAlarm) {
+                    AlarmUtils.scheduleAlarm(
+                        context,
+                        nextLocalAlarm["interval"] as Long,
+                        nextLocalAlarm["isActivity"] as Int,
+                        nextLocalAlarm["isLocation"] as Int,
+                        nextLocalAlarm["location"] as String,
+                        nextLocalAlarm["isWeather"] as Int,
+                        nextLocalAlarm["weatherTypes"] as String,
+                        false,
+                        ""
+                    )
+                    Log.d("BootReceiver", "✅ Rescheduled local alarm after boot")
+                }
             }
+            
+            // Reschedule shared alarms
+            rescheduleSharedAlarmAfterBoot(context, sharedPreferences)
+            
+            // Reschedule timers
+            rescheduleTimerAfterBoot(context)
+        }
+    }
+    
+    private fun determineNextAlarm(context: Context, profile: String): Map<String, Any>? {
+        val dbHelper = DatabaseHelper(context)
+        val logdbHelper = LogDatabaseHelper(context)
+        val db = dbHelper.readableDatabase
+        val ringTime = getLatestAlarm(db, true, profile, context)
+        db.close()
+        return ringTime
+    }
+    
+    private fun rescheduleSharedAlarmAfterBoot(context: Context, sharedPreferences: android.content.SharedPreferences) {
+        try {
+            // Check if we have an active shared alarm stored
+            val hasActiveSharedAlarm = sharedPreferences.getBoolean("flutter.has_active_shared_alarm", false)
+           
+            if (!hasActiveSharedAlarm) {
+                Log.d("BootReceiver", "❌ No active shared alarm found in preferences")
+                return
+            }
+            
+            val sharedAlarmTime = sharedPreferences.getString("flutter.shared_alarm_time", null)
+            val sharedAlarmId = sharedPreferences.getString("flutter.shared_alarm_id", null)
+            
+            if (sharedAlarmTime == null || sharedAlarmId == null) {
+                Log.d("BootReceiver", "❌ Missing shared alarm data: time=$sharedAlarmTime, id=$sharedAlarmId")
+                return
+            }
+            
+            Log.d("BootReceiver", "🔍 Found shared alarm to reschedule: ID=$sharedAlarmId, time=$sharedAlarmTime")
+            
+            val intervalToAlarm = calculateTimeToAlarm(sharedAlarmTime)
+            
+            if (intervalToAlarm <= 0) {
+                Log.d("BootReceiver", "⏰ Shared alarm time is in the past, clearing cache")
+                clearSharedAlarmData(context)
+                return
+            }
+            
+            val isActivityEnabled = sharedPreferences.getInt("flutter.shared_alarm_activity", 0)
+            val isLocationEnabled = sharedPreferences.getInt("flutter.shared_alarm_location", 0)
+            val location = sharedPreferences.getString("flutter.shared_alarm_location_data", "0.0,0.0") ?: "0.0,0.0"
+            val isWeatherEnabled = sharedPreferences.getInt("flutter.shared_alarm_weather", 0)
+            val weatherTypes = sharedPreferences.getString("flutter.shared_alarm_weather_types", "[]") ?: "[]"
+            
+            Log.d("BootReceiver", "🔧 Rescheduling shared alarm with config - activity: $isActivityEnabled, location: $isLocationEnabled, weather: $isWeatherEnabled")
+            
+            AlarmUtils.scheduleAlarm(
+                context,
+                intervalToAlarm,
+                isActivityEnabled,
+                isLocationEnabled,
+                location,
+                isWeatherEnabled,
+                weatherTypes,
+                true,
+                sharedAlarmId
+            )
+            
+            Log.d("BootReceiver", "✅ Successfully rescheduled shared alarm: $sharedAlarmTime")
+            
+        } catch (e: Exception) {
+            Log.e("BootReceiver", "❌ Error rescheduling shared alarm after boot: ${e.message}")
+        }
+    }
+    
+    private fun calculateTimeToAlarm(alarmTime: String): Long {
+        try {
+            val parts = alarmTime.split(":")
+            if (parts.size != 2) return 0
+            
+            val hour = parts[0].toInt()
+            val minute = parts[1].toInt()
+            
+            val calendar = Calendar.getInstance()
+            val now = Calendar.getInstance()
+            
+            calendar.set(Calendar.HOUR_OF_DAY, hour)
+            calendar.set(Calendar.MINUTE, minute)
+            calendar.set(Calendar.SECOND, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+            
+            if (calendar.before(now)) {
+                calendar.add(Calendar.DAY_OF_MONTH, 1)
+            }
+            
+            val intervalToAlarm = calendar.timeInMillis - now.timeInMillis
+            Log.d("BootReceiver", "⏰ Calculated interval for alarm $alarmTime: ${intervalToAlarm}ms")
+            
+            return intervalToAlarm
+        } catch (e: Exception) {
+            Log.e("BootReceiver", "❌ Error calculating time to alarm: ${e.message}")
+            return 0
+        }
+    }
+    
+    private fun clearSharedAlarmData(context: Context) {
+        val sharedPreferences = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+        val editor = sharedPreferences.edit()
+        editor.putBoolean("flutter.has_active_shared_alarm", false)
+        editor.remove("flutter.shared_alarm_time")
+        editor.remove("flutter.shared_alarm_id")
+        editor.remove("flutter.shared_alarm_activity")
+        editor.remove("flutter.shared_alarm_location")
+        editor.remove("flutter.shared_alarm_location_data")
+        editor.remove("flutter.shared_alarm_weather")
+        editor.remove("flutter.shared_alarm_weather_types")
+        editor.apply()
+        
+        Log.d("BootReceiver", "🧹 Cleared shared alarm data")
+    }
 
+    private fun rescheduleTimerAfterBoot(context: Context) {
+        try {
             val timerdbhelper = TimerDatabaseHelper(context)
             val timerdb = timerdbhelper.readableDatabase
             val time = getLatestTimer(timerdb)
@@ -53,7 +181,6 @@ class BootReceiver : BroadcastReceiver() {
                 override fun onTick(millisUntilFinished: Long) {
                     println(millisUntilFinished)
                     showTimerNotification(millisUntilFinished, "Timer", context)
-
                 }
 
                 override fun onFinish() {
@@ -62,121 +189,14 @@ class BootReceiver : BroadcastReceiver() {
             })
             createNotificationChannel(context)
 
-
-
             if (time != null) {
-
                 // Start or stop the timer based on your requirements
                 commonTimer.startTimer(time.second)
-
             }
-
-
+        } catch (e: Exception) {
+            Log.e("BootReceiver", "❌ Error rescheduling timer after boot: ${e.message}")
         }
     }
-
-    @SuppressLint("ScheduleExactAlarm")
-    fun scheduleAlarm(
-        milliSeconds: Long,
-        context: Context,
-        activityMonitor: Int,
-        activityConditionType: Int,
-        activityInterval: Int,
-        locationMonitor: Int,
-        setLocation: String,
-        isWeather: Int,
-        weatherTypes: String,
-        weatherConditionType: Int
-    ) {
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val intent = Intent(context, AlarmReceiver::class.java)
-        val pendingIntent = PendingIntent.getBroadcast(
-            context,
-            1,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-        )
-        val activityCheckIntent = Intent(context, ScreenMonitorService::class.java)
-        val pendingActivityCheckIntent = PendingIntent.getService(
-            context,
-            4,
-            activityCheckIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-        )
-        // Schedule the alarm
-        val tenMinutesInMilliseconds = 600000L
-        val preTriggerTime =
-            System.currentTimeMillis() + (milliSeconds - tenMinutesInMilliseconds)
-        val triggerTime = System.currentTimeMillis() + milliSeconds
-        
-        if (activityMonitor == 1) {
-            
-            val sharedPreferences = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-            val editor = sharedPreferences.edit()
-            editor.putInt("flutter.activity_condition_type", activityConditionType)
-            editor.putInt("flutter.activity_interval", activityInterval)
-            editor.apply()
-            
-            val alarmClockInfo = AlarmManager.AlarmClockInfo(preTriggerTime, pendingIntent)
-            alarmManager.setAlarmClock(
-                alarmClockInfo,
-                pendingActivityCheckIntent
-            )
-        } else {
-            val sharedPreferences =
-                context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-            val editor = sharedPreferences.edit()
-            editor.putLong("flutter.is_screen_off", 0L)
-            editor.putLong("flutter.is_screen_on", 0L)
-            editor.putInt("flutter.activity_condition_type", 0)
-            editor.putInt("flutter.activity_interval", 30)
-            editor.apply()
-        }
-        
-        if (locationMonitor > 0) {
-            val sharedPreferences =
-                context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-            val editor = sharedPreferences.edit()
-            editor.putString("flutter.set_location", setLocation)
-            editor.putInt("flutter.location_condition_type", locationMonitor)
-            editor.apply()
-            editor.putInt("flutter.is_location_on", 1)
-            editor.apply()
-            val locationAlarmIntent = Intent(context, LocationFetcherService::class.java)
-            val pendingLocationAlarmIntent = PendingIntent.getService(
-                context,
-                5,
-                locationAlarmIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-            )
-            
-            val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerTime - 10000, pendingLocationAlarmIntent)
-            alarmManager.setAlarmClock(alarmClockInfo, pendingLocationAlarmIntent)
-        } else if (isWeather == 1) {
-            val sharedPreferences =
-                context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-            val editor = sharedPreferences.edit()
-            editor.putString("flutter.weatherTypes", getWeatherConditions(weatherTypes))
-            editor.putInt("flutter.weatherConditionType", weatherConditionType)
-            editor.apply()
-            val weatherAlarmIntent = Intent(context, WeatherFetcherService::class.java)
-            val pendingWeatherAlarmIntent = PendingIntent.getService(
-                context,
-                6,
-                weatherAlarmIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-            )
-            
-            val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerTime - 10000, pendingWeatherAlarmIntent)
-            alarmManager.setAlarmClock(alarmClockInfo, pendingWeatherAlarmIntent)
-        } else {
-            
-            val clockInfo = AlarmManager.AlarmClockInfo(triggerTime, pendingIntent)
-            alarmManager.setAlarmClock(clockInfo, pendingIntent)
-        }
-    }
-
-
 
     private fun createNotificationChannel(context: Context) {
 

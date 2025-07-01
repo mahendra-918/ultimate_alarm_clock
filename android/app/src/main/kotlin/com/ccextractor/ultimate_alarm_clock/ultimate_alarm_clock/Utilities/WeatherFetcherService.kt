@@ -14,7 +14,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.android.volley.Response
 import com.android.volley.toolbox.Volley
-import com.ultimate_alarm_clock.Utilities.LocationHelper
+import com.ccextractor.ultimate_alarm_clock.LocationHelper
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import java.util.Timer

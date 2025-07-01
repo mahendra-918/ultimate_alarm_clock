@@ -38,7 +38,7 @@ class Utils {
     label: '',
     isOneTime: true,
     deleteAfterGoesOff: false,
-    offsetDetails: {},
+    offsetDetails: [{}],
     lastEditedUserId: '',
     mutexLock: false,
     ownerName: '',
@@ -286,65 +286,103 @@ class Utils {
 
     Duration duration;
 
-    // Check if the alarm is a one-time alarm
+    // Check if the alarm is a one-time alarm (no days selected)
     if (days.every((day) => !day)) {
       if (now.isBefore(todayAlarm)) {
+        // Alarm is today
         duration = todayAlarm.difference(now);
       } else {
-        // Schedule the alarm for the next day
+        // Alarm is for tomorrow
         final nextAlarm = todayAlarm.add(const Duration(days: 1));
         duration = nextAlarm.difference(now);
       }
-    } else if (now.isBefore(todayAlarm) && days[now.weekday - 1]) {
+    } else if (days.every((day) => day)) {
+      // Alarm repeats every day
+      if (now.isBefore(todayAlarm)) {
+        // Alarm is today
       duration = todayAlarm.difference(now);
     } else {
-      int daysUntilNextAlarm = 7;
-      DateTime? nextAlarm;
+        // Alarm is tomorrow
+        final nextAlarm = todayAlarm.add(const Duration(days: 1));
+        duration = nextAlarm.difference(now);
+      }
+    } else {
+      // Alarm repeats on specific days
+      // Check if today is a repeat day and the alarm hasn't passed yet
+      if (days[now.weekday - 1] && now.isBefore(todayAlarm)) {
+        duration = todayAlarm.difference(now);
+      } else {
+        // Find the next day the alarm will ring
+        int daysToAdd = 1;
+        bool foundNextAlarmDay = false;
 
       for (int i = 1; i <= 7; i++) {
-        int nextDayIndex = (now.weekday + i - 1) % 7;
+          // Get the next day's index (wrapping around if needed)
+          int nextDayIndex = (now.weekday - 1 + i) % 7;
 
         if (days[nextDayIndex]) {
-          if (i < daysUntilNextAlarm) {
-            daysUntilNextAlarm = i;
-            nextAlarm = DateTime(
+            daysToAdd = i;
+            foundNextAlarmDay = true;
+            break;
+          }
+        }
+        
+        if (!foundNextAlarmDay) {
+          return 'No upcoming alarms';
+        }
+        
+        final nextAlarm = DateTime(
               now.year,
               now.month,
-              now.day + i,
+          now.day + daysToAdd,
               alarmTime.hour,
               alarmTime.minute,
             );
-          }
-        }
-      }
 
-      if (nextAlarm != null) {
         duration = nextAlarm.difference(now);
-      } else {
-        return 'No upcoming alarms';
       }
     }
 
+    // Format the duration into a human-readable string
     if (duration.inMinutes < 1) {
       return 'less than 1 minute';
+    } else if (duration.inHours < 1) {
+      final minutes = duration.inMinutes;
+      return minutes == 1 ? '$minutes minute' : '$minutes minutes';
     } else if (duration.inHours < 24) {
       final hours = duration.inHours;
       final minutes = duration.inMinutes % 60;
-      if (hours == 0) {
-        return minutes == 1 ? '$minutes minute' : '$minutes minutes';
-      } else if (minutes == 0) {
+      
+      if (minutes == 0) {
         return hours == 1 ? '$hours hour' : '$hours hours';
-      } else if (hours == 1) {
+      } else {
+        if (hours == 1) {
         return minutes == 1
             ? '$hours hour $minutes minute'
             : '$hours hour $minutes minutes';
       } else {
-        return '$hours hour $minutes minutes';
+          return minutes == 1
+              ? '$hours hours $minutes minute'
+              : '$hours hours $minutes minutes';
       }
-    } else if (duration.inDays == 1) {
-      return '1 day';
+      }
     } else {
-      return '${duration.inDays} days';
+      final days = duration.inDays;
+      final hours = duration.inHours % 24;
+      
+      if (hours == 0) {
+        return days == 1 ? '$days day' : '$days days';
+      } else {
+        if (days == 1) {
+          return hours == 1
+              ? '$days day $hours hour'
+              : '$days day $hours hours';
+        } else {
+          return hours == 1
+              ? '$days days $hours hour'
+              : '$days days $hours hours';
+        }
+      }
     }
   }
 
@@ -463,7 +501,7 @@ class Utils {
       label: '',
       isOneTime: true,
       deleteAfterGoesOff: false,
-      offsetDetails: {},
+      offsetDetails: [{}],
       lastEditedUserId: '',
       mutexLock: false,
       ownerName: '',

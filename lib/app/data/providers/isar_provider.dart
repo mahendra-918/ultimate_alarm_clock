@@ -63,6 +63,7 @@ class IsarDb {
   Future<Database?> getTimerSQLiteDatabase() async {
     Database? db;
     final dir = await getDatabasesPath();
+    // await deleteDatabase(dir);
     db = await openDatabase(
       '$dir/timer.db',
       version: 1,
@@ -107,11 +108,11 @@ class IsarDb {
 
   void _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
-      
+      // Add weatherConditionType column
       await db.execute('ALTER TABLE alarms ADD COLUMN weatherConditionType INTEGER NOT NULL DEFAULT 2');
     }
     if (oldVersion < 3) {
-      
+      // Add activityConditionType column
       await db.execute('ALTER TABLE alarms ADD COLUMN activityConditionType INTEGER NOT NULL DEFAULT 2');
     }
   }
@@ -152,6 +153,7 @@ class IsarDb {
         ownerName TEXT NOT NULL,
         lastEditedUserId TEXT,
         mutexLock INTEGER NOT NULL DEFAULT 0,
+        mutexLockTimestamp INTEGER NOT NULL DEFAULT 0,
         mainAlarmTime TEXT,
         label TEXT,
         isOneTime INTEGER NOT NULL DEFAULT 0,
@@ -264,7 +266,6 @@ class IsarDb {
 
   static Future<AlarmModel> addAlarm(AlarmModel alarmRecord) async {
     final isarProvider = IsarDb();
-    final sql = await IsarDb().getAlarmSQLiteDatabase();
     final db = await isarProvider.db;
     
     await db.writeTxn(() async {
@@ -273,20 +274,23 @@ class IsarDb {
     final sqlmap = alarmRecord.toSQFliteMap();
     print(sqlmap);
     
-    try {
-      
-      await sql!.insert('alarms', sqlmap);
-    } catch (e) {
-      if (e.toString().contains('locationConditionType') || e.toString().contains('weatherConditionType') || e.toString().contains('activityConditionType')) {
-      
-        Map<String, dynamic> fallbackMap = Map.from(sqlmap);
-        fallbackMap.remove('locationConditionType');
-        fallbackMap.remove('weatherConditionType');
-        fallbackMap.remove('activityConditionType');
-        await sql!.insert('alarms', fallbackMap);
-        debugPrint('Inserted alarm without new columns (backward compatibility)');
-      } else {
-        rethrow;
+    if (!alarmRecord.isSharedAlarmEnabled) {
+      final sql = await IsarDb().getAlarmSQLiteDatabase();
+      try {
+        // Try to insert with all fields including new columns
+        await sql!.insert('alarms', sqlmap);
+      } catch (e) {
+        if (e.toString().contains('locationConditionType') || e.toString().contains('weatherConditionType') || e.toString().contains('activityConditionType')) {
+          // If new columns don't exist, insert without them for backward compatibility
+          Map<String, dynamic> fallbackMap = Map.from(sqlmap);
+          fallbackMap.remove('locationConditionType');
+          fallbackMap.remove('weatherConditionType');
+          fallbackMap.remove('activityConditionType');
+          await sql!.insert('alarms', fallbackMap);
+          debugPrint('Inserted alarm without new columns (backward compatibility)');
+        } else {
+          rethrow;
+        }
       }
     }
     
@@ -370,7 +374,7 @@ class IsarDb {
     final db = await isarProvider.db;
     final alarms =
         await db.alarmModels.where().filter().alarmIDEqualTo(alarmID).findAll();
-    print('checkEmpty ${alarms[0].alarmID} ${alarms.isNotEmpty}');
+    // print('checkEmpty ${alarms[0].alarmID} ${alarms.isNotEmpty}');
 
     return alarms.isNotEmpty;
   }
@@ -402,11 +406,14 @@ class IsarDb {
       );
     }
 
-    // Get all enabled alarms
+
     List<AlarmModel> alarms = await db.alarmModels
         .where()
         .filter()
         .isEnabledEqualTo(true)
+        .and()
+        .isSharedAlarmEnabledEqualTo(false)
+        .and()
         .profileEqualTo(currentProfile)
         .findAll();
 
@@ -464,38 +471,20 @@ class IsarDb {
 
   static Future<void> updateAlarm(AlarmModel alarmRecord) async {
     final isarProvider = IsarDb();
-    final sql = await IsarDb().getAlarmSQLiteDatabase();
     final db = await isarProvider.db;
     await db.writeTxn(() async {
       await db.alarmModels.put(alarmRecord);
     });
     await IsarDb().insertLog('Alarm updated ${alarmRecord.alarmTime}', status: Status.success, type: LogType.normal);
     
-    try {
-      
+    if (!alarmRecord.isSharedAlarmEnabled) {
+      final sql = await IsarDb().getAlarmSQLiteDatabase();
       await sql!.update(
         'alarms',
         alarmRecord.toSQFliteMap(),
         where: 'alarmID = ?',
         whereArgs: [alarmRecord.alarmID],
       );
-    } catch (e) {
-      if (e.toString().contains('locationConditionType') || e.toString().contains('weatherConditionType') || e.toString().contains('activityConditionType')) {
-      
-        Map<String, dynamic> fallbackMap = Map.from(alarmRecord.toSQFliteMap());
-        fallbackMap.remove('locationConditionType');
-        fallbackMap.remove('weatherConditionType');
-        fallbackMap.remove('activityConditionType');
-        await sql!.update(
-          'alarms',
-          fallbackMap,
-          where: 'alarmID = ?',
-          whereArgs: [alarmRecord.alarmID],
-        );
-        debugPrint('Updated alarm without new columns (backward compatibility)');
-      } else {
-        rethrow;
-      }
     }
   }
 
@@ -582,17 +571,24 @@ class IsarDb {
   static Future<void> deleteAlarm(int id) async {
     final isarProvider = IsarDb();
     final db = await isarProvider.db;
-    final sql = await IsarDb().getAlarmSQLiteDatabase();
     final tobedeleted = await db.alarmModels.get(id);
+    
+    if (tobedeleted == null) return;
+    
     await db.writeTxn(() async {
       await db.alarmModels.delete(id);
     });
-    await IsarDb().insertLog('Alarm deleted ${tobedeleted!.alarmTime}');
-    await sql!.delete(
-      'alarms',
-      where: 'alarmID = ?',
-      whereArgs: [tobedeleted!.alarmID],
-    );
+    await IsarDb().insertLog('Alarm deleted ${tobedeleted.alarmTime}');
+    
+
+    if (!tobedeleted.isSharedAlarmEnabled) {
+      final sql = await IsarDb().getAlarmSQLiteDatabase();
+      await sql!.delete(
+        'alarms',
+        where: 'alarmID = ?',
+        whereArgs: [tobedeleted.alarmID],
+      );
+    }
   }
 
   // Timer Functions
