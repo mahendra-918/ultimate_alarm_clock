@@ -113,24 +113,27 @@ class FirestoreDb {
   }
 
   static CollectionReference _alarmsCollection(UserModel? user) {
-    if (user == null) {
-      // Hacky fix to prevent stream from not emitting
-      return _firebaseFirestore.collection('alarms');
-    } else {
-      // return _firebaseFirestore
-      //     .collection('users')
-      //     .doc(user.id)
-      //     .collection('alarms');
-
-      return _firebaseFirestore
-            .collection('sharedAlarms');
-    }
+    // Always use sharedAlarms collection since we're using shared alarm functionality
+    return _firebaseFirestore.collection('sharedAlarms');
   }
 
   static Future<void> addUser(UserModel userModel) async {
     final DocumentReference docRef = _usersCollection.doc(userModel.id);
     final user = await docRef.get();
-    if (!user.exists) await docRef.set(userModel.toJson());
+    if (!user.exists) {
+      // Ensure receivedItems is initialized as an empty array
+      Map<String, dynamic> userData = userModel.toJson();
+      userData['receivedItems'] = userData['receivedItems'] ?? [];
+      await docRef.set(userData);
+      debugPrint('✅ Created new user document with receivedItems: ${userModel.id}');
+    } else {
+      // Check if existing user has receivedItems field, add it if missing
+      final data = user.data() as Map<String, dynamic>?;
+      if (data != null && !data.containsKey('receivedItems')) {
+        await docRef.update({'receivedItems': []});
+        debugPrint('✅ Added receivedItems field to existing user: ${userModel.id}');
+      }
+    }
   }
 
   static addAlarm(UserModel? user, AlarmModel alarmRecord) async {
@@ -371,47 +374,82 @@ static Future<List<String>> getUserIdsByEmails(List emails) async {
 
 
   static Future<void> shareAlarm(List emails, AlarmModel alarm) async {
+    debugPrint('🚀 shareAlarm called with ${emails.length} emails');
+    
     if (emails.isEmpty) {
-      debugPrint('No emails provided for sharing');
+      debugPrint('❌ No emails provided for sharing');
       return;
     }
 
-    final currentUserId = _firebaseAuthInstance.currentUser!.providerData[0].uid;
+    final currentUserEmail = _firebaseAuthInstance.currentUser!.email;
+    final currentUserId = _firebaseAuthInstance.currentUser!.uid;
+    
+    debugPrint('👤 Current user: $currentUserEmail (ID: $currentUserId)');
+    
+    // Get current user's name for the notification
+    String ownerName = currentUserEmail ?? 'Someone';
+    try {
+      final currentUserDoc = await _firebaseFirestore
+          .collection('users')
+          .doc(currentUserId)
+          .get();
+      if (currentUserDoc.exists) {
+        final userData = currentUserDoc.data() as Map<String, dynamic>;
+        ownerName = userData['fullName'] ?? currentUserEmail ?? 'Someone';
+        debugPrint('✅ Found owner name: $ownerName');
+      }
+    } catch (e) {
+      debugPrint('❌ Could not fetch owner name: $e');
+    }
+    
     alarm.profile = 'Default';
     Map sharedItem = {
       'type': 'alarm',
       'AlarmName': alarm.firestoreId,
-      'owner': currentUserId,
+      'owner': ownerName,  // Use readable name instead of userId
       'alarmTime': alarm.alarmTime
     };
 
+    debugPrint('🔄 Sharing alarm with ${emails.length} users');
+    debugPrint('   - Alarm ID: ${alarm.firestoreId}');
+    debugPrint('   - Alarm Time: ${alarm.alarmTime}');
+    debugPrint('   - Owner: $ownerName');
+    debugPrint('   - Recipients: $emails');
+    debugPrint('   - Shared item: $sharedItem');
+
     try {
+      int successCount = 0;
+      for (int i = 0; i < emails.length; i++) {
+        final email = emails[i];
+        debugPrint('📧 Processing recipient ${i + 1}/${emails.length}: $email');
+        
+        try {
+          bool success = await addItemToUserByEmail(email, sharedItem);
+          if (success) {
+            successCount++;
+            debugPrint('✅ Successfully shared alarm with $email');
+          } else {
+            debugPrint('❌ Failed to share alarm with $email - user not found');
+          }
+        } catch (e) {
+          debugPrint('❌ Error sharing alarm with $email: $e');
+        }
+      }
       
-      final results = await Future.wait(
-        emails.map((email) => addItemToUserByEmail(email, sharedItem).catchError((e) {
-          debugPrint('Error sharing to $email: $e');
-          return false;
-        })),
-        eagerError: false 
-      );
-      
-      
-      if (results.any((success) => success != false)) {
-        debugPrint('Alarm shared with at least one recipient');
+      if (successCount > 0) {
+        debugPrint('✅ Alarm shared successfully with $successCount/${emails.length} recipients');
       } else {
-        debugPrint('Failed to share alarm with any recipients');
-      
-        debugPrint('Continuing with alarm creation despite sharing failures');
+        debugPrint('❌ Failed to share alarm with any recipients');
       }
     } catch (e) {
-      debugPrint('Error in shareAlarm: $e');
-      
-      debugPrint('Continuing with alarm creation despite sharing error: $e');
+      debugPrint('❌ Error in shareAlarm: $e');
+      debugPrint('❌ Stack trace: ${StackTrace.current}');
     }
   }
 
 static Future<bool> addItemToUserByEmail(String email, dynamic sharedItem) async {
   try {
+    debugPrint('🔍 Looking up user by email: $email');
     final querySnapshot = await _firebaseFirestore
         .collection('users')
         .where('email', isEqualTo: email)
@@ -420,14 +458,29 @@ static Future<bool> addItemToUserByEmail(String email, dynamic sharedItem) async
 
     if (querySnapshot.docs.isNotEmpty) {
       final docId = querySnapshot.docs.first.id;
+      final userData = querySnapshot.docs.first.data() as Map<String, dynamic>;
+      debugPrint('✅ Found user: ${userData['fullName']} (ID: $docId)');
+      debugPrint('📦 Current receivedItems: ${userData['receivedItems']}');
+      debugPrint('📦 Adding shared item to receivedItems: $sharedItem');
+      
+      // Verify the document update
       await _firebaseFirestore.collection('users').doc(docId).update({
         'receivedItems': FieldValue.arrayUnion([sharedItem])
       });
+      
+      // Verify the update was successful
+      final updatedDoc = await _firebaseFirestore.collection('users').doc(docId).get();
+      final updatedData = updatedDoc.data() as Map<String, dynamic>;
+      debugPrint('✅ Updated receivedItems: ${updatedData['receivedItems']}');
+      debugPrint('✅ Successfully added shared item to user $email');
       return true;
+    } else {
+      debugPrint('❌ User not found with email: $email');
+      return false;
     }
-    return false; 
   } catch (e) {
-    debugPrint('Error adding item to user $email: $e');
+    debugPrint('❌ Error adding item to user $email: $e');
+    debugPrint('❌ Stack trace: ${StackTrace.current}');
     return false; 
   }
 }
@@ -576,8 +629,11 @@ static Future<bool> addItemToUserByEmail(String email, dynamic sharedItem) async
 
       return sharedAlarmsStream;
     } else {
-      return _alarmsCollection(user)
-          .orderBy('minutesSinceMidnight', descending: false)
+      // Return a stream that emits from an empty collection to provide a proper QuerySnapshot
+      // This prevents the StreamBuilder from hanging on loading
+      return _firebaseFirestore
+          .collection('_empty_shared_alarms_placeholder')
+          .limit(0)
           .snapshots();
     }
   }
@@ -684,10 +740,16 @@ static Future<bool> addItemToUserByEmail(String email, dynamic sharedItem) async
 
   static Stream<DocumentSnapshot<Map<String, dynamic>>>
       getNotifications() async* {
+    // Check if user is authenticated
+    if (_firebaseAuthInstance.currentUser == null) {
+      // Return empty stream that never emits anything for unauthenticated users
+      return;
+    }
+    
     Stream<DocumentSnapshot<Map<String, dynamic>>> userNotifications =
         _firebaseFirestore
             .collection('users')
-            .doc(FirebaseAuth.instance.currentUser!.providerData[0].uid)
+            .doc(_firebaseAuthInstance.currentUser!.uid)
             .snapshots();
 
     yield* userNotifications;
@@ -698,7 +760,7 @@ static Future<bool> addItemToUserByEmail(String email, dynamic sharedItem) async
 
     await _firebaseFirestore
         .collection('users')
-        .doc(_firebaseAuthInstance.currentUser!.providerData[0].uid)
+        .doc(_firebaseAuthInstance.currentUser!.uid)
         .update({
       'receivedItems': FieldValue.arrayRemove([item])
     });
@@ -707,11 +769,10 @@ static Future<bool> addItemToUserByEmail(String email, dynamic sharedItem) async
 
   static updateToken(String token) async {
     try {
-      if (_firebaseAuthInstance.currentUser != null && 
-          _firebaseAuthInstance.currentUser!.providerData.isNotEmpty) {
+      if (_firebaseAuthInstance.currentUser != null) {
         await _firebaseFirestore
             .collection('users')
-            .doc(_firebaseAuthInstance.currentUser!.providerData[0].uid)
+            .doc(_firebaseAuthInstance.currentUser!.uid)
             .update({
           'fcmToken': token
         });
@@ -724,7 +785,7 @@ static Future<bool> addItemToUserByEmail(String email, dynamic sharedItem) async
   }
 
   static acceptSharedAlarm(String alarmOwnerId, AlarmModel alarm) async {
-    String? currentUserId = _firebaseAuthInstance.currentUser!.providerData[0].uid;
+    String? currentUserId = _firebaseAuthInstance.currentUser!.uid;
     
     
     final alarmDoc = await _firebaseFirestore
@@ -803,7 +864,7 @@ await _firebaseFirestore
           .doc(alarmData.firestoreId)
           .update({
         'lastUpdated': FieldValue.serverTimestamp(),
-        'lastEditedUserId': _firebaseAuthInstance.currentUser?.providerData[0].uid,
+        'lastEditedUserId': _firebaseAuthInstance.currentUser?.uid,
 
         'alarmTime': alarmData.alarmTime,
         'minutesSinceMidnight': alarmData.minutesSinceMidnight,

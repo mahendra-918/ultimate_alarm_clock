@@ -25,9 +25,15 @@ class NotificationsController extends GetxController {
   @override
   void onInit() async {
     super.onInit();
+    debugPrint('🔔 NotificationsController onInit');
+    debugPrint('   - User signed in: ${homeController.isUserSignedIn.value}');
+    debugPrint('   - User model: ${homeController.userModel.value?.email ?? 'null'}');
+    
     notifications = homeController.notifications;
     selectedProfile.value = homeController.selectedProfile.value;
     allProfiles = await getAllProfiles();
+    
+    debugPrint('   - Initial notifications count: ${notifications.length}');
   }
 
   Future getAllProfiles() async {

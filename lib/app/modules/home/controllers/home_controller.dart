@@ -164,13 +164,27 @@ class HomeController extends GetxController {
   }
 
   initStream(UserModel? user) async {
-    // firestoreStreamAlarms = FirestoreDb.getAlarms(userModel.value);
+    debugPrint('🔧 Initializing alarm streams...');
+    debugPrint('   - User: ${user?.email ?? 'null'}');
+    debugPrint('   - User ID: ${user?.id ?? 'null'}');
+    debugPrint('   - Selected Profile: ${selectedProfile.value}');
+    
+    // Always create local alarm stream
     isarStreamAlarms = IsarDb.getAlarms(selectedProfile.value);
-    firestoreStreamAlarms = FirestoreDb.getSharedAlarms(userModel.value);
-    Stream<List<AlarmModel>> streamAlarms = rx.Rx.combineLatest2(
-      firestoreStreamAlarms!,
-      isarStreamAlarms!,
-      (firestoreData, isarData) {
+    
+    if (user != null) {
+      // Only create Firestore stream if user is signed in
+      firestoreStreamAlarms = FirestoreDb.getSharedAlarms(user);
+      debugPrint('✅ Streams created - Isar: ${isarStreamAlarms != null}, Firestore: ${firestoreStreamAlarms != null}');
+      
+      Stream<List<AlarmModel>> streamAlarms = rx.Rx.combineLatest2(
+        firestoreStreamAlarms!,
+        isarStreamAlarms!,
+        (firestoreData, isarData) {
+        debugPrint('📊 Stream data received:');
+        debugPrint('   - Firestore docs: ${firestoreData.docs.length}');
+        debugPrint('   - Isar alarms: ${(isarData as List).length}');
+        
         List<DocumentSnapshot> firestoreDocuments = firestoreData.docs;
         latestFirestoreAlarms = firestoreDocuments.map((doc) {
           return AlarmModel.fromDocumentSnapshot(
@@ -201,6 +215,13 @@ class HomeController extends GetxController {
           ...latestFirestoreAlarms,
           ...latestIsarAlarms,
         ];
+        
+        debugPrint('📋 Combined alarm list: ${alarms.length} total');
+        debugPrint('   - Shared alarms: ${latestFirestoreAlarms.length}');
+        debugPrint('   - Local alarms: ${latestIsarAlarms.length}');
+        for (int i = 0; i < alarms.length && i < 3; i++) {
+          debugPrint('   - Alarm ${i + 1}: ${alarms[i].alarmTime} (${alarms[i].isSharedAlarmEnabled ? 'Shared' : 'Local'})');
+        }
 
         if (isSortedAlarmListEnabled.value) {
           alarms.sort((a, b) {
@@ -275,6 +296,99 @@ class HomeController extends GetxController {
     );
 
     return streamAlarms;
+    } else {
+      // User not signed in - only use local alarms
+      debugPrint('✅ Streams created - Isar: ${isarStreamAlarms != null}, Firestore: false (user not signed in)');
+      
+      Stream<List<AlarmModel>> streamAlarms = isarStreamAlarms!.map((isarData) {
+        debugPrint('📊 Stream data received (local only):');
+        debugPrint('   - Isar alarms: ${(isarData as List).length}');
+        
+        latestFirestoreAlarms = [];
+        latestIsarAlarms = isarData as List<AlarmModel>;
+
+        List<AlarmModel> alarms = [...latestIsarAlarms];
+        
+        debugPrint('📋 Combined alarm list: ${alarms.length} total');
+        debugPrint('   - Shared alarms: 0 (user not signed in)');
+        debugPrint('   - Local alarms: ${latestIsarAlarms.length}');
+        for (int i = 0; i < alarms.length && i < 3; i++) {
+          debugPrint('   - Alarm ${i + 1}: ${alarms[i].alarmTime} (Local)');
+        }
+
+        if (isSortedAlarmListEnabled.value) {
+          alarms.sort((a, b) {
+            final String timeA = a.alarmTime;
+            final String timeB = b.alarmTime;
+
+            // Convert the alarm time strings to DateTime objects for comparison
+            DateTime dateTimeA = DateFormat('HH:mm').parse(timeA);
+            DateTime dateTimeB = DateFormat('HH:mm').parse(timeB);
+
+            // Compare the DateTime objects to sort in ascending order
+            return dateTimeA.compareTo(dateTimeB);
+          });
+        } else {
+          alarms.sort((a, b) {
+            // First sort by isEnabled
+            if (a.isEnabled != b.isEnabled) {
+              return a.isEnabled ? -1 : 1;
+            }
+
+            // Then sort by upcoming time
+            int aUpcomingTime = a.minutesSinceMidnight;
+            int bUpcomingTime = b.minutesSinceMidnight;
+
+            // Check if alarm repeats on any day
+            bool aRepeats = a.days.any((day) => day);
+            bool bRepeats = b.days.any((day) => day);
+
+            // If alarm repeats on any day, find the next upcoming day
+            if (aRepeats) {
+              int currentDay = DateTime.now().weekday - 1;
+              for (int i = 0; i < a.days.length; i++) {
+                int dayIndex = (currentDay + i) % a.days.length;
+                if (a.days[dayIndex]) {
+                  aUpcomingTime += i * Duration.minutesPerDay;
+                  break;
+                }
+              }
+            } else {
+              // If alarm is one-time and has already passed, set upcoming time
+              // to next day
+              if (aUpcomingTime <=
+                  DateTime.now().hour * 60 + DateTime.now().minute) {
+                aUpcomingTime += Duration.minutesPerDay;
+              }
+            }
+
+            if (bRepeats) {
+              int currentDay = DateTime.now().weekday - 1;
+              for (int i = 0; i < b.days.length; i++) {
+                int dayIndex = (currentDay + i) % b.days.length;
+                if (b.days[dayIndex]) {
+                  bUpcomingTime += i * Duration.minutesPerDay;
+                  break;
+                }
+              }
+            } else {
+              // If alarm is one-time and has already passed, set upcoming time
+              // to next day
+              if (bUpcomingTime <=
+                  DateTime.now().hour * 60 + DateTime.now().minute) {
+                bUpcomingTime += Duration.minutesPerDay;
+              }
+            }
+
+            return aUpcomingTime.compareTo(bUpcomingTime);
+          });
+        }
+
+        return alarms;
+      });
+
+      return streamAlarms;
+    }
   }
 
   void readProfileName() async {
@@ -320,18 +434,35 @@ class HomeController extends GetxController {
     readProfileName();
 
     userModel.value = await SecureStorageProvider().retrieveUserModel();
+    debugPrint('🔐 User authentication check:');
+    debugPrint('   - Stored user model: ${userModel.value?.email ?? 'null'}');
+    debugPrint('   - Firebase user: ${FirebaseAuth.instance.currentUser?.email ?? 'null'}');
+    
     if (userModel.value == null){
-    FirebaseAuth.instance.authStateChanges().listen((user) {
-      if (user == null) {
-        isUserSignedIn.value = false;
-      } else {
-        isUserSignedIn.value = true;
-      }
-    });
+      debugPrint('❌ No stored user model found, setting up auth listener');
+      FirebaseAuth.instance.authStateChanges().listen((user) {
+        if (user == null) {
+          debugPrint('🚫 User signed out');
+          isUserSignedIn.value = false;
+        } else {
+          debugPrint('✅ User signed in: ${user.email}');
+          isUserSignedIn.value = true;
+          // Try to retrieve user model again after sign in
+          _initializeUserAfterAuth();
+        }
+      });
     }
     else {
+        debugPrint('✅ User model found, setting signed in state');
         isUserSignedIn.value = true;
         
+        // Ensure user document exists in Firestore with receivedItems field
+        try {
+          await FirestoreDb.addUser(userModel.value!);
+          debugPrint('✅ Ensured user document exists in Firestore');
+        } catch (e) {
+          debugPrint('⚠️ Error ensuring user document exists: $e');
+        }
         
         try {
           await forceRefreshSharedAlarms();
@@ -368,6 +499,84 @@ class HomeController extends GetxController {
     });
 
     refreshUpcomingAlarms();
+  }
+  
+  /// Initialize user-related functionality after authentication
+  Future<void> _initializeUserAfterAuth() async {
+    try {
+      debugPrint('🔄 Initializing user after authentication...');
+      userModel.value = await SecureStorageProvider().retrieveUserModel();
+      
+      if (userModel.value != null) {
+        debugPrint('✅ User model retrieved: ${userModel.value!.email}');
+        
+        // Initialize shared alarm functionality
+        await forceRefreshSharedAlarms();
+        await checkAndReschedulePersistedSharedAlarms();
+        setupSharedAlarmListener();
+        setupPeriodicSharedAlarmCheck();
+        setupUserNotificationListener();
+        
+        // Refresh the alarm streams
+        refreshUpcomingAlarms();
+      } else {
+        debugPrint('❌ No stored user model found, creating from Firebase user...');
+        await _createUserModelFromFirebaseUser();
+      }
+    } catch (e) {
+      debugPrint('❌ Error initializing user after auth: $e');
+    }
+  }
+  
+  /// Create user model from Firebase user when stored model is missing
+  Future<void> _createUserModelFromFirebaseUser() async {
+    try {
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser != null) {
+        debugPrint('🔧 Creating user model from Firebase user: ${firebaseUser.email}');
+        
+        // Extract name parts
+        String fullName = firebaseUser.displayName ?? firebaseUser.email ?? 'User';
+        List<String> parts = fullName.split(' ');
+        String firstName = parts.isNotEmpty ? parts[0].toLowerCase().capitalizeFirst ?? 'User' : 'User';
+        String lastName = parts.length > 1 ? parts.last.toLowerCase().capitalizeFirst ?? '' : '';
+        
+        // Create user model
+        var newUserModel = UserModel(
+          id: firebaseUser.uid,
+          fullName: fullName,
+          firstName: firstName,
+          lastName: lastName,
+          email: firebaseUser.email ?? '',
+        );
+        
+        // Store in Firestore and secure storage
+        await FirestoreDb.addUser(newUserModel);
+        await SecureStorageProvider().storeUserModel(newUserModel);
+        
+        debugPrint('✅ User document created in Firestore: ${newUserModel.id}');
+        
+        // Update controller state
+        userModel.value = newUserModel;
+        isUserSignedIn.value = true;
+        
+        debugPrint('✅ User model created and stored: ${newUserModel.email}');
+        
+        // Initialize shared alarm functionality
+        await forceRefreshSharedAlarms();
+        await checkAndReschedulePersistedSharedAlarms();
+        setupSharedAlarmListener();
+        setupPeriodicSharedAlarmCheck();
+        setupUserNotificationListener();
+        
+        // Refresh the alarm streams
+        refreshUpcomingAlarms();
+      } else {
+        debugPrint('❌ No Firebase user found');
+      }
+    } catch (e) {
+      debugPrint('❌ Error creating user model from Firebase user: $e');
+    }
   }
 
   

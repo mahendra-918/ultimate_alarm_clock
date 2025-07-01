@@ -480,11 +480,11 @@ class HomeView extends GetView<HomeController> {
                       axisDirection: AxisDirection.down,
                       child: Obx(() {
                         return FutureBuilder(
-                          future: controller.isUserSignedIn.value
-                              ? controller
-                                  .initStream(controller.userModel.value)
-                              : controller
-                                  .initStream(controller.userModel.value),
+                          future: (() {
+                            print('🏠 HomeView: User signed in: ${controller.isUserSignedIn.value}');
+                            print('🏠 HomeView: User model: ${controller.userModel.value?.email ?? 'null'}');
+                            return controller.initStream(controller.userModel.value);
+                          })(),
                           builder: (context, AsyncSnapshot snapshot) {
                             if (snapshot.hasData) {
                               final Stream streamAlarms = snapshot.data;
@@ -503,6 +503,10 @@ class HomeView extends GetView<HomeController> {
                                     );
                                   } else {
                                     List<AlarmModel> alarms = snapshot.data;
+                                    print('🏠 HomeView: Received ${alarms.length} alarms');
+                                    for (int i = 0; i < alarms.length && i < 3; i++) {
+                                      print('   - Alarm ${i + 1}: ${alarms[i].alarmTime} (${alarms[i].isSharedAlarmEnabled ? 'Shared' : 'Local'})');
+                                    }
 
                                     alarms = alarms.toList();
                                     controller.refreshTimer = true;

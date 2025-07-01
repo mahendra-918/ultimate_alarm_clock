@@ -1646,7 +1646,15 @@ class AddOrUpdateAlarmController extends GetxController {
       
   
       try {
-        await PushNotifications().triggerSharedItemNotification(alarmData.sharedUserIds!);
+        // Create shared item data for the notification
+        final sharedItem = {
+          'type': 'alarm',
+          'AlarmName': alarmData.firestoreId,
+          'owner': alarmData.ownerName ?? 'Someone',
+          'alarmTime': alarmData.alarmTime
+        };
+        
+        await PushNotifications().triggerSharedItemNotification(alarmData.sharedUserIds!, sharedItem: sharedItem);
         debugPrint('✅ Cloud function notification sent');
       } catch (e) {
         debugPrint('⚠️ Cloud function notification failed: $e');

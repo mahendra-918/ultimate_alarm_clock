@@ -220,37 +220,63 @@ class ShareDialog extends StatelessWidget {
                                 controller.selectedEmails,
                               );
                             } else {
-                              // First share the alarm - with 5 second timeout
-                              await Future.any([
-                                FirestoreDb.shareAlarm(
-                                  controller.selectedEmails,
-                                  controller.alarmRecord.value,
-                                ),
-                                Future.delayed(const Duration(seconds: 5))
-                              ]);
+                              debugPrint('🚀 Starting alarm sharing process...');
+                              debugPrint('   - Recipients: ${controller.selectedEmails}');
+                              debugPrint('   - Alarm ID: ${controller.alarmRecord.value.firestoreId}');
+                              
+                              // First share the alarm - with 10 second timeout
+                              debugPrint('📤 Step 1: Sharing alarm to Firestore...');
+                              try {
+                                await Future.any([
+                                  FirestoreDb.shareAlarm(
+                                    controller.selectedEmails,
+                                    controller.alarmRecord.value,
+                                  ),
+                                  Future.delayed(const Duration(seconds: 10))
+                                ]);
+                                debugPrint('✅ Step 1 completed: Firestore sharing');
+                              } catch (e) {
+                                debugPrint('❌ Step 1 failed: Firestore sharing error: $e');
+                              }
                               
                               // Get user IDs (with 3 second timeout)
+                              debugPrint('📤 Step 2: Getting user IDs...');
                               List<String> sharedUserIds = [];
                               try {
                                 sharedUserIds = await Future.any([
                                   FirestoreDb.getUserIdsByEmails(controller.selectedEmails),
                                   Future.delayed(const Duration(seconds: 3), () => <String>[])
                                 ]);
+                                debugPrint('✅ Step 2 completed: Found ${sharedUserIds.length} user IDs');
                                 
                                 // Send notifications with timeout
+                                debugPrint('📤 Step 3: Sending push notifications...');
                                 if (sharedUserIds.isNotEmpty) {
                                   try {
+                                    // Create shared item data for the notification
+                                    final sharedItem = {
+                                      'type': 'alarm',
+                                      'AlarmName': controller.alarmRecord.value.firestoreId,
+                                      'owner': controller.alarmRecord.value.ownerName ?? 'Someone',
+                                      'alarmTime': controller.alarmRecord.value.alarmTime
+                                    };
+                                    
                                     await Future.any([
-                                      PushNotifications().triggerSharedItemNotification(sharedUserIds),
+                                      PushNotifications().triggerSharedItemNotification(sharedUserIds, sharedItem: sharedItem),
                                       Future.delayed(const Duration(seconds: 3))
                                     ]);
-                                  } catch (_) {
-                                    // We'll continue anyway as this is not critical
+                                    debugPrint('✅ Step 3 completed: Push notifications sent');
+                                  } catch (e) {
+                                    debugPrint('❌ Step 3 failed: Push notification error: $e');
                                   }
+                                } else {
+                                  debugPrint('⚠️ Step 3 skipped: No user IDs found');
                                 }
-                              } catch (_) {
-                                // Continue even if this fails
+                              } catch (e) {
+                                debugPrint('❌ Step 2 failed: User ID lookup error: $e');
                               }
+                              
+                              debugPrint('🏁 Alarm sharing process completed');
                             }
                             success = true;
                           } catch (e) {

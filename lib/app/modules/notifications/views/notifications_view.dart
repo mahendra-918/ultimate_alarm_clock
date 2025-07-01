@@ -45,13 +45,21 @@ class NotificationsView extends GetView<NotificationsController> {
       body: StreamBuilder(
         stream: FirestoreDb.getNotifications(),
         builder: (context, snapshot) {
+          debugPrint('🔔 NotificationsView StreamBuilder update:');
+          debugPrint('   - Connection state: ${snapshot.connectionState}');
+          debugPrint('   - Has data: ${snapshot.hasData}');
+          debugPrint('   - Has error: ${snapshot.hasError}');
+          debugPrint('   - Error: ${snapshot.error}');
+          
           if (snapshot.connectionState == ConnectionState.waiting) {
+            debugPrint('   - Showing loading indicator');
             return const Center(
               child: CircularProgressIndicator(color: kprimaryColor),
             );
           }
           
           if (snapshot.hasError) {
+            debugPrint('   - Showing error state: ${snapshot.error}');
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -74,14 +82,27 @@ class NotificationsView extends GetView<NotificationsController> {
             );
           }
           
-          if (snapshot.hasData) {
-            final List notif = snapshot.data!['receivedItems'] ?? [];
+          if (snapshot.hasData && snapshot.data != null) {
+            final document = snapshot.data!;
+            final data = document.data();
+            final List notif = data != null ? (data['receivedItems'] ?? []) : [];
             controller.notifications = notif;
             
+            debugPrint('   - Document exists: ${document.exists}');
+            debugPrint('   - Document ID: ${document.id}');
+            debugPrint('   - Document data exists: ${data != null}');
+            debugPrint('   - Raw document data: $data');
+            debugPrint('   - Notifications count: ${notif.length}');
+            for (int i = 0; i < notif.length && i < 3; i++) {
+              debugPrint('   - Notification ${i + 1}: ${notif[i]}');
+            }
+            
             if (controller.notifications.isEmpty) {
+              debugPrint('   - Showing empty state');
               return _buildEmptyState();
             }
             
+            debugPrint('   - Showing notifications list with ${controller.notifications.length} items');
             return RefreshIndicator(
               color: kprimaryColor,
               backgroundColor: ksecondaryBackgroundColor,
@@ -100,6 +121,7 @@ class NotificationsView extends GetView<NotificationsController> {
             );
           }
           
+          debugPrint('   - Falling back to empty state');
           return _buildEmptyState();
         },
       ),

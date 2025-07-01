@@ -139,9 +139,10 @@ Future<void> triggerRescheduleAlarmNotification(String firestoreAlarmId) async {
   }
 }
 
-Future<void> triggerSharedItemNotification(List receivingUserIds) async {
+Future<void> triggerSharedItemNotification(List receivingUserIds, {Map<String, dynamic>? sharedItem}) async {
   try {
     print('🔔 Attempting to send shared item notification to ${receivingUserIds.length} users');
+    print('📦 Shared item data: $sharedItem');
     
     var userModel = await SecureStorageProvider().retrieveUserModel();
     if (userModel == null) {
@@ -155,12 +156,13 @@ Future<void> triggerSharedItemNotification(List receivingUserIds) async {
     final response = await callable.call({
       'receivingUserIds': receivingUserIds,
       'message': '${userModel.fullName} has shared an alarm with you!',
+      'sharedItem': sharedItem, // Pass the shared item data
     });
 
     if (response.data['success'] == true) {
-      print('✅ Silent alarm sent!');
+      print('✅ Shared item notification sent successfully!');
     } else {
-      print('❌ Failed to send silent alarm: ${response.data['message']}');
+      print('❌ Failed to send shared item notification: ${response.data['message']}');
     }
   } catch (e) {
     print('❌ Error calling shared item notification function: $e');
