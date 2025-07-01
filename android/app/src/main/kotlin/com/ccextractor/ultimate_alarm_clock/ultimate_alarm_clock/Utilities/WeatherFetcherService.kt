@@ -31,6 +31,7 @@ class WeatherFetcherService() : Service() {
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var displayManager: DisplayManager
     private var weatherTypes= ""
+    private var weatherConditionType = 0
 
     override fun onCreate() = runBlocking {
         super.onCreate()
@@ -47,6 +48,8 @@ class WeatherFetcherService() : Service() {
         var currentLongitude = 0.0
         var currentLatitude = 0.0
         weatherTypes = sharedPreferences.getString("flutter.weatherTypes", "")!!
+        weatherConditionType = sharedPreferences.getInt("flutter.weatherConditionType", 2)
+        Log.d("WeatherCondition", "type $weatherConditionType")
         var location = fetchLocationDeffered.await()
         Log.d("Location", location)
         val current = location.split(",")
@@ -99,55 +102,70 @@ class WeatherFetcherService() : Service() {
                 else{
                     currentWeather="sunny"
                 }
-                Log.d("Weather",currentWeather)
-                if(weatherTypes.contains(currentWeather)){
-                    shouldRing = false
+                Log.d("Weather", "Current weather: $currentWeather")
+                Log.d("WeatherTypes", "Selected types: $weatherTypes")
+                
+                val weatherMatches = weatherTypes.contains(currentWeather)
+                Log.d("WeatherMatch", "Weather matches selected types: $weatherMatches")
+                
+                // Enhanced weather condition logic
+                when (weatherConditionType) {
+                    0 -> { // off - no weather condition
+                        shouldRing = true
+                        Log.d("WeatherCondition", "Weather condition disabled - alarm will ring")
+                    }
+                    1 -> { // ringWhenMatch - ring when weather matches selected types
+                        shouldRing = weatherMatches
+                        Log.d("WeatherCondition", "Ring when match: shouldRing = $shouldRing (weather matches: $weatherMatches)")
+                    }
+                    2 -> { // cancelWhenMatch - cancel when weather matches selected types (original behavior)
+                        shouldRing = !weatherMatches
+                        Log.d("WeatherCondition", "Cancel when match: shouldRing = $shouldRing (weather matches: $weatherMatches)")
+                    }
+                    3 -> { // ringWhenDifferent - ring when weather is different from selected types
+                        shouldRing = !weatherMatches
+                        Log.d("WeatherCondition", "Ring when different: shouldRing = $shouldRing (weather matches: $weatherMatches)")
+                    }
+                    4 -> { // cancelWhenDifferent - cancel when weather is different from selected types
+                        shouldRing = weatherMatches
+                        Log.d("WeatherCondition", "Cancel when different: shouldRing = $shouldRing (weather matches: $weatherMatches)")
+                    }
+                    else -> {
+                        shouldRing = true
+                        Log.d("WeatherCondition", "Unknown condition type $weatherConditionType - defaulting to ring")
+                    }
+                }
+                
+                if (shouldRing) {
+                    val flutterIntent = Intent(this@WeatherFetcherService, MainActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                        putExtra("initialRoute", "/")
+                        putExtra("alarmRing", "true")
+                        putExtra("isAlarm", "true")
+                    }
 
-                    if(shouldRing==false)
-                    
-                    {
+                    Timer().schedule(9000) {
+                        println("ANDROID STARTING APP")
+                        this@WeatherFetcherService.startActivity(flutterIntent)
                         logdbHelper.insertLog(
-                            "Alarm didn't ring. Because it is ${currentWeather} outside. And, your specified weather types were: ${weatherTypes}",
-                            status = LogDatabaseHelper.Status.WARNING,
+                            "Alarm is ringing. Weather condition (type $weatherConditionType) evaluated: current weather is $currentWeather, selected types: $weatherTypes, matches: $weatherMatches",
+                            status = LogDatabaseHelper.Status.SUCCESS,
                             type = LogDatabaseHelper.LogType.NORMAL,
-                            hasRung = 0
+                            hasRung = 1
                         )
                         Timer().schedule(3000) {
                             stopSelf()
                         }
                     }
-
-                }
-                else{
-                    shouldRing = true
-
-                        if (shouldRing) {
-
-                            val flutterIntent =
-                                Intent(this@WeatherFetcherService, MainActivity::class.java).apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                                    putExtra("initialRoute", "/")
-                                    putExtra("alarmRing", "true")
-                                    putExtra("isAlarm", "true")
-
-                                }
-
-                            Timer().schedule(9000) {
-                                println("ANDROID STARTING APP")
-                                this@WeatherFetcherService.startActivity(flutterIntent)
-                                logdbHelper.insertLog(
-                                    "Alarm is ringing. The current weather is ${currentWeather}.",
-                                    status = LogDatabaseHelper.Status.SUCCESS,
-                                    type = LogDatabaseHelper.LogType.NORMAL,
-                                    hasRung = 1
-                                )
-                                Timer().schedule(3000) {
-                                    stopSelf()
-                                }
-                            }
-
-
-
+                } else {
+                    logdbHelper.insertLog(
+                        "Alarm cancelled. Weather condition (type $weatherConditionType) evaluated: current weather is $currentWeather, selected types: $weatherTypes, matches: $weatherMatches",
+                        status = LogDatabaseHelper.Status.WARNING,
+                        type = LogDatabaseHelper.LogType.NORMAL,
+                        hasRung = 0
+                    )
+                    Timer().schedule(3000) {
+                        stopSelf()
                     }
                 }
             },

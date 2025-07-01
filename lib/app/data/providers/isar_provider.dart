@@ -56,8 +56,7 @@ class IsarDb {
 
     final dir = await getDatabasesPath();
     final dbPath = '$dir/alarms.db';
-    // await deleteDatabase(dbPath);
-    db = await openDatabase(dbPath, version: 1, onCreate: _onCreate);
+    db = await openDatabase(dbPath, version: 3, onCreate: _onCreate, onUpgrade: _onUpgrade);
     return db;
   }
 
@@ -107,6 +106,17 @@ class IsarDb {
     return db;
   }
 
+  void _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Add weatherConditionType column
+      await db.execute('ALTER TABLE alarms ADD COLUMN weatherConditionType INTEGER NOT NULL DEFAULT 2');
+    }
+    if (oldVersion < 3) {
+      // Add activityConditionType column
+      await db.execute('ALTER TABLE alarms ADD COLUMN activityConditionType INTEGER NOT NULL DEFAULT 2');
+    }
+  }
+
   void _onCreate(Database db, int version) async {
     // Create tables for alarms and ringtones (modify column types as needed)
     await db.execute('''
@@ -117,8 +127,11 @@ class IsarDb {
         alarmID TEXT NOT NULL UNIQUE,
         isEnabled INTEGER NOT NULL DEFAULT 1,
         isLocationEnabled INTEGER NOT NULL DEFAULT 0,
+        locationConditionType INTEGER NOT NULL DEFAULT 2,
         isSharedAlarmEnabled INTEGER NOT NULL DEFAULT 0,
         isWeatherEnabled INTEGER NOT NULL DEFAULT 0,
+        weatherConditionType INTEGER NOT NULL DEFAULT 2,
+        activityConditionType INTEGER NOT NULL DEFAULT 2,
         location TEXT,
         activityInterval INTEGER,
         minutesSinceMidnight INTEGER NOT NULL,
@@ -258,13 +271,27 @@ class IsarDb {
     await db.writeTxn(() async {
       await db.alarmModels.put(alarmRecord);
     });
-    
+    final sqlmap = alarmRecord.toSQFliteMap();
+    print(sqlmap);
     
     if (!alarmRecord.isSharedAlarmEnabled) {
       final sql = await IsarDb().getAlarmSQLiteDatabase();
-      final sqlmap = alarmRecord.toSQFliteMap();
-      print(sqlmap);
-      await sql!.insert('alarms', sqlmap);
+      try {
+        // Try to insert with all fields including new columns
+        await sql!.insert('alarms', sqlmap);
+      } catch (e) {
+        if (e.toString().contains('locationConditionType') || e.toString().contains('weatherConditionType') || e.toString().contains('activityConditionType')) {
+          // If new columns don't exist, insert without them for backward compatibility
+          Map<String, dynamic> fallbackMap = Map.from(sqlmap);
+          fallbackMap.remove('locationConditionType');
+          fallbackMap.remove('weatherConditionType');
+          fallbackMap.remove('activityConditionType');
+          await sql!.insert('alarms', fallbackMap);
+          debugPrint('Inserted alarm without new columns (backward compatibility)');
+        } else {
+          rethrow;
+        }
+      }
     }
     
     List a = await IsarDb().getLogs();
@@ -449,7 +476,6 @@ class IsarDb {
       await db.alarmModels.put(alarmRecord);
     });
     await IsarDb().insertLog('Alarm updated ${alarmRecord.alarmTime}', status: Status.success, type: LogType.normal);
-    
     
     if (!alarmRecord.isSharedAlarmEnabled) {
       final sql = await IsarDb().getAlarmSQLiteDatabase();

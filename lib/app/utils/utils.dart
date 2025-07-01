@@ -56,9 +56,12 @@ class Utils {
     days: [false, false, false, false, false, false, false],
     weatherTypes: [],
     isWeatherEnabled: false,
+    weatherConditionType: 0,
+    activityConditionType: 0, 
     isEnabled: false,
     isActivityEnabled: false,
     isLocationEnabled: false,
+    locationConditionType: 0, 
     isSharedAlarmEnabled: false,
     intervalToAlarm: 0,
     location: '0.0,0.0',
@@ -705,32 +708,36 @@ class Utils {
       backgroundColor: isLightMode
           ? kLightSecondaryBackgroundColor
           : ksecondaryBackgroundColor,
+      isScrollControlled: true,
       builder: (context) {
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(25.0),
+        return Container(
+          padding: const EdgeInsets.all(25.0),
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.8,
+          ),
+          child: SingleChildScrollView(
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   iconData,
                   color:
                       isLightMode ? kLightPrimaryTextColor : kprimaryTextColor,
-                  size: MediaQuery.of(context).size.height * 0.1,
+                  size: MediaQuery.of(context).size.height * 0.08,
                 ),
+                const SizedBox(height: 20),
                 Text(
                   title.tr,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.displayMedium,
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 15.0),
-                  child: Text(
-                    description.tr,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                    textAlign: TextAlign.center,
-                  ),
+                const SizedBox(height: 20),
+                Text(
+                  description.tr,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  textAlign: TextAlign.center,
                 ),
+                const SizedBox(height: 30),
                 SizedBox(
                   width: MediaQuery.of(context).size.width,
                   child: TextButton(

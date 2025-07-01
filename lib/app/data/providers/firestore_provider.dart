@@ -28,11 +28,19 @@ class FirestoreDb {
     final dir = await getDatabasesPath();
     final dbPath = '$dir/alarms.db';
     print(dir);
-    db = await openDatabase(dbPath, version: 2, 
-      onCreate: _onCreate,
-      onUpgrade: _onUpgrade,
-    );
+    db = await openDatabase(dbPath, version: 3, onCreate: _onCreate, onUpgrade: _onUpgrade);
     return db;
+  }
+
+  void _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Add weatherConditionType column
+      await db.execute('ALTER TABLE alarms ADD COLUMN weatherConditionType INTEGER NOT NULL DEFAULT 2');
+    }
+    if (oldVersion < 3) {
+      // Add activityConditionType column
+      await db.execute('ALTER TABLE alarms ADD COLUMN activityConditionType INTEGER NOT NULL DEFAULT 2');
+    }
   }
 
   void _onCreate(Database db, int version) async {
@@ -45,8 +53,11 @@ class FirestoreDb {
         alarmID TEXT NOT NULL UNIQUE,
         isEnabled INTEGER NOT NULL DEFAULT 1,
         isLocationEnabled INTEGER NOT NULL DEFAULT 0,
+        locationConditionType INTEGER NOT NULL DEFAULT 2,
         isSharedAlarmEnabled INTEGER NOT NULL DEFAULT 0,
         isWeatherEnabled INTEGER NOT NULL DEFAULT 0,
+        weatherConditionType INTEGER NOT NULL DEFAULT 2,
+        activityConditionType INTEGER NOT NULL DEFAULT 2,
         location TEXT,
         activityInterval INTEGER,
         minutesSinceMidnight INTEGER NOT NULL,
@@ -100,18 +111,6 @@ class FirestoreDb {
     ''');
   }
 
-  void _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      // Add missing alarmDate column
-      try {
-        await db.execute('ALTER TABLE alarms ADD COLUMN alarmDate TEXT NOT NULL DEFAULT ""');
-        print('Successfully added alarmDate column to alarms table');
-      } catch (e) {
-        print('Error adding alarmDate column: $e');
-      }
-    }
-  }
-
   static CollectionReference _alarmsCollection(UserModel? user) {
     // Always use sharedAlarms collection since we're using shared alarm functionality
     return _firebaseFirestore.collection('sharedAlarms');
@@ -142,18 +141,35 @@ class FirestoreDb {
     }
     
     if (alarmRecord.isSharedAlarmEnabled) {
-      
+      // Create shared alarm in Firestore
       await _firebaseFirestore
           .collection('sharedAlarms')
           .add(AlarmModel.toMap(alarmRecord))
           .then((value) => alarmRecord.firestoreId = value.id);
       debugPrint('✅ Created shared alarm in Firestore: ${alarmRecord.firestoreId}');
     } else {
-      
+      // Create local alarm in SQLite
       final sql = await FirestoreDb().getSQLiteDatabase();
-      await sql!
-          .insert('alarms', alarmRecord.toSQFliteMap())
-          .then((value) => debugPrint('✅ Created normal alarm in SQLite'));
+      try {
+        // Try to insert with all fields including new columns
+        await sql!
+            .insert('alarms', alarmRecord.toSQFliteMap())
+            .then((value) => print('insert success'));
+      } catch (e) {
+        if (e.toString().contains('locationConditionType') || e.toString().contains('weatherConditionType') || e.toString().contains('activityConditionType')) {
+          // If new columns don't exist, insert without them for backward compatibility
+          Map<String, dynamic> fallbackMap = Map.from(alarmRecord.toSQFliteMap());
+          fallbackMap.remove('locationConditionType');
+          fallbackMap.remove('weatherConditionType');
+          fallbackMap.remove('activityConditionType');
+          await sql!
+              .insert('alarms', fallbackMap)
+              .then((value) => print('insert success (backward compatibility)'));
+        } else {
+          rethrow; // Re-throw other errors
+        }
+      }
+      debugPrint('✅ Created normal alarm in SQLite');
     }
     
     return alarmRecord;
@@ -293,17 +309,28 @@ class FirestoreDb {
   }
 
   static updateAlarm(String? userId, AlarmModel alarmRecord) async {
+    final sql = await FirestoreDb().getSQLiteDatabase();
     
-    if (!alarmRecord.isSharedAlarmEnabled) {
-      final sql = await FirestoreDb().getSQLiteDatabase();
-      await sql!.update(
-        'alarms',
-        alarmRecord.toSQFliteMap(),
-        where: 'alarmID = ?',
-        whereArgs: [alarmRecord.alarmID],
-      );
+    try {
+      
+    } catch (e) {
+      if (e.toString().contains('locationConditionType') || e.toString().contains('weatherConditionType') || e.toString().contains('activityConditionType')) {
+      
+        Map<String, dynamic> fallbackMap = Map.from(alarmRecord.toSQFliteMap());
+        fallbackMap.remove('locationConditionType');
+        fallbackMap.remove('weatherConditionType');
+        fallbackMap.remove('activityConditionType');
+        await sql!.update(
+          'alarms',
+          fallbackMap,
+          where: 'alarmID = ?',
+          whereArgs: [alarmRecord.alarmID],
+        );
+        debugPrint('Updated alarm without new columns (backward compatibility)');
+      } else {
+        rethrow;
+      }
     }
-    
     
     await _firebaseFirestore
         .collection('sharedAlarms')

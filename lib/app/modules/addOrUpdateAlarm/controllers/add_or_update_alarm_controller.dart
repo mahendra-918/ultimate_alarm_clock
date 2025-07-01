@@ -45,6 +45,7 @@ class AddOrUpdateAlarmController extends GetxController {
   final isActivityenabled = false.obs;
   final isActivityMonitorenabled = 0.obs;
   final activityInterval = 0.obs;
+  final activityConditionType = ActivityConditionType.off.obs;
   final isLocationEnabled = false.obs;
   final isSharedAlarmEnabled = false.obs;
   late final isWeatherEnabled = false.obs;
@@ -54,6 +55,8 @@ class AddOrUpdateAlarmController extends GetxController {
   final shakeTimes = 0.obs;
   final isPedometerEnabled = false.obs;
   final numberOfSteps = 0.obs;
+  final locationConditionType = LocationConditionType.off.obs;
+  final weatherConditionType = WeatherConditionType.off.obs;
   var ownerId = ''.obs; // id -> owner of the alarm
   var ownerName = ''.obs; // name -> owner of the alarm
   var userId = ''.obs; // id -> loggedin user
@@ -872,8 +875,21 @@ class AddOrUpdateAlarmController extends GetxController {
       isActivityenabled.value = alarmRecord.value.isActivityEnabled;
       useScreenActivity.value = alarmRecord.value.isActivityEnabled;
       activityInterval.value = alarmRecord.value.activityInterval ~/ 60000;
+      
+      // Set activity condition type based on existing data
+      if (alarmRecord.value.isActivityEnabled) {
+        activityConditionType.value = ActivityConditionType.values[alarmRecord.value.activityConditionType];
+      } else {
+        activityConditionType.value = ActivityConditionType.off;
+      }
 
       isLocationEnabled.value = alarmRecord.value.isLocationEnabled;
+      // Set location condition type based on existing data
+      if (alarmRecord.value.isLocationEnabled) {
+        locationConditionType.value = LocationConditionType.values[alarmRecord.value.locationConditionType];
+      } else {
+        locationConditionType.value = LocationConditionType.off;
+      }
       selectedPoint.value = Utils.stringToLatLng(alarmRecord.value.location);
       // Shows the marker in UI
       markersList.add(
@@ -888,6 +904,12 @@ class AddOrUpdateAlarmController extends GetxController {
       );
 
       isWeatherEnabled.value = alarmRecord.value.isWeatherEnabled;
+      
+      if (alarmRecord.value.isWeatherEnabled) {
+        weatherConditionType.value = WeatherConditionType.values[alarmRecord.value.weatherConditionType];
+      } else {
+        weatherConditionType.value = WeatherConditionType.off;
+      }
       weatherTypes.value = Utils.getFormattedWeatherTypes(selectedWeather);
 
       isMathsEnabled.value = alarmRecord.value.isMathsEnabled;
@@ -1087,10 +1109,15 @@ class AddOrUpdateAlarmController extends GetxController {
       },
     );
 
-    // reset selectedPoint to default value if isLocationEnabled is false and weather based is off
-    isLocationEnabled.listen((value) {
-      if (!value && weatherTypes.value == 'Off') {
-        selectedPoint.value = LatLng(0, 0);
+    
+    locationConditionType.listen((value) {
+      if (value == LocationConditionType.off) {
+        isLocationEnabled.value = false;
+        if (weatherTypes.value == 'Off') {
+          selectedPoint.value = LatLng(0, 0);
+        }
+      } else {
+        isLocationEnabled.value = true;
       }
     });
 
@@ -1102,6 +1129,8 @@ class AddOrUpdateAlarmController extends GetxController {
     setupListener<int>(numberOfSteps, 'numberOfSteps');
 
     setupListener<bool>(isSharedAlarmEnabled, 'isSharedAlarmEnabled');
+    setupListener<LocationConditionType>(locationConditionType, 'locationConditionType');
+    setupListener<WeatherConditionType>(weatherConditionType, 'weatherConditionType');
     setupListener<int>(offsetDuration, 'offsetDuration');
     setupListener<bool>(isOffsetBefore, 'isOffsetBefore');
   }
@@ -1190,8 +1219,11 @@ class AddOrUpdateAlarmController extends GetxController {
       minutesSinceMidnight:
           Utils.timeOfDayToInt(TimeOfDay.fromDateTime(selectedTime.value)),
       isLocationEnabled: isLocationEnabled.value,
+      locationConditionType: locationConditionType.value.index,
       weatherTypes: Utils.getIntFromWeatherTypes(selectedWeather.toList()),
       isWeatherEnabled: isWeatherEnabled.value,
+      weatherConditionType: weatherConditionType.value.index,
+      activityConditionType: activityConditionType.value.index,
       location: Utils.geoPointToString(
         Utils.latLngToGeoPoint(selectedPoint.value),
       ),

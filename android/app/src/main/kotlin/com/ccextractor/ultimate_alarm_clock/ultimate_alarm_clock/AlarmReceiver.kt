@@ -47,7 +47,6 @@ class AlarmReceiver : BroadcastReceiver() {
                 putExtra("isSharedAlarm", true)
                 Log.d("AlarmReceiver", "Setting isSharedAlarm=true in Flutter intent")
             } else {
-
                 putExtra("isSharedAlarm", false)
                 Log.d("AlarmReceiver", "This is a local alarm - setting isSharedAlarm=false")
             }
@@ -65,14 +64,21 @@ class AlarmReceiver : BroadcastReceiver() {
         val screenOnTimeInMillis = sharedPreferences.getLong("${prefix}is_screen_on", 0L)
         val screenOffTimeInMillis = sharedPreferences.getLong("${prefix}is_screen_off", 0L)
         
+        val activityConditionType = sharedPreferences.getInt("flutter.activity_condition_type", 0)
+        val activityInterval = sharedPreferences.getInt("flutter.activity_interval", 30)
+        
         val activityCheckIntent = Intent(context, ScreenMonitorService::class.java)
         context.stopService(activityCheckIntent)
         
         val isLocationEnabled = sharedPreferences.getInt("flutter.is_location_on", 0)
 
         val isActivityEnabled = intent.getIntExtra("isActivity", 0) == 1
+
+        Log.d("AlarmReceiver", "Screen On: $screenOnTimeInMillis, Screen Off: $screenOffTimeInMillis")
+        Log.d("AlarmReceiver", "Condition Type: $activityConditionType, Interval: $activityInterval minutes")
         
-        if (!isActivityEnabled || Math.abs(screenOnTimeInMillis - screenOffTimeInMillis) < 180000 || screenOnTimeInMillis - screenOffTimeInMillis == 0L) {
+        // If no screen activity monitoring (off or no data), ring the alarm
+        if (!isActivityEnabled || activityConditionType == 0 || Math.abs(screenOnTimeInMillis - screenOffTimeInMillis) < 180000 || screenOnTimeInMillis - screenOffTimeInMillis == 0L) {
             println("ANDROID STARTING APP")
             context.startActivity(flutterIntent)
 
@@ -98,7 +104,7 @@ class AlarmReceiver : BroadcastReceiver() {
             }
 
             logdbHelper.insertLog(
-                "Alarm is ringing. Your Screen Activity was less than what you specified",
+                "Alarm is ringing (no screen activity monitoring)",
                 status = LogDatabaseHelper.Status.SUCCESS,
                 type = LogDatabaseHelper.LogType.NORMAL,
                 hasRung = 1
@@ -106,14 +112,79 @@ class AlarmReceiver : BroadcastReceiver() {
             return
         }
 
-        logdbHelper.insertLog(
-            "Alarm didn't ring. Your Screen Activity was more than what you specified",
-            status = LogDatabaseHelper.Status.WARNING,
-            type = LogDatabaseHelper.LogType.NORMAL,
-            hasRung = 0
-        )
-    }
+        val currentTimeMillis = System.currentTimeMillis()
+        val intervalInMillis = activityInterval * 60 * 1000L // Convert minutes to milliseconds
+        
+        val lastActivityTime = maxOf(screenOnTimeInMillis, screenOffTimeInMillis)
+        val timeSinceLastActivity = currentTimeMillis - lastActivityTime
+        val isActiveWithinInterval = timeSinceLastActivity <= intervalInMillis
+        
+        Log.d("AlarmReceiver", "Time since last activity: ${timeSinceLastActivity / 1000} seconds")
+        Log.d("AlarmReceiver", "Active within interval ($activityInterval min): $isActiveWithinInterval")
 
+        var shouldRing = false
+        var logMessage = ""
+
+        when (activityConditionType) {
+            1 -> { // Ring when active
+                shouldRing = isActiveWithinInterval
+                logMessage = if (shouldRing) {
+                    "Alarm is ringing - you have been active within $activityInterval minutes"
+                } else {
+                    "Alarm cancelled - you have NOT been active within $activityInterval minutes"
+                }
+            }
+            2 -> { // Cancel when active (original behavior)
+                shouldRing = !isActiveWithinInterval
+                logMessage = if (shouldRing) {
+                    "Alarm is ringing - you have NOT been active within $activityInterval minutes"
+                } else {
+                    "Alarm cancelled - you have been active within $activityInterval minutes"
+                }
+            }
+            3 -> { // Ring when inactive
+                shouldRing = !isActiveWithinInterval
+                logMessage = if (shouldRing) {
+                    "Alarm is ringing - you have been inactive for more than $activityInterval minutes"
+                } else {
+                    "Alarm cancelled - you have been active within $activityInterval minutes"
+                }
+            }
+            4 -> { // Cancel when inactive
+                shouldRing = isActiveWithinInterval
+                logMessage = if (shouldRing) {
+                    "Alarm is ringing - you have been active within $activityInterval minutes"
+                } else {
+                    "Alarm cancelled - you have been inactive for more than $activityInterval minutes"
+                }
+            }
+            else -> {
+                // Default to ringing if unknown condition type
+                shouldRing = true
+                logMessage = "Alarm is ringing (unknown condition type: $activityConditionType)"
+            }
+        }
+
+        Log.d("AlarmReceiver", "Decision: shouldRing = $shouldRing")
+
+        if (shouldRing) {
+            println("ANDROID STARTING APP")
+            context.startActivity(flutterIntent)
+            logdbHelper.insertLog(
+                logMessage,
+                status = LogDatabaseHelper.Status.SUCCESS,
+                type = LogDatabaseHelper.LogType.NORMAL,
+                hasRung = 1
+            )
+        } else {
+            logdbHelper.insertLog(
+                logMessage,
+                status = LogDatabaseHelper.Status.WARNING,
+                type = LogDatabaseHelper.LogType.NORMAL,
+                hasRung = 0
+            )
+        }
+    }
 
     private fun checkOtherScheduledAlarms(context: Context, isCurrentAlarmShared: Boolean) {
         try {
@@ -126,6 +197,31 @@ class AlarmReceiver : BroadcastReceiver() {
                 if (!isCurrentAlarmShared) {
                     putExtra("isSharedAlarm", true)
                 }
+            }
+            
+            val pendingIntent = PendingIntent.getBroadcast(
+                context,
+                requestCode,
+                intent,
+                PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+            )
+            
+            val alarmType = if (isCurrentAlarmShared) "local" else "shared"
+            if (pendingIntent != null) {
+                Log.d("AlarmReceiver", "Found scheduled $alarmType alarm")
+            } else {
+                Log.d("AlarmReceiver", "No scheduled $alarmType alarm found")
+            }
+            
+        } catch (e: Exception) {
+            Log.e("AlarmReceiver", "Error checking other scheduled alarms: ${e.message}")
+        }
+    }
+
+    private fun getCurrentTime(): String {
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        return dateFormat.format(Date())
+    }
             }
             
             val pendingIntent = android.app.PendingIntent.getBroadcast(

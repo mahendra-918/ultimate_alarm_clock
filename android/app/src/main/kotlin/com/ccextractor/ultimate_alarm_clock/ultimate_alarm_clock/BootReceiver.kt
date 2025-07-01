@@ -30,14 +30,12 @@ class BootReceiver : BroadcastReceiver() {
            val sharedPreferences = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
             val profile = sharedPreferences.getString("flutter.profile", "Default")
 
-
             val nextLocalAlarm = determineNextAlarm(context, profile ?: "Default")
             
             if (nextLocalAlarm != null) {
                 val isSharedAlarm = nextLocalAlarm["isSharedAlarm"] as? Boolean ?: false
                 
                 if (!isSharedAlarm) {
-
                     AlarmUtils.scheduleAlarm(
                         context,
                         nextLocalAlarm["interval"] as Long,
@@ -53,12 +51,21 @@ class BootReceiver : BroadcastReceiver() {
                 }
             }
             
-            
+            // Reschedule shared alarms
             rescheduleSharedAlarmAfterBoot(context, sharedPreferences)
             
-            
+            // Reschedule timers
             rescheduleTimerAfterBoot(context)
         }
+    }
+    
+    private fun determineNextAlarm(context: Context, profile: String): Map<String, Any>? {
+        val dbHelper = DatabaseHelper(context)
+        val logdbHelper = LogDatabaseHelper(context)
+        val db = dbHelper.readableDatabase
+        val ringTime = getLatestAlarm(db, true, profile, context)
+        db.close()
+        return ringTime
     }
     
     private fun rescheduleSharedAlarmAfterBoot(context: Context, sharedPreferences: android.content.SharedPreferences) {
@@ -81,7 +88,6 @@ class BootReceiver : BroadcastReceiver() {
             
             Log.d("BootReceiver", "🔍 Found shared alarm to reschedule: ID=$sharedAlarmId, time=$sharedAlarmTime")
             
-            
             val intervalToAlarm = calculateTimeToAlarm(sharedAlarmTime)
             
             if (intervalToAlarm <= 0) {
@@ -89,7 +95,6 @@ class BootReceiver : BroadcastReceiver() {
                 clearSharedAlarmData(context)
                 return
             }
-            
             
             val isActivityEnabled = sharedPreferences.getInt("flutter.shared_alarm_activity", 0)
             val isLocationEnabled = sharedPreferences.getInt("flutter.shared_alarm_location", 0)
@@ -99,9 +104,8 @@ class BootReceiver : BroadcastReceiver() {
             
             Log.d("BootReceiver", "🔧 Rescheduling shared alarm with config - activity: $isActivityEnabled, location: $isLocationEnabled, weather: $isWeatherEnabled")
             
-            
-               AlarmUtils.scheduleAlarm(
-                   context,
+            AlarmUtils.scheduleAlarm(
+                context,
                 intervalToAlarm,
                 isActivityEnabled,
                 isLocationEnabled,
@@ -121,7 +125,6 @@ class BootReceiver : BroadcastReceiver() {
     
     private fun calculateTimeToAlarm(alarmTime: String): Long {
         try {
-            
             val parts = alarmTime.split(":")
             if (parts.size != 2) return 0
             
@@ -135,7 +138,6 @@ class BootReceiver : BroadcastReceiver() {
             calendar.set(Calendar.MINUTE, minute)
             calendar.set(Calendar.SECOND, 0)
             calendar.set(Calendar.MILLISECOND, 0)
-            
             
             if (calendar.before(now)) {
                 calendar.add(Calendar.DAY_OF_MONTH, 1)
@@ -165,7 +167,7 @@ class BootReceiver : BroadcastReceiver() {
         editor.apply()
         
         Log.d("BootReceiver", "🧹 Cleared shared alarm data")
-            }
+    }
 
     private fun rescheduleTimerAfterBoot(context: Context) {
         try {
@@ -228,6 +230,10 @@ class BootReceiver : BroadcastReceiver() {
             .setDeleteIntent(deletePendingIntent)
             .build()
         notificationManager.notify(1, notification)
+    }
+
+    private fun getWeatherConditions(weatherTypes: String): String {
+        return weatherTypes
     }
 
     private fun formatDuration(milliseconds: Long): String {

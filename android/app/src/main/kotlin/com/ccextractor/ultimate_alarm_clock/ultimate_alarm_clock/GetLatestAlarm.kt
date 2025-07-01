@@ -154,12 +154,15 @@ fun getLatestAlarm(db: SQLiteDatabase, wantNextAlarm: Boolean, profile: String,c
             val a = mapOf<String, Any>(
                 "interval" to intervaltoAlarm,
                 "isActivity" to setAlarm.activityMonitor,
-                "isLocation" to setAlarm.isLocationEnabled,
+                "activityConditionType" to setAlarm.activityConditionType,
+                "activityInterval" to setAlarm.activityInterval,
+                "isLocation" to if (setAlarm.isLocationEnabled == 1) setAlarm.locationConditionType else 0,
                 "location" to setAlarm.location,
                 "isWeather" to setAlarm.isWeatherEnabled,
                 "weatherTypes" to setAlarm.weatherTypes,
+                "weatherConditionType" to setAlarm.weatherConditionType,
                 "alarmID" to setAlarm.alarmId,
-                "isSharedAlarm" to false 
+                "isSharedAlarm" to false
             )
             Log.d("LocalAlarm", "Returning local alarm data: $a")
             return a
@@ -420,9 +423,13 @@ data class AlarmModel(
     val days: String,
     val isOneTime: Int,
     val activityMonitor: Int,
+    val activityInterval: Int,
     val isWeatherEnabled: Int,
     val weatherTypes: String,
+    val weatherConditionType: Int,
+    val activityConditionType: Int,
     val isLocationEnabled: Int,
+    val locationConditionType: Int,
     val location: String,
     val alarmDate: String,
     val alarmId: String,
@@ -439,7 +446,38 @@ data class AlarmModel(
             val activityMonitor = cursor.getInt(cursor.getColumnIndex("activityMonitor"))
             val isWeatherEnabled = cursor.getInt(cursor.getColumnIndex("isWeatherEnabled"))
             val weatherTypes = cursor.getString(cursor.getColumnIndex("weatherTypes"))
+            
+            
+            val weatherConditionTypeIndex = cursor.getColumnIndex("weatherConditionType")
+            val weatherConditionType = if (weatherConditionTypeIndex >= 0) {
+                cursor.getInt(weatherConditionTypeIndex)
+            } else {
+                2 
+            }
+            
+            val activityConditionTypeIndex = cursor.getColumnIndex("activityConditionType")
+            val activityConditionType = if (activityConditionTypeIndex >= 0) {
+                cursor.getInt(activityConditionTypeIndex)
+            } else {
+                2 
+            }
+            
+            val activityIntervalIndex = cursor.getColumnIndex("activityInterval")
+            val activityInterval = if (activityIntervalIndex >= 0) {
+                cursor.getInt(activityIntervalIndex)
+            } else {
+                30
+            }
+            
             val isLocationEnabled = cursor.getInt(cursor.getColumnIndex("isLocationEnabled"))
+            
+            val locationConditionTypeIndex = cursor.getColumnIndex("locationConditionType")
+            val locationConditionType = if (locationConditionTypeIndex >= 0) {
+                cursor.getInt(locationConditionTypeIndex)
+            } else {
+                2 
+            }
+            
             val location = cursor.getString(cursor.getColumnIndex("location"))
             val alarmDate = cursor.getString(cursor.getColumnIndex("alarmDate"))
             val alarmId = cursor.getString(cursor.getColumnIndex("alarmID"))
@@ -451,9 +489,13 @@ data class AlarmModel(
                 days,
                 isOneTime,
                 activityMonitor,
+                activityInterval,
                 isWeatherEnabled,
                 weatherTypes,
+                weatherConditionType,
+                activityConditionType,
                 isLocationEnabled,
+                locationConditionType,
                 location,
                 alarmDate,
                 alarmId,
