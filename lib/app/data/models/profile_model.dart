@@ -54,6 +54,10 @@ class ProfileModel {
   late int guardianTimer;
   late String guardian;
   late bool isCall;
+  late bool isSunriseEnabled;
+  late int sunriseDuration;
+  late double sunriseIntensity;
+  late int sunriseColorScheme;
   @ignore
   List<Map>? offsetDetails;
 
@@ -101,7 +105,11 @@ class ProfileModel {
       required this.isGuardian,
       required this.guardianTimer,
       required this.guardian,
-      required this.isCall});
+      required this.isCall,
+      required this.isSunriseEnabled,
+      required this.sunriseDuration,
+      required this.sunriseIntensity,
+      required this.sunriseColorScheme});
 
   ProfileModel.fromDocumentSnapshot({
     required firestore.DocumentSnapshot documentSnapshot,

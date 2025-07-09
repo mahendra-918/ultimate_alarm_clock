@@ -106,6 +106,9 @@ class HomeController extends GetxController {
 
   
   bool isRefreshing = false;
+  
+  // Cache to prevent rapid rescheduling of the same alarm
+  Map<String, int> _recentScheduleCache = {};
 
   
   bool preventSharedAlarmRescheduling = false;
@@ -792,7 +795,9 @@ class HomeController extends GetxController {
         'isActivityEnabled': sharedAlarm.isActivityEnabled,
         'isLocationEnabled': sharedAlarm.isLocationEnabled,
         'location': sharedAlarm.location,
+        'locationConditionType': sharedAlarm.locationConditionType,
         'isWeatherEnabled': sharedAlarm.isWeatherEnabled,
+        'weatherConditionType': sharedAlarm.weatherConditionType,
         'weatherTypes': jsonEncode(sharedAlarm.weatherTypes),
       });
       debugPrint('✅ Updated native SharedPreferences cache for shared alarm');
@@ -814,24 +819,27 @@ class HomeController extends GetxController {
   }
 
   refreshUpcomingAlarms() async {
-
+    // Stronger debounce mechanism to prevent rapid successive calls
     if (isRefreshing) {
       debugPrint('Skipping refresh - already in progress');
       return;
     }
     
-
+    // Increase minimum delay between refresh calls to 5 seconds
     final currentTime = DateTime.now().millisecondsSinceEpoch;
-    if (currentTime - lastRefreshTime < 2000) {
+    if (currentTime - lastRefreshTime < 5000) {
+      debugPrint('Skipping refresh - too soon since last refresh (${currentTime - lastRefreshTime}ms ago)');
       delayToSchedule?.cancel();
       return;
     }
 
     if (delayToSchedule != null && delayToSchedule!.isActive) {
+      debugPrint('Skipping refresh - delay timer already active');
       return;
     }
 
-    delayToSchedule = Timer(const Duration(seconds: 1), () async {
+    // Increase delay to 3 seconds to ensure stability
+    delayToSchedule = Timer(const Duration(seconds: 3), () async {
       isRefreshing = true;
       try {
         debugPrint('Starting alarm refresh...');
@@ -1007,8 +1015,10 @@ class HomeController extends GetxController {
     
     String alarmId = isShared ? (alarm.firestoreId ?? '') : alarm.alarmID.toString();
     
-    // Check if this same alarm is already scheduled WITH THE SAME TIME
+    // Enhanced tracking to prevent duplicate scheduling
     bool alreadyScheduled = false;
+    String trackingKey = "${isShared ? 'shared' : 'local'}_${alarmId}_${alarmTimeOfDay.hour}:${alarmTimeOfDay.minute}";
+    
     if (isShared) {
       alreadyScheduled = lastScheduledAlarmIsShared == true && 
                         lastScheduledAlarmId == alarmId &&
@@ -1021,7 +1031,17 @@ class HomeController extends GetxController {
     }
     
     if (alreadyScheduled) {
-      debugPrint('${isShared ? "Shared" : "Local"} alarm already scheduled with same time, skipping: ${alarm.alarmTime}');
+      debugPrint('${isShared ? "Shared" : "Local"} alarm already scheduled with same time, skipping: ${alarm.alarmTime} (ID: $alarmId)');
+      return;
+    }
+    
+    // Prevent rapid rescheduling of the same alarm within 10 seconds
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final lastScheduleKey = '${trackingKey}_lastScheduled';
+    final lastScheduleTime = _recentScheduleCache[lastScheduleKey] ?? 0;
+    
+    if (now - lastScheduleTime < 10000) {
+      debugPrint('Preventing rapid rescheduling of ${isShared ? "shared" : "local"} alarm: ${alarm.alarmTime} (scheduled ${now - lastScheduleTime}ms ago)');
       return;
     }
     
@@ -1034,7 +1054,9 @@ class HomeController extends GetxController {
         'isSharedAlarm': isShared,
         'isActivityEnabled': alarm.isActivityEnabled,
         'isLocationEnabled': alarm.isLocationEnabled,
+        'locationConditionType': alarm.locationConditionType,
         'isWeatherEnabled': alarm.isWeatherEnabled,
+        'weatherConditionType': alarm.weatherConditionType,
         'intervalToAlarm': intervalToAlarm,
         'location': alarm.location,
         'weatherTypes': jsonEncode(alarm.weatherTypes),
@@ -1043,7 +1065,7 @@ class HomeController extends GetxController {
       
       // Track each alarm type separately - never override the other type
       if (isShared) {
-      lastScheduledAlarmId = alarmId;
+        lastScheduledAlarmId = alarmId;
         lastScheduledAlarmTime = alarmTimeOfDay;
         lastScheduledAlarmIsShared = true;
         debugPrint('Updated shared alarm tracking: $alarmId at ${alarm.alarmTime}');
@@ -1052,6 +1074,9 @@ class HomeController extends GetxController {
         lastScheduledLocalAlarmTime = alarmTimeOfDay;
         debugPrint('Updated local alarm tracking: $alarmId at ${alarm.alarmTime}');
       }
+      
+      // Update cache to prevent rapid rescheduling
+      _recentScheduleCache[lastScheduleKey] = now;
       
       debugPrint('✅ Scheduled ${isShared ? "shared" : "local"} alarm successfully');
     } catch (e) {
@@ -1482,7 +1507,11 @@ class HomeController extends GetxController {
         guardianTimer: profileModel.value.guardianTimer,
         guardian: profileModel.value.guardian,
         isCall: profileModel.value.isCall,
-        ringOn: false);
+        ringOn: false,
+        isSunriseEnabled: false,
+        sunriseDuration: 30,
+        sunriseIntensity: 1.0,
+        sunriseColorScheme: 0);
   }
 
   // Method to clear the last scheduled alarm tracking data

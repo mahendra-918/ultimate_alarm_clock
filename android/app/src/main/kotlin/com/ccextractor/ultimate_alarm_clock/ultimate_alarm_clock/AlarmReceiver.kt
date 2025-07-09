@@ -1,5 +1,6 @@
 package com.ccextractor.ultimate_alarm_clock
 
+import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -70,12 +71,42 @@ class AlarmReceiver : BroadcastReceiver() {
         val activityCheckIntent = Intent(context, ScreenMonitorService::class.java)
         context.stopService(activityCheckIntent)
         
-        val isLocationEnabled = sharedPreferences.getInt("flutter.is_location_on", 0)
-
+        val isLocationEnabled = intent.getIntExtra("isLocation", 0) == 1
         val isActivityEnabled = intent.getIntExtra("isActivity", 0) == 1
+        val isWeatherEnabled = intent.getIntExtra("isWeather", 0) == 1
 
         Log.d("AlarmReceiver", "Screen On: $screenOnTimeInMillis, Screen Off: $screenOffTimeInMillis")
         Log.d("AlarmReceiver", "Condition Type: $activityConditionType, Interval: $activityInterval minutes")
+        Log.d("AlarmReceiver", "Location Enabled: $isLocationEnabled, Activity Enabled: $isActivityEnabled")
+        Log.d("AlarmReceiver", "Weather Enabled: $isWeatherEnabled")
+        
+        // If location condition is enabled, start LocationFetcherService to handle location logic
+        if (isLocationEnabled) {
+            Log.d("AlarmReceiver", "Location condition enabled, starting LocationFetcherService")
+            val locationConditionType = intent.getIntExtra("locationConditionType", 2)
+            Log.d("AlarmReceiver", "Passing locationConditionType: $locationConditionType to LocationFetcherService")
+            val locationIntent = Intent(context, LocationFetcherService::class.java).apply {
+                putExtra("alarmID", intent.getStringExtra("alarmID"))
+                putExtra("location", intent.getStringExtra("location"))
+                putExtra("locationConditionType", locationConditionType)
+                putExtra("isSharedAlarm", isSharedAlarm)
+            }
+            context.startForegroundService(locationIntent)
+            return // LocationFetcherService will handle the rest
+        }
+        
+        // If weather condition is enabled, start WeatherFetcherService to handle weather logic
+        if (isWeatherEnabled) {
+            Log.d("AlarmReceiver", "Weather condition enabled, starting WeatherFetcherService")
+            val weatherIntent = Intent(context, WeatherFetcherService::class.java).apply {
+                putExtra("alarmID", intent.getStringExtra("alarmID"))
+                putExtra("weatherTypes", intent.getStringExtra("weatherTypes"))
+                putExtra("weatherConditionType", intent.getIntExtra("weatherConditionType", 2))
+                putExtra("isSharedAlarm", isSharedAlarm)
+            }
+            context.startForegroundService(weatherIntent)
+            return // WeatherFetcherService will handle the rest
+        }
         
         // If no screen activity monitoring (off or no data), ring the alarm
         if (!isActivityEnabled || activityConditionType == 0 || Math.abs(screenOnTimeInMillis - screenOffTimeInMillis) < 180000 || screenOnTimeInMillis - screenOffTimeInMillis == 0L) {
@@ -199,11 +230,11 @@ class AlarmReceiver : BroadcastReceiver() {
                 }
             }
             
-            val pendingIntent = PendingIntent.getBroadcast(
+            val pendingIntent = android.app.PendingIntent.getBroadcast(
                 context,
                 requestCode,
                 intent,
-                PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+                android.app.PendingIntent.FLAG_NO_CREATE or android.app.PendingIntent.FLAG_IMMUTABLE
             )
             
             val alarmType = if (isCurrentAlarmShared) "local" else "shared"
@@ -221,30 +252,5 @@ class AlarmReceiver : BroadcastReceiver() {
     private fun getCurrentTime(): String {
         val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         return dateFormat.format(Date())
-    }
-            }
-            
-            val pendingIntent = android.app.PendingIntent.getBroadcast(
-                context,
-                requestCode,
-                intent,
-                android.app.PendingIntent.FLAG_NO_CREATE or android.app.PendingIntent.FLAG_MUTABLE
-            )
-            
-            val otherAlarmType = if (isCurrentAlarmShared) "local" else "shared"
-            
-            if (pendingIntent != null) {
-                Log.d("AlarmReceiver", "CONFIRMED: $otherAlarmType alarm is still scheduled")
-            } else {
-                Log.d("AlarmReceiver", "WARNING: No $otherAlarmType alarm is currently scheduled")
-            }
-        } catch (e: Exception) {
-            Log.e("AlarmReceiver", "Error checking for other alarm types: ${e.message}")
-        }
-    }
-
-    private fun getCurrentTime(): String {
-        val formatter = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-        return formatter.format(Date())
     }
 }

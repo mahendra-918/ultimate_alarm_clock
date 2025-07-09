@@ -26,6 +26,7 @@ import android.view.WindowManager
 import androidx.annotation.NonNull
 import com.ccextractor.ultimate_alarm_clock.getLatestTimer
 import com.ccextractor.ultimate_alarm_clock.ultimate_alarm_clock.AlarmUtils
+import com.ccextractor.ultimate_alarm_clock.LogDatabaseHelper
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -198,26 +199,58 @@ class MainActivity : FlutterActivity() {
                 val isActivityEnabled = call.argument<Boolean>("isActivityEnabled") ?: false
                 val isLocationEnabled = call.argument<Boolean>("isLocationEnabled") ?: false
                 val location = call.argument<String>("location") ?: ""
+                val locationConditionType = call.argument<Int>("locationConditionType") ?: 2
                 val isWeatherEnabled = call.argument<Boolean>("isWeatherEnabled") ?: false
+                val weatherConditionType = call.argument<Int>("weatherConditionType") ?: 2
                 val intervalToAlarm = call.argument<Number>("intervalToAlarm")?.toLong() ?: 0L
                 val weatherTypes = call.argument<String>("weatherTypes") ?: "[]"
                 val alarmID = call.argument<String>("alarmID") ?: ""
                 
-                // Cancel the appropriate alarm type before scheduling
-                if (isSharedAlarm) {
-                    println("CANCELING ONLY SHARED ALARMS BEFORE SCHEDULING")
-                    cancelAlarm(REQUEST_CODE_SHARED_ALARM, true)
-                    cancelAlarm(REQUEST_CODE_SHARED_ACTIVITY, true)
+                // Only cancel existing alarms if we're scheduling a new alarm with a different time
+                // Check if there's already an alarm scheduled for this exact time
+                val requestCode = if (isSharedAlarm) REQUEST_CODE_SHARED_ALARM else REQUEST_CODE_LOCAL_ALARM
+                val existingIntent = Intent(this, AlarmReceiver::class.java).apply {
+                    if (isSharedAlarm) {
+                        putExtra("isSharedAlarm", true)
+                    }
+                }
+                
+                val existingPendingIntent = PendingIntent.getBroadcast(
+                    this,
+                    requestCode,
+                    existingIntent,
+                    PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_MUTABLE
+                )
+                
+                // Only cancel if there's an existing alarm and we need to replace it
+                if (existingPendingIntent != null) {
+                    val triggerTimeMillis = System.currentTimeMillis() + intervalToAlarm
+                    val alarmType = if (isSharedAlarm) "shared" else "local"
+                    
+                    // Check if this is truly a different alarm (different time or different ID)
+                    if (triggerTimeMillis != lastScheduledAlarmTime || alarmType != lastScheduledAlarmType) {
+                        println("CANCELING EXISTING $alarmType ALARM TO REPLACE WITH NEW ONE")
+                        if (isSharedAlarm) {
+                            cancelAlarm(REQUEST_CODE_SHARED_ALARM, true)
+                            cancelAlarm(REQUEST_CODE_SHARED_ACTIVITY, true)
+                        } else {
+                            cancelAlarm(REQUEST_CODE_LOCAL_ALARM, false)
+                            cancelAlarm(REQUEST_CODE_LOCAL_ACTIVITY, false)
+                        }
+                    } else {
+                        println("SKIPPING CANCELLATION - SAME ALARM ALREADY SCHEDULED")
+                        result.success("Alarm already scheduled")
+                        return@setMethodCallHandler
+                    }
                 } else {
-                    println("CANCELING ONLY LOCAL ALARMS BEFORE SCHEDULING")
-                    cancelAlarm(REQUEST_CODE_LOCAL_ALARM, false)
-                    cancelAlarm(REQUEST_CODE_LOCAL_ACTIVITY, false)
+                    println("NO EXISTING ALARM FOUND - PROCEEDING WITH SCHEDULING")
                 }
 
-                // Store shared alarm data for persistence across reboots
+                // Store alarm data for persistence across reboots
+                val sharedPreferences = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+                val editor = sharedPreferences.edit()
+                
                 if (isSharedAlarm) {
-                    val sharedPreferences = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-                    val editor = sharedPreferences.edit()
                     editor.putBoolean("flutter.has_active_shared_alarm", true)
                     editor.putString("flutter.shared_alarm_id", alarmID)
                     
@@ -232,14 +265,22 @@ class MainActivity : FlutterActivity() {
                     editor.putInt("flutter.shared_alarm_activity", if (isActivityEnabled) 1 else 0)
                     editor.putInt("flutter.shared_alarm_location", if (isLocationEnabled) 1 else 0)
                     editor.putString("flutter.shared_alarm_location_data", location)
+                    editor.putInt("flutter.shared_alarm_location_condition", locationConditionType)
                     editor.putInt("flutter.shared_alarm_weather", if (isWeatherEnabled) 1 else 0)
                     editor.putString("flutter.shared_alarm_weather_types", weatherTypes)
-                    editor.apply()
+                    editor.putInt("flutter.shared_alarm_weather_condition", weatherConditionType)
                     
-                    Log.d("Scheduling shared alarm", "Time to ring: $intervalToAlarm")
+                    Log.d("Scheduling shared alarm", "Time to ring: $intervalToAlarm, locationCondition: $locationConditionType, weatherCondition: $weatherConditionType")
                 } else {
-                    Log.d("Scheduling local alarm", "Time to ring: $intervalToAlarm")
+                    // Store location condition type for local alarms too
+                    editor.putInt("flutter.location_condition_type", locationConditionType)
+                    editor.putString("flutter.set_location", location)
+                    editor.putInt("flutter.weather_condition_type", weatherConditionType)
+                    
+                    Log.d("Scheduling local alarm", "Time to ring: $intervalToAlarm, locationCondition: $locationConditionType, weatherCondition: $weatherConditionType")
                 }
+                
+                editor.apply()
 
                 AlarmUtils.scheduleAlarm(
                     context,
@@ -247,11 +288,17 @@ class MainActivity : FlutterActivity() {
                     if (isActivityEnabled) 1 else 0,
                     if (isLocationEnabled) 1 else 0,
                     location,
+                    locationConditionType,
                     if (isWeatherEnabled) 1 else 0,
                     weatherTypes,
+                    weatherConditionType,
                     isSharedAlarm,
                     alarmID
                 )
+
+                // Update tracking variables to prevent unnecessary cancellations
+                lastScheduledAlarmTime = System.currentTimeMillis() + intervalToAlarm
+                lastScheduledAlarmType = if (isSharedAlarm) "shared" else "local"
 
                 result.success("Alarm scheduled")
             } else if (call.method == "cancelAllAlarms") {
@@ -295,10 +342,12 @@ class MainActivity : FlutterActivity() {
                 val isActivityEnabled = call.argument<Boolean>("isActivityEnabled") ?: false
                 val isLocationEnabled = call.argument<Boolean>("isLocationEnabled") ?: false
                 val location = call.argument<String>("location") ?: "0.0,0.0"
+                val locationConditionType = call.argument<Int>("locationConditionType") ?: 2
                 val isWeatherEnabled = call.argument<Boolean>("isWeatherEnabled") ?: false
                 val weatherTypes = call.argument<String>("weatherTypes") ?: "[]"
+                val weatherConditionType = call.argument<Int>("weatherConditionType") ?: 2
                 
-                Log.d("MainActivity", "Updating shared alarm cache with time: $alarmTime, ID: $alarmID")
+                Log.d("MainActivity", "Updating shared alarm cache with time: $alarmTime, ID: $alarmID, locationCondition: $locationConditionType")
                 
                 val sharedPreferences = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
                 val editor = sharedPreferences.edit()
@@ -308,8 +357,10 @@ class MainActivity : FlutterActivity() {
                 editor.putInt("flutter.shared_alarm_activity", if (isActivityEnabled) 1 else 0)
                 editor.putInt("flutter.shared_alarm_location", if (isLocationEnabled) 1 else 0)
                 editor.putString("flutter.shared_alarm_location_data", location)
+                editor.putInt("flutter.shared_alarm_location_condition", locationConditionType)
                 editor.putInt("flutter.shared_alarm_weather", if (isWeatherEnabled) 1 else 0)
                 editor.putString("flutter.shared_alarm_weather_types", weatherTypes)
+                editor.putInt("flutter.shared_alarm_weather_condition", weatherConditionType)
                 editor.apply()
                 
                 Log.d("MainActivity", "Successfully updated shared alarm cache")
@@ -324,8 +375,10 @@ class MainActivity : FlutterActivity() {
                 editor.remove("flutter.shared_alarm_activity")
                 editor.remove("flutter.shared_alarm_location")
                 editor.remove("flutter.shared_alarm_location_data")
+                editor.remove("flutter.shared_alarm_location_condition")
                 editor.remove("flutter.shared_alarm_weather")
                 editor.remove("flutter.shared_alarm_weather_types")
+                editor.remove("flutter.shared_alarm_weather_condition")
                 editor.apply()
                 
                 Log.d("MainActivity", "Cleared shared alarm cache")
@@ -477,6 +530,7 @@ class MainActivity : FlutterActivity() {
     
     private fun cancelAlarm(requestCode: Int, isShared: Boolean) {
         Log.d("MainActivity", "Attempting to cancel alarm with request code: $requestCode, isShared: $isShared")
+        val logdbHelper = LogDatabaseHelper(this)
         
         val intent = Intent(this, AlarmReceiver::class.java).apply {
             if (isShared) {
@@ -494,6 +548,13 @@ class MainActivity : FlutterActivity() {
         
         if (checkIntent == null) {
             Log.d("MainActivity", "No alarm found to cancel for request code: $requestCode, isShared: $isShared")
+            val alarmType = if (isShared) "shared" else "local"
+            logdbHelper.insertLog(
+                "No $alarmType alarm found to cancel (request code: $requestCode)",
+                status = LogDatabaseHelper.Status.WARNING,
+                type = LogDatabaseHelper.LogType.DEV,
+                hasRung = 0
+            )
             return
         }
         
@@ -501,8 +562,23 @@ class MainActivity : FlutterActivity() {
             alarmManager?.cancel(checkIntent)
             checkIntent.cancel()
             Log.d("MainActivity", "Successfully canceled alarm with request code: $requestCode, isShared: $isShared")
+            
+            // Log successful cancellation
+            val alarmType = if (isShared) "shared" else "local"
+            logdbHelper.insertLog(
+                "Successfully cancelled $alarmType alarm (request code: $requestCode)",
+                status = LogDatabaseHelper.Status.SUCCESS,
+                type = LogDatabaseHelper.LogType.DEV,
+                hasRung = 0
+            )
         } catch (e: Exception) {
             Log.e("MainActivity", "Error canceling alarm: ${e.message}")
+            logdbHelper.insertLog(
+                "Failed to cancel alarm (request code: $requestCode): ${e.message}",
+                status = LogDatabaseHelper.Status.ERROR,
+                type = LogDatabaseHelper.LogType.DEV,
+                hasRung = 0
+            )
         }
     }
 
@@ -525,10 +601,12 @@ class MainActivity : FlutterActivity() {
     private fun scheduleAlarmInternal(
         intervalToAlarm: Long,
         isActivity: Int,
-        isLocation: Int, 
+        isLocation: Int,
         location: String,
+        locationConditionType: Int,
         isWeather: Int,
         weatherTypesJson: String,
+        weatherConditionType: Int,
         isShared: Boolean
     ) {
         val triggerAtMillis = System.currentTimeMillis() + intervalToAlarm
@@ -543,8 +621,10 @@ class MainActivity : FlutterActivity() {
             putExtra("isActivity", isActivity)
             putExtra("isLocation", isLocation)
             putExtra("location", location)
+            putExtra("locationConditionType", locationConditionType)
             putExtra("isWeather", isWeather)
             putExtra("weatherTypes", weatherTypesJson)
+            putExtra("weatherConditionType", weatherConditionType)
             if (isShared) {
                 putExtra("isSharedAlarm", true)
             }
@@ -643,8 +723,10 @@ class MainActivity : FlutterActivity() {
             val isActivity = nextAlarm["isActivity"] as Int
             val isLocation = nextAlarm["isLocation"] as Int
             val location = nextAlarm["location"] as String
+            val locationConditionType = nextAlarm["locationConditionType"] as? Int ?: 2
             val isWeather = nextAlarm["isWeather"] as Int
             val weatherTypes = nextAlarm["weatherTypes"] as String
+            val weatherConditionType = nextAlarm["weatherConditionType"] as? Int ?: 2
             val isShared = nextAlarm["isSharedAlarm"] as Boolean
             
             Log.d("MainActivity", "Scheduling next alarm: isShared=$isShared, interval=$intervalToAlarm")
@@ -654,8 +736,10 @@ class MainActivity : FlutterActivity() {
                 isActivity,
                 isLocation,
                 location,
+                locationConditionType,
                 isWeather,
                 weatherTypes,
+                weatherConditionType,
                 isShared
             )
             

@@ -26,6 +26,7 @@ import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/shake_to
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/shared_alarm_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/shared_users_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/snooze_settings_tile.dart';
+import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/sunrise_alarm_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/weather_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/settings/controllers/settings_controller.dart';
 import 'package:ultimate_alarm_clock/app/modules/settings/controllers/theme_controller.dart';
@@ -875,6 +876,14 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                         color: themeController
                                             .primaryDisabledTextColor.value,
                                       ),
+                                      SunriseAlarmTile(
+                                        controller: controller,
+                                        themeController: themeController,
+                                      ),
+                                      Divider(
+                                        color: themeController
+                                            .primaryDisabledTextColor.value,
+                                      ),
                                       QuoteTile(
                                         controller: controller,
                                         themeController: themeController,
@@ -1155,6 +1164,10 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                     .contactTextEditingController.text,
                                 isCall: controller.isCall.value,
                                 ringOn: controller.isFutureDate.value,
+                                isSunriseEnabled: controller.isSunriseEnabled.value,
+                                sunriseDuration: controller.sunriseDuration.value,
+                                sunriseIntensity: controller.sunriseIntensity.value,
+                                sunriseColorScheme: controller.sunriseColorScheme.value,
                               );
 
                               // Adding offset details to the database if

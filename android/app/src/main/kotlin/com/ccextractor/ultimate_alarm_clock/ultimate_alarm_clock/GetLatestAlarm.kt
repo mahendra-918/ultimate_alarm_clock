@@ -157,6 +157,7 @@ fun getLatestAlarm(db: SQLiteDatabase, wantNextAlarm: Boolean, profile: String,c
                 "activityConditionType" to setAlarm.activityConditionType,
                 "activityInterval" to setAlarm.activityInterval,
                 "isLocation" to if (setAlarm.isLocationEnabled == 1) setAlarm.locationConditionType else 0,
+                "locationConditionType" to setAlarm.locationConditionType,
                 "location" to setAlarm.location,
                 "isWeather" to setAlarm.isWeatherEnabled,
                 "weatherTypes" to setAlarm.weatherTypes,
@@ -326,8 +327,10 @@ fun checkActiveSharedAlarm(context: Context): Map<String, Any>? {
     val isActivityEnabled = sharedPreferences.getInt("flutter.shared_alarm_activity", 0)
     val isLocationEnabled = sharedPreferences.getInt("flutter.shared_alarm_location", 0)
     val location = sharedPreferences.getString("flutter.shared_alarm_location_data", "0.0,0.0") ?: "0.0,0.0"
+    val locationConditionType = sharedPreferences.getInt("flutter.shared_alarm_location_condition", 2)
     val isWeatherEnabled = sharedPreferences.getInt("flutter.shared_alarm_weather", 0)
     val weatherTypes = sharedPreferences.getString("flutter.shared_alarm_weather_types", "[]") ?: "[]"
+    val weatherConditionType = sharedPreferences.getInt("flutter.shared_alarm_weather_condition", 2)
     
 
     val timeToAlarm = getTimeDifferenceInMillis(sharedAlarmTime)
@@ -340,9 +343,11 @@ fun checkActiveSharedAlarm(context: Context): Map<String, Any>? {
             "interval" to timeToAlarm,
             "isActivity" to isActivityEnabled,
             "isLocation" to isLocationEnabled,
+            "locationConditionType" to locationConditionType,
             "location" to location,
             "isWeather" to isWeatherEnabled,
             "weatherTypes" to weatherTypes,
+            "weatherConditionType" to weatherConditionType,
             "alarmID" to sharedAlarmId,
             "isSharedAlarm" to true
         )

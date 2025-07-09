@@ -20,11 +20,12 @@ import 'package:ultimate_alarm_clock/app/data/providers/secure_storage_provider.
 import 'package:ultimate_alarm_clock/app/modules/settings/controllers/settings_controller.dart';
 import 'package:ultimate_alarm_clock/app/modules/settings/controllers/theme_controller.dart';
 import 'package:ultimate_alarm_clock/app/utils/audio_utils.dart';
-import 'package:ultimate_alarm_clock/app/utils/constants.dart';
+import 'package:ultimate_alarm_clock/app/utils/constants.dart' hide Status;
 
 import 'package:ultimate_alarm_clock/app/utils/utils.dart';
 import 'package:vibration/vibration.dart';
 import 'package:sensors_plus/sensors_plus.dart';
+import 'package:screen_brightness/screen_brightness.dart';
 
 import '../../home/controllers/home_controller.dart';
 
@@ -32,7 +33,7 @@ class AlarmControlController extends GetxController {
   MethodChannel alarmChannel = MethodChannel('ulticlock');
   RxString note = ''.obs;
   Timer? vibrationTimer;
-  late StreamSubscription<FGBGType> _subscription;
+  StreamSubscription<FGBGType>? _subscription;
   TimeOfDay currentTime = TimeOfDay.now();
   late RxBool isSnoozing = false.obs;
   RxInt minutes = 1.obs;
@@ -55,8 +56,11 @@ class AlarmControlController extends GetxController {
   late Timer guardianTimer;
   RxInt guardianCoundown = 120.obs;
   RxBool isPreviewMode = false.obs;
-
   
+  // Sunrise effect variables
+  RxBool isSunriseActive = false.obs;
+  double _originalScreenBrightness = 0.5;
+
   Future<AlarmModel> getNextAlarm() async {
     UserModel? _userModel = await SecureStorageProvider().retrieveUserModel();
     AlarmModel _alarmRecord = homeController.genFakeAlarmModel();
@@ -120,6 +124,14 @@ class AlarmControlController extends GetxController {
       _currentTimeTimer?.cancel();
     }
 
+    // Set snooze duration - default to 5 minutes if it's 0
+    int snoozeDurationMinutes = currentlyRingingAlarm.value.snoozeDuration;
+    if (snoozeDurationMinutes <= 0) {
+      snoozeDurationMinutes = 5; // Default to 5 minutes when snooze duration is 0
+      debugPrint('🔔 Snooze duration was 0, defaulting to 5 minutes');
+    }
+    minutes.value = snoozeDurationMinutes;
+
     _currentTimeTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (minutes.value == 0 && seconds.value == 0) {
         timer.cancel();
@@ -141,7 +153,13 @@ class AlarmControlController extends GetxController {
   }
 
   void startTimer() {
-    minutes.value = currentlyRingingAlarm.value.snoozeDuration;
+    // Set snooze duration - default to 5 minutes if it's 0
+    int snoozeDurationMinutes = currentlyRingingAlarm.value.snoozeDuration;
+    if (snoozeDurationMinutes <= 0) {
+      snoozeDurationMinutes = 5; // Default to 5 minutes when snooze duration is 0
+      debugPrint('🔔 Snooze duration was 0, defaulting to 5 minutes in startTimer()');
+    }
+    minutes.value = snoozeDurationMinutes;
     isSnoozing.value = false;
     _currentTimeTimer = Timer.periodic(
         Duration(
@@ -205,6 +223,31 @@ class AlarmControlController extends GetxController {
         }
       }
     });
+  }
+  
+  Future<void> _initializeSunriseEffect() async {
+    if (currentlyRingingAlarm.value.isSunriseEnabled) {
+      try {
+        // Store original brightness for restoration later
+        _originalScreenBrightness = await ScreenBrightness().current;
+        isSunriseActive.value = true;
+        debugPrint('🌅 Sunrise effect initialized - original brightness: $_originalScreenBrightness');
+      } catch (e) {
+        debugPrint('🌅 Error initializing sunrise effect: $e');
+      }
+    }
+  }
+  
+  Future<void> _restoreOriginalBrightness() async {
+    if (isSunriseActive.value) {
+      try {
+        await ScreenBrightness().setScreenBrightness(_originalScreenBrightness);
+        isSunriseActive.value = false;
+        debugPrint('🌅 Original screen brightness restored: $_originalScreenBrightness');
+      } catch (e) {
+        debugPrint('🌅 Error restoring brightness: $e');
+      }
+    }
   }
 
   void showQuotePopup(Quote quote) {
@@ -291,7 +334,11 @@ class AlarmControlController extends GetxController {
       }
     }
     
-    if (currentlyRingingAlarm.value.isGuardian) {
+    // Initialize sunrise effect if enabled
+    await _initializeSunriseEffect();
+    
+    // Don't start guardian functionality in preview mode
+    if (currentlyRingingAlarm.value.isGuardian && !isPreviewMode.value) {
       guardianTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
         if (guardianCoundown.value == 0) {
           currentlyRingingAlarm.value.isCall
@@ -310,33 +357,46 @@ class AlarmControlController extends GetxController {
       stream: AudioStream.alarm,
     ) as double;
 
-    FlutterVolumeController.updateShowSystemUI(false);
+    // Don't update system UI or start alarm functionality in preview mode
+    if (!isPreviewMode.value) {
+      FlutterVolumeController.updateShowSystemUI(false);
 
-    // _fadeInAlarmVolume();     TODO fix volume fade-in
+      // _fadeInAlarmVolume();     TODO fix volume fade-in
 
-    vibrationTimer =
-        Timer.periodic(const Duration(milliseconds: 3500), (Timer timer) {
-          Vibration.vibrate(pattern: [500, 3000]);
-        });
+      vibrationTimer =
+          Timer.periodic(const Duration(milliseconds: 3500), (Timer timer) {
+            Vibration.vibrate(pattern: [500, 3000]);
+          });
 
-    // Preventing app from being minimized!
-    _subscription = FGBGEvents.stream.listen((event) {
-      if (event == FGBGType.background) {
-        alarmChannel.invokeMethod('bringAppToForeground');
-      }
-    });
+      // Preventing app from being minimized!
+      _subscription = FGBGEvents.stream.listen((event) {
+        if (event == FGBGType.background) {
+          alarmChannel.invokeMethod('bringAppToForeground');
+        }
+      });
+
+      AudioUtils.playAlarm(alarmRecord: currentlyRingingAlarm.value);
+      
+      // Log detailed alarm ringing (NORMAL - always visible)
+      String alarmType = currentlyRingingAlarm.value.isSharedAlarmEnabled ? 'SHARED' : 'LOCAL';
+      String ringMessage = IsarDb.buildDetailedAlarmRingMessage(currentlyRingingAlarm.value, alarmType);
+      await IsarDb().insertLog(ringMessage, status: Status.success, type: LogType.normal, hasRung: 1);
+    }
 
     startTimer();
-
-    AudioUtils.playAlarm(alarmRecord: currentlyRingingAlarm.value);
 
     if(currentlyRingingAlarm.value.showMotivationalQuote) {
       Quote quote = Utils.getRandomQuote();
       showQuotePopup(quote);
     }
 
-    // Setting snooze duration
-    minutes.value = currentlyRingingAlarm.value.snoozeDuration;
+    // Setting snooze duration - default to 5 minutes if it's 0
+    int snoozeDurationMinutes = currentlyRingingAlarm.value.snoozeDuration;
+    if (snoozeDurationMinutes <= 0) {
+      snoozeDurationMinutes = 5; // Default to 5 minutes when snooze duration is 0
+      debugPrint('🔔 Snooze duration was 0, defaulting to 5 minutes in onInit()');
+    }
+    minutes.value = snoozeDurationMinutes;
     
     // Note: We've removed the alarm scheduling code from here
     // since it's already handled in the dismiss button handler
@@ -348,18 +408,25 @@ class AlarmControlController extends GetxController {
     super.onClose();
     debugPrint('🔔 Alarm ring view is closing...');
     
-    // Stop vibration and sound
-    Vibration.cancel();
-    vibrationTimer!.cancel();
-    isAlarmActive = false;
-    String ringtoneName = currentlyRingingAlarm.value.ringtoneName;
-    AudioUtils.stopAlarm(ringtoneName: ringtoneName);
+    // Stop vibration and sound only if not in preview mode (or if they were started)
+    if (!isPreviewMode.value) {
+      Vibration.cancel();
+      if (vibrationTimer != null) {
+        vibrationTimer!.cancel();
+      }
+      isAlarmActive = false;
+      String ringtoneName = currentlyRingingAlarm.value.ringtoneName;
+      AudioUtils.stopAlarm(ringtoneName: ringtoneName);
+      
+      // Reset volume to initial level
+      await FlutterVolumeController.setVolume(
+        initialVolume,
+        stream: AudioStream.alarm,
+      );
+    }
     
-    // Reset volume to initial level
-    await FlutterVolumeController.setVolume(
-      initialVolume,
-      stream: AudioStream.alarm,
-    );
+    // Always restore original screen brightness
+    await _restoreOriginalBrightness();
     
     if (!isPreviewMode.value) {
       debugPrint('🔔 Processing alarm dismissal...');
@@ -437,7 +504,7 @@ class AlarmControlController extends GetxController {
       await Future.delayed(const Duration(milliseconds: 500));
     }
     
-    _subscription.cancel();
+    _subscription?.cancel();
     _currentTimeTimer?.cancel();
     _sensorSubscription?.cancel();
     debugPrint('🔔 Alarm ring cleanup complete');

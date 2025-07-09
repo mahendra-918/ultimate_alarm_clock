@@ -203,6 +203,7 @@ class SplashScreenController extends GetxController {
                     'isActivityEnabled': latestAlarm.isActivityEnabled,
                     'isLocationEnabled': latestAlarm.isLocationEnabled,
                     'isWeatherEnabled': latestAlarm.isWeatherEnabled,
+                    'weatherConditionType': latestAlarm.weatherConditionType,
                     'intervalToAlarm': intervaltoAlarm,
                     'location': latestAlarm.location,
                     'weatherTypes': jsonEncode(latestAlarm.weatherTypes),

@@ -10,6 +10,7 @@ dependencies:
   firebase_core: ^2.27.0
 
   screen_state: ^4.0.0
+  screen_brightness: ^0.2.2+1
   cupertino_icons: ^1.0.2
   win32: ^5.2.0
   get: 4.6.6

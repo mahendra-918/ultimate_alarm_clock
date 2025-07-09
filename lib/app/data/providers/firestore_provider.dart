@@ -28,7 +28,7 @@ class FirestoreDb {
     final dir = await getDatabasesPath();
     final dbPath = '$dir/alarms.db';
     print(dir);
-    db = await openDatabase(dbPath, version: 3, onCreate: _onCreate, onUpgrade: _onUpgrade);
+    db = await openDatabase(dbPath, version: 4, onCreate: _onCreate, onUpgrade: _onUpgrade);
     return db;
   }
 
@@ -40,6 +40,13 @@ class FirestoreDb {
     if (oldVersion < 3) {
       // Add activityConditionType column
       await db.execute('ALTER TABLE alarms ADD COLUMN activityConditionType INTEGER NOT NULL DEFAULT 2');
+    }
+    if (oldVersion < 4) {
+      // Add sunrise alarm columns
+      await db.execute('ALTER TABLE alarms ADD COLUMN isSunriseEnabled INTEGER NOT NULL DEFAULT 0');
+      await db.execute('ALTER TABLE alarms ADD COLUMN sunriseDuration INTEGER NOT NULL DEFAULT 30');
+      await db.execute('ALTER TABLE alarms ADD COLUMN sunriseIntensity REAL NOT NULL DEFAULT 1.0');
+      await db.execute('ALTER TABLE alarms ADD COLUMN sunriseColorScheme INTEGER NOT NULL DEFAULT 0');
     }
   }
 
@@ -97,7 +104,11 @@ class FirestoreDb {
         guardianTimer INTEGER,
         guardian TEXT,
         isCall INTEGER,
-        ringOn INTEGER
+        ringOn INTEGER,
+        isSunriseEnabled INTEGER NOT NULL DEFAULT 0,
+        sunriseDuration INTEGER NOT NULL DEFAULT 30,
+        sunriseIntensity REAL NOT NULL DEFAULT 1.0,
+        sunriseColorScheme INTEGER NOT NULL DEFAULT 0
 
       )
     ''');
@@ -147,6 +158,14 @@ class FirestoreDb {
           .add(AlarmModel.toMap(alarmRecord))
           .then((value) => alarmRecord.firestoreId = value.id);
       debugPrint('✅ Created shared alarm in Firestore: ${alarmRecord.firestoreId}');
+      
+      // Detailed shared alarm creation log (NORMAL - always visible) 
+      String detailedMessage = IsarDb.buildDetailedAlarmCreationMessage(alarmRecord, 'SHARED');
+      await IsarDb().insertLog(
+        detailedMessage,
+        status: Status.success,
+        type: LogType.normal,
+      );
     } else {
       // Create local alarm in SQLite
       final sql = await FirestoreDb().getSQLiteDatabase();
@@ -156,12 +175,22 @@ class FirestoreDb {
             .insert('alarms', alarmRecord.toSQFliteMap())
             .then((value) => print('insert success'));
       } catch (e) {
-        if (e.toString().contains('locationConditionType') || e.toString().contains('weatherConditionType') || e.toString().contains('activityConditionType')) {
+        if (e.toString().contains('locationConditionType') || 
+            e.toString().contains('weatherConditionType') || 
+            e.toString().contains('activityConditionType') ||
+            e.toString().contains('isSunriseEnabled') ||
+            e.toString().contains('sunriseDuration') ||
+            e.toString().contains('sunriseIntensity') ||
+            e.toString().contains('sunriseColorScheme')) {
           // If new columns don't exist, insert without them for backward compatibility
           Map<String, dynamic> fallbackMap = Map.from(alarmRecord.toSQFliteMap());
           fallbackMap.remove('locationConditionType');
           fallbackMap.remove('weatherConditionType');
           fallbackMap.remove('activityConditionType');
+          fallbackMap.remove('isSunriseEnabled');
+          fallbackMap.remove('sunriseDuration');
+          fallbackMap.remove('sunriseIntensity');
+          fallbackMap.remove('sunriseColorScheme');
           await sql!
               .insert('alarms', fallbackMap)
               .then((value) => print('insert success (backward compatibility)'));

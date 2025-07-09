@@ -11,6 +11,7 @@ import android.util.Log
 import android.icu.text.SimpleDateFormat
 import com.ccextractor.ultimate_alarm_clock.MainActivity
 import com.ccextractor.ultimate_alarm_clock.ultimate_alarm_clock.AlarmUtils
+import com.ccextractor.ultimate_alarm_clock.LogDatabaseHelper
 import java.util.Calendar
 import android.app.PendingIntent
 import android.content.Intent
@@ -108,8 +109,10 @@ class FirebaseMessagingService : FirebaseMessagingService() {
             val isActivityEnabled = sharedPreferences.getInt("flutter.shared_alarm_activity", 0) == 1
             val isLocationEnabled = sharedPreferences.getInt("flutter.shared_alarm_location", 0) == 1
             val location = sharedPreferences.getString("flutter.shared_alarm_location_data", "0.0,0.0") ?: "0.0,0.0"
+            val locationConditionType = sharedPreferences.getInt("flutter.shared_alarm_location_condition", 2)
             val isWeatherEnabled = sharedPreferences.getInt("flutter.shared_alarm_weather", 0) == 1
             val weatherTypes = sharedPreferences.getString("flutter.shared_alarm_weather_types", "[]") ?: "[]"
+            val weatherConditionType = sharedPreferences.getInt("flutter.shared_alarm_weather_condition", 2)
             
             Log.d("FCM", "🔧 Rescheduling with config - activity: $isActivityEnabled, location: $isLocationEnabled, weather: $isWeatherEnabled")
             
@@ -120,8 +123,10 @@ class FirebaseMessagingService : FirebaseMessagingService() {
                 if (isActivityEnabled) 1 else 0,
                 if (isLocationEnabled) 1 else 0,
                 location,
+                locationConditionType,
                 if (isWeatherEnabled) 1 else 0,
                 weatherTypes,
+                weatherConditionType,
                 true, // isShared = true
                 alarmId
             )
@@ -133,6 +138,15 @@ class FirebaseMessagingService : FirebaseMessagingService() {
             
             Log.d("FCM", "✅ Successfully rescheduled shared alarm to: $newAlarmTime")
             
+            // Log the rescheduling
+            val logdbHelper = LogDatabaseHelper(this)
+            logdbHelper.insertLog(
+                "Shared alarm rescheduled remotely to $newAlarmTime (ID: $alarmId)",
+                status = LogDatabaseHelper.Status.SUCCESS,
+                type = LogDatabaseHelper.LogType.DEV,
+                hasRung = 0,
+                alarmID = alarmId
+            )
             
             showNotification(
                 "Alarm Updated",
@@ -141,6 +155,15 @@ class FirebaseMessagingService : FirebaseMessagingService() {
             
         } catch (e: Exception) {
             Log.e("FCM", "❌ Error handling reschedule alarm: ${e.message}")
+            
+            // Log the error
+            val logdbHelper = LogDatabaseHelper(this)
+            logdbHelper.insertLog(
+                "Failed to reschedule shared alarm remotely: ${e.message}",
+                status = LogDatabaseHelper.Status.ERROR,
+                type = LogDatabaseHelper.LogType.DEV,
+                hasRung = 0
+            )
         }
     }
     
@@ -206,8 +229,10 @@ class FirebaseMessagingService : FirebaseMessagingService() {
         editor.remove("flutter.shared_alarm_activity")
         editor.remove("flutter.shared_alarm_location")
         editor.remove("flutter.shared_alarm_location_data")
+        editor.remove("flutter.shared_alarm_location_condition")
         editor.remove("flutter.shared_alarm_weather")
         editor.remove("flutter.shared_alarm_weather_types")
+        editor.remove("flutter.shared_alarm_weather_condition")
         editor.apply()
         
         Log.d("FCM", "🧹 Cleared shared alarm data")

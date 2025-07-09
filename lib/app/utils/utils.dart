@@ -80,6 +80,10 @@ class Utils {
     guardian: '',
     isCall: false,
     ringOn: false,
+    isSunriseEnabled: false,
+    sunriseDuration: 30,
+    sunriseIntensity: 1.0,
+    sunriseColorScheme: 0,
   );
 
   static String formatDateTimeToHHMMSS(DateTime dateTime) {
@@ -537,6 +541,10 @@ class Utils {
       guardian: '',
       isCall: false,
       ringOn: false,
+      isSunriseEnabled: false,
+      sunriseDuration: 30,
+      sunriseIntensity: 1.0,
+      sunriseColorScheme: 0,
     );
   }
 

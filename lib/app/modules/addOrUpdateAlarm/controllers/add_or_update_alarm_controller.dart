@@ -16,7 +16,7 @@ import 'package:ultimate_alarm_clock/app/data/models/profile_model.dart';
 import 'package:ultimate_alarm_clock/app/data/models/user_model.dart';
 import 'package:ultimate_alarm_clock/app/data/providers/firestore_provider.dart';
 import 'package:ultimate_alarm_clock/app/data/providers/get_storage_provider.dart';
-import 'package:ultimate_alarm_clock/app/data/providers/isar_provider.dart';
+import 'package:ultimate_alarm_clock/app/data/providers/isar_provider.dart' as isar;
 import 'package:ultimate_alarm_clock/app/data/providers/push_notifications.dart';
 import 'package:ultimate_alarm_clock/app/data/providers/secure_storage_provider.dart';
 import 'package:ultimate_alarm_clock/app/data/models/ringtone_model.dart';
@@ -69,6 +69,10 @@ class AddOrUpdateAlarmController extends GetxController {
   final RxList<Map> offsetDetails = [{}].obs;
   final offsetDuration = 0.obs;
   final isOffsetBefore = true.obs;
+  
+  // NEW: Selected location radius for customizable detection radius
+  final selectedLocationRadius = 500.obs; // Default 500m radius
+  
   var qrController = MobileScannerController(
     autoStart: false,
     detectionSpeed: DetectionSpeed.noDuplicates,
@@ -165,6 +169,12 @@ class AddOrUpdateAlarmController extends GetxController {
   final RxInt guardianTimer = 0.obs;
   final RxString guardian = ''.obs;
   final RxBool isCall = false.obs;
+  
+  // Sunrise Alarm Variables
+  final RxBool isSunriseEnabled = false.obs;
+  final RxInt sunriseDuration = 30.obs;
+  final RxDouble sunriseIntensity = 1.0.obs;
+  final RxInt sunriseColorScheme = 0.obs;
 
   void toggleIsPlaying() {
     isPlaying.toggle();
@@ -442,7 +452,7 @@ class AddOrUpdateAlarmController extends GetxController {
       alarmRecord.value =
           await FirestoreDb.addAlarm(userModel.value, alarmData);
     } else {
-      alarmRecord.value = await IsarDb.addAlarm(alarmData);
+      alarmRecord.value = await isar.IsarDb.addAlarm(alarmData);
     }
 
     Future.delayed(const Duration(seconds: 1), () {
@@ -655,7 +665,7 @@ class AddOrUpdateAlarmController extends GetxController {
     // Adding the ID's so it can update depending on the db
     if (isSharedAlarmEnabled.value == true) {
       
-      bool isConversion = await IsarDb.doesAlarmExist(alarmRecord.value.alarmID) && 
+      bool isConversion = await isar.IsarDb.doesAlarmExist(alarmRecord.value.alarmID) && 
                          (alarmRecord.value.firestoreId == null || alarmRecord.value.firestoreId!.isEmpty);
       
       if (isConversion) {
@@ -673,7 +683,7 @@ class AddOrUpdateAlarmController extends GetxController {
         }
         
       
-        await IsarDb.deleteAlarm(alarmRecord.value.isarId);
+        await isar.IsarDb.deleteAlarm(alarmRecord.value.isarId);
         debugPrint('🗑️ Deleted alarm from local database using isarId: ${alarmRecord.value.isarId}');
         
       
@@ -727,7 +737,7 @@ class AddOrUpdateAlarmController extends GetxController {
     } else {
       
       bool isConversion = (alarmRecord.value.firestoreId != null && alarmRecord.value.firestoreId!.isNotEmpty) &&
-                         !await IsarDb.doesAlarmExist(alarmRecord.value.alarmID);
+                         !await isar.IsarDb.doesAlarmExist(alarmRecord.value.alarmID);
       
       if (isConversion) {
         debugPrint('🔄 Converting shared alarm to normal alarm');
@@ -748,10 +758,10 @@ class AddOrUpdateAlarmController extends GetxController {
         debugPrint('🗑️ Deleted alarm from Firestore');
         
       
-        alarmRecord.value = await IsarDb.addAlarm(alarmData);
+        alarmRecord.value = await isar.IsarDb.addAlarm(alarmData);
         debugPrint('✅ Created new normal alarm in local database: ${alarmRecord.value.alarmID}');
         
-      } else if (await IsarDb.doesAlarmExist(alarmRecord.value.alarmID) == true) {
+      } else if (await isar.IsarDb.doesAlarmExist(alarmRecord.value.alarmID) == true) {
       
         debugPrint('📝 Updating existing normal alarm: ${alarmRecord.value.alarmID}');
         
@@ -769,14 +779,14 @@ class AddOrUpdateAlarmController extends GetxController {
         }
         
       
-        await IsarDb.updateAlarm(alarmData);
+        await isar.IsarDb.updateAlarm(alarmData);
         
       
         homeController.forceRefreshAfterAlarmUpdate(alarmData.alarmID, false);
       } else {
       
         debugPrint('⚠️ Unexpected state: normal alarm but no valid local ID found');
-        alarmRecord.value = await IsarDb.addAlarm(alarmData);
+        alarmRecord.value = await isar.IsarDb.addAlarm(alarmData);
       }
     }
 
@@ -807,7 +817,7 @@ class AddOrUpdateAlarmController extends GetxController {
       userName.value = userModel.value!.fullName;
       lastEditedUserId.value = userModel.value!.id;
     }
-    IsarDb.loadDefaultRingtones();
+    isar.IsarDb.loadDefaultRingtones();
 
     // listens to the userModel declared in homeController and updates on signup event
     homeController.userModel.stream.listen((UserModel? user) {
@@ -826,6 +836,10 @@ class AddOrUpdateAlarmController extends GetxController {
       isGuardian.value = alarmRecord.value.isGuardian;
       guardian.value = alarmRecord.value.guardian;
       guardianTimer.value = alarmRecord.value.guardianTimer;
+      isSunriseEnabled.value = alarmRecord.value.isSunriseEnabled;
+      sunriseDuration.value = alarmRecord.value.sunriseDuration;
+      sunriseIntensity.value = alarmRecord.value.sunriseIntensity;
+      sunriseColorScheme.value = alarmRecord.value.sunriseColorScheme;
       isActivityMonitorenabled.value =
           alarmRecord.value.isActivityEnabled ? 1 : 0;
       snoozeDuration.value = alarmRecord.value.snoozeDuration;
@@ -1248,6 +1262,10 @@ class AddOrUpdateAlarmController extends GetxController {
       guardian: guardian.value,
       isCall: isCall.value,
       ringOn: isFutureDate.value,
+      isSunriseEnabled: isSunriseEnabled.value,
+      sunriseDuration: sunriseDuration.value,
+      sunriseIntensity: sunriseIntensity.value,
+      sunriseColorScheme: sunriseColorScheme.value,
     );
   }
 
@@ -1328,7 +1346,7 @@ class AddOrUpdateAlarmController extends GetxController {
             customRingtoneName: previousRingtone,
             counterUpdate: CounterUpdate.decrement,
           );
-          await IsarDb.addCustomRingtone(customRingtone);
+          await isar.IsarDb.addCustomRingtone(customRingtone);
         }
       }
     } catch (e) {
@@ -1339,7 +1357,7 @@ class AddOrUpdateAlarmController extends GetxController {
   Future<List<String>> getAllCustomRingtoneNames() async {
     try {
       List<RingtoneModel> customRingtones =
-          await IsarDb.getAllCustomRingtones();
+          await isar.IsarDb.getAllCustomRingtones();
 
       return customRingtones
           .map((customRingtone) => customRingtone.ringtoneName)
@@ -1357,7 +1375,7 @@ class AddOrUpdateAlarmController extends GetxController {
     try {
       int customRingtoneId = AudioUtils.fastHash(ringtoneName);
       RingtoneModel? customRingtone =
-          await IsarDb.getCustomRingtone(customRingtoneId: customRingtoneId);
+          await isar.IsarDb.getCustomRingtone(customRingtoneId: customRingtoneId);
 
       if (customRingtone != null) {
         int currentCounterOfUsage = customRingtone.currentCounterOfUsage;
@@ -1365,7 +1383,7 @@ class AddOrUpdateAlarmController extends GetxController {
 
         if (currentCounterOfUsage == 0 || isSystemRingtone) {
           customRingtoneNames.removeAt(ringtoneIndex);
-          await IsarDb.deleteCustomRingtone(ringtoneId: customRingtoneId);
+          await isar.IsarDb.deleteCustomRingtone(ringtoneId: customRingtoneId);
 
           if (isSystemRingtone) {
             Get.snackbar(
@@ -1486,7 +1504,7 @@ class AddOrUpdateAlarmController extends GetxController {
         return;
       }
 
-      bool exists = await IsarDb.profileExists(profileTextEditingController.text.trim());
+      bool exists = await isar.IsarDb.profileExists(profileTextEditingController.text.trim());
       if (exists) {
         Get.snackbar(
           'Error',
@@ -1556,18 +1574,22 @@ class AddOrUpdateAlarmController extends GetxController {
       guardian: guardian.value,
       isCall: isCall.value,
       ringOn: isFutureDate.value,
+      isSunriseEnabled: isSunriseEnabled.value,
+      sunriseDuration: sunriseDuration.value,
+      sunriseIntensity: sunriseIntensity.value,
+      sunriseColorScheme: sunriseColorScheme.value,
       );
 
       if (homeController.isProfileUpdate.value) {
         var profileId =
-            await IsarDb.profileId(homeController.selectedProfile.value);
+            await isar.IsarDb.profileId(homeController.selectedProfile.value);
         print(profileId);
         if (profileId != 'null') profileModel.isarId = profileId;
         print(profileModel.isarId);
-        await IsarDb.updateAlarmProfiles(profileTextEditingController.text);
+        await isar.IsarDb.updateAlarmProfiles(profileTextEditingController.text);
       }
 
-      await IsarDb.addProfile(profileModel);
+      await isar.IsarDb.addProfile(profileModel);
       homeController.selectedProfile.value = profileModel.profileName;
       storage.writeProfile(profileModel.profileName);
       homeController.writeProfileName(profileModel.profileName);

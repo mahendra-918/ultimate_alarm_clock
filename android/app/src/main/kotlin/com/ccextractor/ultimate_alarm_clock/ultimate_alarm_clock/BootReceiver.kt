@@ -14,6 +14,7 @@ import android.os.CountDownTimer
 import androidx.core.app.NotificationCompat
 import com.ccextractor.ultimate_alarm_clock.getLatestTimer
 import com.ccextractor.ultimate_alarm_clock.ultimate_alarm_clock.AlarmUtils
+import com.ccextractor.ultimate_alarm_clock.LogDatabaseHelper
 import android.util.Log
 import java.util.Calendar
 import java.text.SimpleDateFormat
@@ -31,6 +32,7 @@ class BootReceiver : BroadcastReceiver() {
             val profile = sharedPreferences.getString("flutter.profile", "Default")
 
             val nextLocalAlarm = determineNextAlarm(context, profile ?: "Default")
+            val logdbHelper = LogDatabaseHelper(context)
             
             if (nextLocalAlarm != null) {
                 val isSharedAlarm = nextLocalAlarm["isSharedAlarm"] as? Boolean ?: false
@@ -42,13 +44,28 @@ class BootReceiver : BroadcastReceiver() {
                         nextLocalAlarm["isActivity"] as Int,
                         nextLocalAlarm["isLocation"] as Int,
                         nextLocalAlarm["location"] as String,
+                        nextLocalAlarm["locationConditionType"] as? Int ?: 2,
                         nextLocalAlarm["isWeather"] as Int,
                         nextLocalAlarm["weatherTypes"] as String,
+                        nextLocalAlarm["weatherConditionType"] as? Int ?: 2,
                         false,
                         ""
                     )
                     Log.d("BootReceiver", "✅ Rescheduled local alarm after boot")
+                    logdbHelper.insertLog(
+                        "Rescheduled local alarm after device boot",
+                        status = LogDatabaseHelper.Status.SUCCESS,
+                        type = LogDatabaseHelper.LogType.NORMAL,
+                        hasRung = 0
+                    )
                 }
+            } else {
+                logdbHelper.insertLog(
+                    "No local alarms to reschedule after boot",
+                    status = LogDatabaseHelper.Status.WARNING,
+                    type = LogDatabaseHelper.LogType.DEV,
+                    hasRung = 0
+                )
             }
             
             // Reschedule shared alarms
@@ -99,8 +116,10 @@ class BootReceiver : BroadcastReceiver() {
             val isActivityEnabled = sharedPreferences.getInt("flutter.shared_alarm_activity", 0)
             val isLocationEnabled = sharedPreferences.getInt("flutter.shared_alarm_location", 0)
             val location = sharedPreferences.getString("flutter.shared_alarm_location_data", "0.0,0.0") ?: "0.0,0.0"
+            val locationConditionType = sharedPreferences.getInt("flutter.shared_alarm_location_condition", 2)
             val isWeatherEnabled = sharedPreferences.getInt("flutter.shared_alarm_weather", 0)
             val weatherTypes = sharedPreferences.getString("flutter.shared_alarm_weather_types", "[]") ?: "[]"
+            val weatherConditionType = sharedPreferences.getInt("flutter.shared_alarm_weather_condition", 2)
             
             Log.d("BootReceiver", "🔧 Rescheduling shared alarm with config - activity: $isActivityEnabled, location: $isLocationEnabled, weather: $isWeatherEnabled")
             
@@ -110,16 +129,37 @@ class BootReceiver : BroadcastReceiver() {
                 isActivityEnabled,
                 isLocationEnabled,
                 location,
+                locationConditionType,
                 isWeatherEnabled,
                 weatherTypes,
+                weatherConditionType,
                 true,
                 sharedAlarmId
             )
             
             Log.d("BootReceiver", "✅ Successfully rescheduled shared alarm: $sharedAlarmTime")
             
+            // Log the rescheduling
+            val logdbHelper = LogDatabaseHelper(context)
+            logdbHelper.insertLog(
+                "Rescheduled shared alarm after device boot (ID: $sharedAlarmId)",
+                status = LogDatabaseHelper.Status.SUCCESS,
+                type = LogDatabaseHelper.LogType.NORMAL,
+                hasRung = 0,
+                alarmID = sharedAlarmId
+            )
+            
         } catch (e: Exception) {
             Log.e("BootReceiver", "❌ Error rescheduling shared alarm after boot: ${e.message}")
+            
+            // Log the error
+            val logdbHelper = LogDatabaseHelper(context)
+            logdbHelper.insertLog(
+                "Failed to reschedule shared alarm after boot: ${e.message}",
+                status = LogDatabaseHelper.Status.ERROR,
+                type = LogDatabaseHelper.LogType.DEV,
+                hasRung = 0
+            )
         }
     }
     
@@ -162,8 +202,10 @@ class BootReceiver : BroadcastReceiver() {
         editor.remove("flutter.shared_alarm_activity")
         editor.remove("flutter.shared_alarm_location")
         editor.remove("flutter.shared_alarm_location_data")
+        editor.remove("flutter.shared_alarm_location_condition")
         editor.remove("flutter.shared_alarm_weather")
         editor.remove("flutter.shared_alarm_weather_types")
+        editor.remove("flutter.shared_alarm_weather_condition")
         editor.apply()
         
         Log.d("BootReceiver", "🧹 Cleared shared alarm data")

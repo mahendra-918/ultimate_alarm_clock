@@ -137,138 +137,158 @@ const AlarmModelSchema = CollectionSchema(
       name: r'isSharedAlarmEnabled',
       type: IsarType.bool,
     ),
-    r'isWeatherEnabled': PropertySchema(
+    r'isSunriseEnabled': PropertySchema(
       id: 24,
+      name: r'isSunriseEnabled',
+      type: IsarType.bool,
+    ),
+    r'isWeatherEnabled': PropertySchema(
+      id: 25,
       name: r'isWeatherEnabled',
       type: IsarType.bool,
     ),
     r'label': PropertySchema(
-      id: 25,
+      id: 26,
       name: r'label',
       type: IsarType.string,
     ),
     r'lastEditedUserId': PropertySchema(
-      id: 26,
+      id: 27,
       name: r'lastEditedUserId',
       type: IsarType.string,
     ),
     r'location': PropertySchema(
-      id: 27,
+      id: 28,
       name: r'location',
       type: IsarType.string,
     ),
     r'locationConditionType': PropertySchema(
-      id: 28,
+      id: 29,
       name: r'locationConditionType',
       type: IsarType.long,
     ),
     r'mainAlarmTime': PropertySchema(
-      id: 29,
+      id: 30,
       name: r'mainAlarmTime',
       type: IsarType.string,
     ),
     r'mathsDifficulty': PropertySchema(
-      id: 30,
+      id: 31,
       name: r'mathsDifficulty',
       type: IsarType.long,
     ),
     r'maxSnoozeCount': PropertySchema(
-      id: 31,
+      id: 32,
       name: r'maxSnoozeCount',
       type: IsarType.long,
     ),
     r'minutesSinceMidnight': PropertySchema(
-      id: 32,
+      id: 33,
       name: r'minutesSinceMidnight',
       type: IsarType.long,
     ),
     r'mutexLock': PropertySchema(
-      id: 33,
+      id: 34,
       name: r'mutexLock',
       type: IsarType.bool,
     ),
     r'note': PropertySchema(
-      id: 34,
+      id: 35,
       name: r'note',
       type: IsarType.string,
     ),
     r'numMathsQuestions': PropertySchema(
-      id: 35,
+      id: 36,
       name: r'numMathsQuestions',
       type: IsarType.long,
     ),
     r'numberOfSteps': PropertySchema(
-      id: 36,
+      id: 37,
       name: r'numberOfSteps',
       type: IsarType.long,
     ),
     r'ownerId': PropertySchema(
-      id: 37,
+      id: 38,
       name: r'ownerId',
       type: IsarType.string,
     ),
     r'ownerName': PropertySchema(
-      id: 38,
+      id: 39,
       name: r'ownerName',
       type: IsarType.string,
     ),
     r'profile': PropertySchema(
-      id: 39,
+      id: 40,
       name: r'profile',
       type: IsarType.string,
     ),
     r'qrValue': PropertySchema(
-      id: 40,
+      id: 41,
       name: r'qrValue',
       type: IsarType.string,
     ),
     r'ringOn': PropertySchema(
-      id: 41,
+      id: 42,
       name: r'ringOn',
       type: IsarType.bool,
     ),
     r'ringtoneName': PropertySchema(
-      id: 42,
+      id: 43,
       name: r'ringtoneName',
       type: IsarType.string,
     ),
     r'shakeTimes': PropertySchema(
-      id: 43,
+      id: 44,
       name: r'shakeTimes',
       type: IsarType.long,
     ),
     r'sharedUserIds': PropertySchema(
-      id: 44,
+      id: 45,
       name: r'sharedUserIds',
       type: IsarType.stringList,
     ),
     r'showMotivationalQuote': PropertySchema(
-      id: 45,
+      id: 46,
       name: r'showMotivationalQuote',
       type: IsarType.bool,
     ),
     r'snoozeDuration': PropertySchema(
-      id: 46,
+      id: 47,
       name: r'snoozeDuration',
       type: IsarType.long,
     ),
+    r'sunriseColorScheme': PropertySchema(
+      id: 48,
+      name: r'sunriseColorScheme',
+      type: IsarType.long,
+    ),
+    r'sunriseDuration': PropertySchema(
+      id: 49,
+      name: r'sunriseDuration',
+      type: IsarType.long,
+    ),
+    r'sunriseIntensity': PropertySchema(
+      id: 50,
+      name: r'sunriseIntensity',
+      type: IsarType.double,
+    ),
     r'volMax': PropertySchema(
-      id: 47,
+      id: 51,
       name: r'volMax',
       type: IsarType.double,
     ),
     r'volMin': PropertySchema(
-      id: 48,
+      id: 52,
       name: r'volMin',
       type: IsarType.double,
     ),
     r'weatherConditionType': PropertySchema(
-      id: 49,
+      id: 53,
       name: r'weatherConditionType',
       type: IsarType.long,
     ),
     r'weatherTypes': PropertySchema(
-      id: 50,
+      id: 54,
       name: r'weatherTypes',
       type: IsarType.longList,
     )
@@ -365,33 +385,37 @@ void _alarmModelSerialize(
   writer.writeBool(offsets[21], object.isQrEnabled);
   writer.writeBool(offsets[22], object.isShakeEnabled);
   writer.writeBool(offsets[23], object.isSharedAlarmEnabled);
-  writer.writeBool(offsets[24], object.isWeatherEnabled);
-  writer.writeString(offsets[25], object.label);
-  writer.writeString(offsets[26], object.lastEditedUserId);
-  writer.writeString(offsets[27], object.location);
-  writer.writeLong(offsets[28], object.locationConditionType);
-  writer.writeString(offsets[29], object.mainAlarmTime);
-  writer.writeLong(offsets[30], object.mathsDifficulty);
-  writer.writeLong(offsets[31], object.maxSnoozeCount);
-  writer.writeLong(offsets[32], object.minutesSinceMidnight);
-  writer.writeBool(offsets[33], object.mutexLock);
-  writer.writeString(offsets[34], object.note);
-  writer.writeLong(offsets[35], object.numMathsQuestions);
-  writer.writeLong(offsets[36], object.numberOfSteps);
-  writer.writeString(offsets[37], object.ownerId);
-  writer.writeString(offsets[38], object.ownerName);
-  writer.writeString(offsets[39], object.profile);
-  writer.writeString(offsets[40], object.qrValue);
-  writer.writeBool(offsets[41], object.ringOn);
-  writer.writeString(offsets[42], object.ringtoneName);
-  writer.writeLong(offsets[43], object.shakeTimes);
-  writer.writeStringList(offsets[44], object.sharedUserIds);
-  writer.writeBool(offsets[45], object.showMotivationalQuote);
-  writer.writeLong(offsets[46], object.snoozeDuration);
-  writer.writeDouble(offsets[47], object.volMax);
-  writer.writeDouble(offsets[48], object.volMin);
-  writer.writeLong(offsets[49], object.weatherConditionType);
-  writer.writeLongList(offsets[50], object.weatherTypes);
+  writer.writeBool(offsets[24], object.isSunriseEnabled);
+  writer.writeBool(offsets[25], object.isWeatherEnabled);
+  writer.writeString(offsets[26], object.label);
+  writer.writeString(offsets[27], object.lastEditedUserId);
+  writer.writeString(offsets[28], object.location);
+  writer.writeLong(offsets[29], object.locationConditionType);
+  writer.writeString(offsets[30], object.mainAlarmTime);
+  writer.writeLong(offsets[31], object.mathsDifficulty);
+  writer.writeLong(offsets[32], object.maxSnoozeCount);
+  writer.writeLong(offsets[33], object.minutesSinceMidnight);
+  writer.writeBool(offsets[34], object.mutexLock);
+  writer.writeString(offsets[35], object.note);
+  writer.writeLong(offsets[36], object.numMathsQuestions);
+  writer.writeLong(offsets[37], object.numberOfSteps);
+  writer.writeString(offsets[38], object.ownerId);
+  writer.writeString(offsets[39], object.ownerName);
+  writer.writeString(offsets[40], object.profile);
+  writer.writeString(offsets[41], object.qrValue);
+  writer.writeBool(offsets[42], object.ringOn);
+  writer.writeString(offsets[43], object.ringtoneName);
+  writer.writeLong(offsets[44], object.shakeTimes);
+  writer.writeStringList(offsets[45], object.sharedUserIds);
+  writer.writeBool(offsets[46], object.showMotivationalQuote);
+  writer.writeLong(offsets[47], object.snoozeDuration);
+  writer.writeLong(offsets[48], object.sunriseColorScheme);
+  writer.writeLong(offsets[49], object.sunriseDuration);
+  writer.writeDouble(offsets[50], object.sunriseIntensity);
+  writer.writeDouble(offsets[51], object.volMax);
+  writer.writeDouble(offsets[52], object.volMin);
+  writer.writeLong(offsets[53], object.weatherConditionType);
+  writer.writeLongList(offsets[54], object.weatherTypes);
 }
 
 AlarmModel _alarmModelDeserialize(
@@ -424,33 +448,37 @@ AlarmModel _alarmModelDeserialize(
     isQrEnabled: reader.readBool(offsets[21]),
     isShakeEnabled: reader.readBool(offsets[22]),
     isSharedAlarmEnabled: reader.readBool(offsets[23]),
-    isWeatherEnabled: reader.readBool(offsets[24]),
-    label: reader.readString(offsets[25]),
-    lastEditedUserId: reader.readString(offsets[26]),
-    location: reader.readString(offsets[27]),
-    locationConditionType: reader.readLong(offsets[28]),
-    mainAlarmTime: reader.readStringOrNull(offsets[29]),
-    mathsDifficulty: reader.readLong(offsets[30]),
-    maxSnoozeCount: reader.readLongOrNull(offsets[31]) ?? 3,
-    minutesSinceMidnight: reader.readLong(offsets[32]),
-    mutexLock: reader.readBool(offsets[33]),
-    note: reader.readString(offsets[34]),
-    numMathsQuestions: reader.readLong(offsets[35]),
-    numberOfSteps: reader.readLong(offsets[36]),
-    ownerId: reader.readString(offsets[37]),
-    ownerName: reader.readString(offsets[38]),
-    profile: reader.readString(offsets[39]),
-    qrValue: reader.readString(offsets[40]),
-    ringOn: reader.readBool(offsets[41]),
-    ringtoneName: reader.readString(offsets[42]),
-    shakeTimes: reader.readLong(offsets[43]),
-    sharedUserIds: reader.readStringList(offsets[44]),
-    showMotivationalQuote: reader.readBool(offsets[45]),
-    snoozeDuration: reader.readLong(offsets[46]),
-    volMax: reader.readDouble(offsets[47]),
-    volMin: reader.readDouble(offsets[48]),
-    weatherConditionType: reader.readLong(offsets[49]),
-    weatherTypes: reader.readLongList(offsets[50]) ?? [],
+    isSunriseEnabled: reader.readBool(offsets[24]),
+    isWeatherEnabled: reader.readBool(offsets[25]),
+    label: reader.readString(offsets[26]),
+    lastEditedUserId: reader.readString(offsets[27]),
+    location: reader.readString(offsets[28]),
+    locationConditionType: reader.readLong(offsets[29]),
+    mainAlarmTime: reader.readStringOrNull(offsets[30]),
+    mathsDifficulty: reader.readLong(offsets[31]),
+    maxSnoozeCount: reader.readLongOrNull(offsets[32]) ?? 3,
+    minutesSinceMidnight: reader.readLong(offsets[33]),
+    mutexLock: reader.readBool(offsets[34]),
+    note: reader.readString(offsets[35]),
+    numMathsQuestions: reader.readLong(offsets[36]),
+    numberOfSteps: reader.readLong(offsets[37]),
+    ownerId: reader.readString(offsets[38]),
+    ownerName: reader.readString(offsets[39]),
+    profile: reader.readString(offsets[40]),
+    qrValue: reader.readString(offsets[41]),
+    ringOn: reader.readBool(offsets[42]),
+    ringtoneName: reader.readString(offsets[43]),
+    shakeTimes: reader.readLong(offsets[44]),
+    sharedUserIds: reader.readStringList(offsets[45]),
+    showMotivationalQuote: reader.readBool(offsets[46]),
+    snoozeDuration: reader.readLong(offsets[47]),
+    sunriseColorScheme: reader.readLong(offsets[48]),
+    sunriseDuration: reader.readLong(offsets[49]),
+    sunriseIntensity: reader.readDouble(offsets[50]),
+    volMax: reader.readDouble(offsets[51]),
+    volMin: reader.readDouble(offsets[52]),
+    weatherConditionType: reader.readLong(offsets[53]),
+    weatherTypes: reader.readLongList(offsets[54]) ?? [],
   );
   object.firestoreId = reader.readStringOrNull(offsets[8]);
   object.isarId = id;
@@ -515,31 +543,31 @@ P _alarmModelDeserializeProp<P>(
     case 24:
       return (reader.readBool(offset)) as P;
     case 25:
-      return (reader.readString(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 26:
       return (reader.readString(offset)) as P;
     case 27:
       return (reader.readString(offset)) as P;
     case 28:
-      return (reader.readLong(offset)) as P;
-    case 29:
-      return (reader.readStringOrNull(offset)) as P;
-    case 30:
-      return (reader.readLong(offset)) as P;
-    case 31:
-      return (reader.readLongOrNull(offset) ?? 3) as P;
-    case 32:
-      return (reader.readLong(offset)) as P;
-    case 33:
-      return (reader.readBool(offset)) as P;
-    case 34:
       return (reader.readString(offset)) as P;
-    case 35:
+    case 29:
       return (reader.readLong(offset)) as P;
+    case 30:
+      return (reader.readStringOrNull(offset)) as P;
+    case 31:
+      return (reader.readLong(offset)) as P;
+    case 32:
+      return (reader.readLongOrNull(offset) ?? 3) as P;
+    case 33:
+      return (reader.readLong(offset)) as P;
+    case 34:
+      return (reader.readBool(offset)) as P;
+    case 35:
+      return (reader.readString(offset)) as P;
     case 36:
       return (reader.readLong(offset)) as P;
     case 37:
-      return (reader.readString(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 38:
       return (reader.readString(offset)) as P;
     case 39:
@@ -547,24 +575,32 @@ P _alarmModelDeserializeProp<P>(
     case 40:
       return (reader.readString(offset)) as P;
     case 41:
-      return (reader.readBool(offset)) as P;
-    case 42:
       return (reader.readString(offset)) as P;
-    case 43:
-      return (reader.readLong(offset)) as P;
-    case 44:
-      return (reader.readStringList(offset)) as P;
-    case 45:
+    case 42:
       return (reader.readBool(offset)) as P;
-    case 46:
+    case 43:
+      return (reader.readString(offset)) as P;
+    case 44:
       return (reader.readLong(offset)) as P;
+    case 45:
+      return (reader.readStringList(offset)) as P;
+    case 46:
+      return (reader.readBool(offset)) as P;
     case 47:
-      return (reader.readDouble(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 48:
-      return (reader.readDouble(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 49:
       return (reader.readLong(offset)) as P;
     case 50:
+      return (reader.readDouble(offset)) as P;
+    case 51:
+      return (reader.readDouble(offset)) as P;
+    case 52:
+      return (reader.readDouble(offset)) as P;
+    case 53:
+      return (reader.readLong(offset)) as P;
+    case 54:
       return (reader.readLongList(offset) ?? []) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -1899,6 +1935,16 @@ extension AlarmModelQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
         property: r'isSharedAlarmEnabled',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QAfterFilterCondition>
+      isSunriseEnabledEqualTo(bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'isSunriseEnabled',
         value: value,
       ));
     });
@@ -4038,6 +4084,184 @@ extension AlarmModelQueryFilter
     });
   }
 
+  QueryBuilder<AlarmModel, AlarmModel, QAfterFilterCondition>
+      sunriseColorSchemeEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'sunriseColorScheme',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QAfterFilterCondition>
+      sunriseColorSchemeGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'sunriseColorScheme',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QAfterFilterCondition>
+      sunriseColorSchemeLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'sunriseColorScheme',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QAfterFilterCondition>
+      sunriseColorSchemeBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'sunriseColorScheme',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QAfterFilterCondition>
+      sunriseDurationEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'sunriseDuration',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QAfterFilterCondition>
+      sunriseDurationGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'sunriseDuration',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QAfterFilterCondition>
+      sunriseDurationLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'sunriseDuration',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QAfterFilterCondition>
+      sunriseDurationBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'sunriseDuration',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QAfterFilterCondition>
+      sunriseIntensityEqualTo(
+    double value, {
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'sunriseIntensity',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QAfterFilterCondition>
+      sunriseIntensityGreaterThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'sunriseIntensity',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QAfterFilterCondition>
+      sunriseIntensityLessThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'sunriseIntensity',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QAfterFilterCondition>
+      sunriseIntensityBetween(
+    double lower,
+    double upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'sunriseIntensity',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
   QueryBuilder<AlarmModel, AlarmModel, QAfterFilterCondition> volMaxEqualTo(
     double value, {
     double epsilon = Query.epsilon,
@@ -4663,6 +4887,19 @@ extension AlarmModelQuerySortBy
     });
   }
 
+  QueryBuilder<AlarmModel, AlarmModel, QAfterSortBy> sortByIsSunriseEnabled() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isSunriseEnabled', Sort.asc);
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QAfterSortBy>
+      sortByIsSunriseEnabledDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isSunriseEnabled', Sort.desc);
+    });
+  }
+
   QueryBuilder<AlarmModel, AlarmModel, QAfterSortBy> sortByIsWeatherEnabled() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isWeatherEnabled', Sort.asc);
@@ -4936,6 +5173,46 @@ extension AlarmModelQuerySortBy
       sortBySnoozeDurationDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'snoozeDuration', Sort.desc);
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QAfterSortBy>
+      sortBySunriseColorScheme() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sunriseColorScheme', Sort.asc);
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QAfterSortBy>
+      sortBySunriseColorSchemeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sunriseColorScheme', Sort.desc);
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QAfterSortBy> sortBySunriseDuration() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sunriseDuration', Sort.asc);
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QAfterSortBy>
+      sortBySunriseDurationDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sunriseDuration', Sort.desc);
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QAfterSortBy> sortBySunriseIntensity() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sunriseIntensity', Sort.asc);
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QAfterSortBy>
+      sortBySunriseIntensityDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sunriseIntensity', Sort.desc);
     });
   }
 
@@ -5271,6 +5548,19 @@ extension AlarmModelQuerySortThenBy
     });
   }
 
+  QueryBuilder<AlarmModel, AlarmModel, QAfterSortBy> thenByIsSunriseEnabled() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isSunriseEnabled', Sort.asc);
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QAfterSortBy>
+      thenByIsSunriseEnabledDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isSunriseEnabled', Sort.desc);
+    });
+  }
+
   QueryBuilder<AlarmModel, AlarmModel, QAfterSortBy> thenByIsWeatherEnabled() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isWeatherEnabled', Sort.asc);
@@ -5559,6 +5849,46 @@ extension AlarmModelQuerySortThenBy
     });
   }
 
+  QueryBuilder<AlarmModel, AlarmModel, QAfterSortBy>
+      thenBySunriseColorScheme() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sunriseColorScheme', Sort.asc);
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QAfterSortBy>
+      thenBySunriseColorSchemeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sunriseColorScheme', Sort.desc);
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QAfterSortBy> thenBySunriseDuration() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sunriseDuration', Sort.asc);
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QAfterSortBy>
+      thenBySunriseDurationDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sunriseDuration', Sort.desc);
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QAfterSortBy> thenBySunriseIntensity() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sunriseIntensity', Sort.asc);
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QAfterSortBy>
+      thenBySunriseIntensityDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sunriseIntensity', Sort.desc);
+    });
+  }
+
   QueryBuilder<AlarmModel, AlarmModel, QAfterSortBy> thenByVolMax() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'volMax', Sort.asc);
@@ -5755,6 +6085,12 @@ extension AlarmModelQueryWhereDistinct
     });
   }
 
+  QueryBuilder<AlarmModel, AlarmModel, QDistinct> distinctByIsSunriseEnabled() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'isSunriseEnabled');
+    });
+  }
+
   QueryBuilder<AlarmModel, AlarmModel, QDistinct> distinctByIsWeatherEnabled() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'isWeatherEnabled');
@@ -5906,6 +6242,25 @@ extension AlarmModelQueryWhereDistinct
   QueryBuilder<AlarmModel, AlarmModel, QDistinct> distinctBySnoozeDuration() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'snoozeDuration');
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QDistinct>
+      distinctBySunriseColorScheme() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'sunriseColorScheme');
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QDistinct> distinctBySunriseDuration() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'sunriseDuration');
+    });
+  }
+
+  QueryBuilder<AlarmModel, AlarmModel, QDistinct> distinctBySunriseIntensity() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'sunriseIntensity');
     });
   }
 
@@ -6091,6 +6446,12 @@ extension AlarmModelQueryProperty
     });
   }
 
+  QueryBuilder<AlarmModel, bool, QQueryOperations> isSunriseEnabledProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'isSunriseEnabled');
+    });
+  }
+
   QueryBuilder<AlarmModel, bool, QQueryOperations> isWeatherEnabledProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'isWeatherEnabled');
@@ -6231,6 +6592,25 @@ extension AlarmModelQueryProperty
   QueryBuilder<AlarmModel, int, QQueryOperations> snoozeDurationProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'snoozeDuration');
+    });
+  }
+
+  QueryBuilder<AlarmModel, int, QQueryOperations> sunriseColorSchemeProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'sunriseColorScheme');
+    });
+  }
+
+  QueryBuilder<AlarmModel, int, QQueryOperations> sunriseDurationProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'sunriseDuration');
+    });
+  }
+
+  QueryBuilder<AlarmModel, double, QQueryOperations>
+      sunriseIntensityProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'sunriseIntensity');
     });
   }
 

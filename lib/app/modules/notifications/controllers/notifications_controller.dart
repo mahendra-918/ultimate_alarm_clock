@@ -118,6 +118,7 @@ class NotificationsController extends GetxController {
         'isActivityEnabled': alarm.isActivityEnabled,
         'isLocationEnabled': alarm.isLocationEnabled,
         'isWeatherEnabled': alarm.isWeatherEnabled,
+        'weatherConditionType': alarm.weatherConditionType,
         'intervalToAlarm': intervalToAlarm,
         'location': alarm.location,
         'weatherTypes': jsonEncode(alarm.weatherTypes),
