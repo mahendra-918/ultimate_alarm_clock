@@ -1,0 +1,53 @@
+Sunrise Alarm Feature
+
+What I Built
+
+I implemented a sunrise alarm feature that gradually brightens the screen before the alarm goes off. The idea was to simulate a natural sunrise to help users wake up more gently instead of being jolted awake by a sudden alarm sound.
+
+Why This Feature Matters
+
+Most people struggle with waking up, especially during winter months or when they need to wake up before dawn. Traditional alarms can be jarring and cause that groggy feeling. A sunrise alarm helps by:
+- Gradually preparing your body for waking up
+- Mimicking natural light patterns
+- Reducing the shock of sudden alarm sounds
+- Creating a more pleasant wake-up experience
+
+How It Works
+
+Settings Configuration
+When creating or editing an alarm, users can enable sunrise mode through a dedicated settings tile. The configuration includes:
+- Duration: How long before the alarm the sunrise effect starts (5-60 minutes)
+- Intensity: Maximum brightness level (10-100%)
+- Color Scheme: Three options - Natural (orange to white), Warm (red to gold), Cool (blue to white)
+- Preview: Users can test the effect before saving
+
+The Sunrise Effect
+The actual sunrise effect runs during alarm time and does several things:
+- Starts with a completely dark screen
+- Gradually increases brightness over the set duration
+- Animates through different colors depending on the chosen scheme
+- Controls the device's screen brightness
+- Shows a subtle sun animation that appears as the effect progresses
+
+Technical Implementation
+I built this using Flutter's animation system with two main controllers:
+- Brightness controller: Manages how bright the screen gets
+- Color controller: Handles the color transitions from dark to light
+
+The effect widget integrates with the phone's actual brightness settings, so it doesn't just change colors - it actually makes the screen brighter.
+
+User Experience
+
+From the user's perspective, they set up their alarm as usual but can now toggle on sunrise mode. When the alarm time approaches, their screen gradually starts glowing and getting brighter. By the time the actual alarm sound plays, they're already being gently woken up by the light.
+
+The feature also includes a preview mode so users can see what their chosen settings will look like without waiting for an actual alarm.
+
+Technical Challenges I Solved
+
+Getting the screen brightness integration working properly was tricky - I had to handle different Android versions and make sure the brightness changes were smooth. The color animations also needed to be carefully tuned so they look natural rather than abrupt.
+
+Another challenge was making sure the sunrise effect doesn't interfere with other alarm features like snooze functionality or shared alarms. Everything needed to work together seamlessly.
+
+What's Next
+
+The foundation is solid and users can already enjoy gentler wake-ups. Future improvements could include more color schemes, sound integration that gradually increases with the light, or even smart home integration to control actual room lights.

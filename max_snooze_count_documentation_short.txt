@@ -1,0 +1,49 @@
+Max Snooze Count Feature
+
+What I Built
+I implemented a max snooze count feature that prevents users from snoozing alarms indefinitely. Users can set a limit (1-10 times) on how many times they can snooze, ensuring they eventually wake up.
+
+Why It Matters
+The biggest problem with alarms is infinite snoozing - users hit snooze repeatedly and oversleep. This feature gives controlled flexibility while preventing chronic lateness.
+
+How It Works
+Users set a maximum snooze limit when creating alarms. The system tracks snooze attempts and prevents further snoozing once the limit is reached.
+
+Features:
+- Configurable limit: 1-10 snoozes (default: 3)
+- Real-time counter: "Snooze X/Y" display
+- Prevention message when limit reached
+- Integration with existing snooze settings
+
+Technical Implementation
+Added maxSnoozeCount field to AlarmModel with database integration. Created UI components for configuration and enforcement logic in alarm controller.
+
+Key Code Components:
+- MaxSnoozeCountTile: NumberPicker UI for setting limits
+- Enforcement logic: Checks current count vs max limit
+- Real-time display: Shows progress during alarm
+- State management: GetX observables for reactive updates
+
+Enforcement Logic:
+```dart
+if (snoozeCount.value >= actualMaxSnoozeCount) {
+    Get.snackbar("Max Snooze Limit", "You've reached the maximum snooze limit");
+    return;
+}
+snoozeCount.value++;
+```
+
+Challenges Solved
+- Data consistency between configuration and active alarm
+- Real-time UI updates for snooze progress
+- Database schema updates with backward compatibility
+- User-friendly limit enforcement
+
+Results
+Users now have meaningful control over snoozing behavior. The feature prevents oversleeping while allowing some flexibility for difficult mornings.
+
+Development Details
+- Pull request #816 "maxSnoozeCount Feature Implementation"
+- Commit 6874d25 "added max snooze"
+- 7 files modified, 543 lines added
+- Full integration with existing alarm system

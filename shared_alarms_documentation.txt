@@ -1,0 +1,137 @@
+Shared Alarms Feature
+
+What I Built
+I implemented a comprehensive shared alarms system that allows users to create alarms and share them with family, friends, or teammates. The system includes real-time synchronization, push notifications, and personalized timing for each user.
+
+Why This Feature Matters
+Traditional alarms only work for individual users. But many situations require coordinated wake-ups:
+- Family members need to wake up at the same time for trips
+- Roommates want synchronized morning routines
+- Teams need coordinated meeting reminders
+- Study groups want shared session alarms
+
+Shared alarms solve the problem of manually coordinating wake-up times across multiple people and devices.
+
+How It Works
+The system allows an alarm owner to invite others via email. Recipients get push notifications and can accept shared alarms with personalized time offsets.
+
+Core Features:
+- Email-based invitations with contact picker
+- Real-time synchronization across all devices
+- Personalized time offsets (each user can set their own timing)
+- Push notifications for invitations and updates
+- Automatic dismissal tracking across all users
+- Owner permissions (share, modify, delete)
+
+User Experience Flow:
+1. User creates an alarm and enables "Shared Alarm"
+2. Owner taps "Share Alarm" and selects contacts
+3. Recipients receive push notifications
+4. Recipients can accept and set personal time offsets
+5. All users see the shared alarm with their custom timing
+6. Real-time updates sync changes across all devices
+
+Technical Architecture
+The implementation uses a hybrid approach combining Firebase Firestore for real-time sync and local SQLite for offline functionality.
+
+Data Model:
+- AlarmModel extended with shared alarm fields
+- isSharedAlarmEnabled: Boolean flag
+- sharedUserIds: List of user IDs with access
+- ownerId/ownerName: Alarm ownership tracking
+- offsetDetails: Per-user time customizations
+- mutexLock: Prevents concurrent editing conflicts
+
+Firebase Integration:
+- Firestore 'sharedAlarms' collection for cloud storage
+- Real-time streams for live synchronization
+- Cloud Functions for push notifications and coordination
+- Email-to-userId lookup for invitation system
+
+Real-time Synchronization:
+The system uses Firestore streams to keep all devices synchronized:
+- Stream-based controllers automatically update UI
+- Background synchronization handles offline scenarios
+- Conflict resolution with mutex locks
+- Automatic alarm rescheduling when modifications occur
+
+Push Notification System:
+- Firebase Cloud Functions send invitation notifications
+- Native Android/iOS notification handling
+- Deep linking to accept shared alarms
+- Payload processing for different notification types
+
+Key Implementation Details:
+
+1. Invitation System
+Users select contacts via a native contact picker. The system looks up email addresses to find existing users and sends push notifications for invitations.
+
+2. Offset Management
+Each user can set a personal time offset (e.g., +5 minutes, -10 minutes) while maintaining the original alarm time. This allows personalized timing while keeping everyone coordinated.
+
+3. Dismissal Tracking
+The system tracks which users have dismissed their alarms. When all users dismiss, shared alarms are automatically cleaned up to prevent storage bloat.
+
+4. Permission System
+- Owners: Can share, modify, and delete alarms
+- Shared Users: Can accept invitations, set offsets, and dismiss alarms
+- Clear UI indicators show ownership and permissions
+
+Challenges I Solved
+
+1. Real-time Synchronization
+Managing state across multiple devices with different connection states required careful stream management and offline handling.
+
+2. Data Consistency
+Preventing race conditions when multiple users modify the same alarm simultaneously using mutex locks and proper conflict resolution.
+
+3. User Experience
+Designing clear UI flows for invitation, acceptance, and management without overwhelming users with complexity.
+
+4. Platform Integration
+Ensuring push notifications work correctly across Android/iOS with proper deep linking and payload handling.
+
+5. Performance
+Optimizing Firestore queries and local caching to maintain responsive UI while syncing across multiple users.
+
+Code Architecture
+I built the feature across multiple layers:
+
+Frontend (Flutter):
+- shared_alarm_tile.dart: Toggle for enabling shared functionality
+- share_alarm_tile.dart: UI for inviting users
+- shared_users_tile.dart: Management interface for shared users
+- share_dialog.dart: Contact picker and invitation flow
+
+Backend (Firebase):
+- firestore_provider.dart: All shared alarm CRUD operations
+- Cloud Functions: Push notifications and user coordination
+- Real-time streams for live synchronization
+
+Native Integration:
+- Android AlarmUtils: Separate handling for shared vs local alarms
+- Push notification processing and deep linking
+- Proper alarm scheduling with shared alarm flags
+
+Controllers:
+- home_controller.dart: Streams and displays shared alarms
+- add_or_update_alarm_controller.dart: Manages shared alarm state
+- notifications_controller.dart: Handles invitation processing
+
+Results
+Users can now create truly collaborative alarms that work across multiple devices and users. The system maintains good performance with real-time updates while providing a smooth user experience for invitation and management.
+
+The feature demonstrates how complex multi-user functionality can be built with careful attention to data consistency, user experience, and platform integration.
+
+Real-World Impact:
+- Families can coordinate morning routines effortlessly
+- Teams can set shared meeting reminders
+- Study groups can synchronize break times
+- Roommates can avoid conflicts with coordinated wake-ups
+
+Development Details
+- Main implementation in commit d994456 "added shared alarm functionality with push notifications"
+- 20 files modified with 1,418 lines added
+- Full Firebase integration with Cloud Functions
+- Comprehensive push notification system
+- Real-time synchronization with offline support

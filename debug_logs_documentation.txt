@@ -1,0 +1,147 @@
+Debug Logs and Alarm History Feature
+
+What I Built
+I implemented a comprehensive debug logging system and alarm history feature that tracks every alarm operation, provides detailed troubleshooting information, and gives users visibility into their alarm behavior.
+
+Why This Feature Matters
+Alarm apps often fail silently - users don't know why alarms didn't ring or when they were modified. This creates frustration and reduces trust in the app. Debug logs solve this by:
+- Providing complete transparency of alarm operations
+- Enabling troubleshooting when alarms fail
+- Tracking alarm history for user reference
+- Helping developers debug complex alarm issues
+- Building user confidence through visibility
+
+How It Works
+The system logs every alarm operation across both Flutter and Android layers, storing detailed information in a SQLite database with a user-friendly interface for viewing and filtering logs.
+
+Key Features:
+- Comprehensive alarm lifecycle tracking
+- Real-time log viewing with auto-refresh
+- Advanced filtering (status, date range, search)
+- Developer mode for technical logs
+- Color-coded status indicators
+- Message parsing for structured display
+
+User Experience:
+1. Access "Alarm History" from app drawer
+2. View chronological list of all alarm events
+3. Filter logs by status (ERROR, WARNING, SUCCESS)
+4. Search by alarm time, ID, or message content
+5. Toggle developer mode for technical details
+6. Clear logs when needed
+
+Technical Implementation
+Built dual-layer logging system with SQLite persistence and advanced UI.
+
+Database Schema:
+```sql
+CREATE TABLE LOG (
+    LogID INTEGER PRIMARY KEY AUTOINCREMENT,  
+    LogTime DATETIME NOT NULL,            
+    Status TEXT CHECK(Status IN ('ERROR', 'SUCCESS', 'WARNING')) NOT NULL,
+    LogType TEXT CHECK(LogType IN ('DEV', 'NORMAL')) NOT NULL,
+    Message TEXT NOT NULL,
+    HasRung INTEGER DEFAULT 0,
+    AlarmID TEXT
+)
+```
+
+Android Native Logging:
+- LogDatabaseHelper.kt: SQLite database operations
+- Integrated across all Android services (AlarmReceiver, LocationFetcherService, WeatherFetcherService)
+- Real-time logging of alarm triggers, conditions, and system events
+
+Flutter Layer Integration:
+- Debug view with advanced filtering and search
+- Real-time updates every 5 seconds
+- Message parsing for structured display
+- Developer mode toggle for technical logs
+
+UI Components:
+- Expandable cards with status indicators
+- Color-coded display (red=error, orange=warning, green=success)
+- Search functionality across all log fields
+- Date range filtering
+- Status-based filtering
+- Clear all logs with confirmation
+
+Log Categories:
+1. User-Facing Logs (NORMAL):
+   - Alarm creation, updates, deletions
+   - Alarm ring events with full context
+   - Location and weather condition results
+   - System boot alarm restoration
+
+2. Developer Logs (DEV):
+   - Technical debugging information
+   - System state changes
+   - Error diagnostics
+   - Internal operation confirmations
+
+Integration Points:
+The logging system is integrated throughout the entire alarm lifecycle:
+- Alarm CRUD operations
+- System alarm scheduling
+- Condition evaluations (weather/location)
+- Alarm ring events
+- Error handling and recovery
+
+Challenges I Solved
+
+1. Cross-Platform Logging
+Ensuring consistent logging between Flutter and Android native code while maintaining proper data structure.
+
+2. Performance Optimization
+Implementing efficient database operations and UI updates without affecting alarm performance.
+
+3. User Experience Design
+Creating an interface that's useful for both regular users (alarm history) and developers (debugging).
+
+4. Data Management
+Handling large log volumes with proper filtering, search, and cleanup capabilities.
+
+5. Message Structure
+Parsing diverse log messages into structured, readable format for users.
+
+Code Architecture
+Multi-layer implementation with proper separation:
+
+Database Layer:
+- SQLite database for persistent log storage
+- Structured schema with status and type categorization
+- Efficient queries for filtering and search
+
+Android Integration:
+- LogDatabaseHelper: Database operations
+- Comprehensive logging across all alarm services
+- Real-time event tracking
+
+Flutter UI Layer:
+- Debug view with advanced filtering
+- Real-time updates and auto-refresh
+- Search and filter functionality
+- Developer mode toggle
+
+Message Processing:
+- Intelligent parsing of log messages
+- Structured display of alarm events
+- Technical detail extraction
+
+Results
+Users now have complete visibility into their alarm behavior, and developers have comprehensive debugging capabilities. The system builds trust through transparency while providing powerful troubleshooting tools.
+
+Real-World Impact:
+- Users can see exactly when and why alarms ring or don't ring
+- Support teams can quickly diagnose alarm issues
+- Developers can trace complex alarm behaviors
+- Increased user confidence through transparency
+- Faster debugging and issue resolution
+
+The feature demonstrates full-stack development skills, database design, and user experience thinking around transparency and debugging.
+
+Development Details
+- Pull request #769 "Alarm Reliability Improvements and Debug Screen Implementation"
+- Enhanced in #790 "changed log-database schema"
+- 11 files modified with comprehensive logging integration
+- Complete dual-platform logging system
+- Advanced UI with filtering and search capabilities

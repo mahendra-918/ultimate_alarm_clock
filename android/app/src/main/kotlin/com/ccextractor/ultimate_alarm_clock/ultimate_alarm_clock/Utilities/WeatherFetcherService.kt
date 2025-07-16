@@ -405,6 +405,7 @@ class WeatherFetcherService() : Service() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
             )
 
+<<<<<<< HEAD
             NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("Checking Weather for alarm")
                 .setContentText("Evaluating weather conditions...")
@@ -425,6 +426,17 @@ class WeatherFetcherService() : Service() {
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
                 .build()
         }
+=======
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("Checking Weather for alarm")
+            .setContentText("Evaluating weather conditions...")
+            .setSmallIcon(R.mipmap.launcher_icon) // Replace with your icon drawable
+            .setContentIntent(pendingIntent)
+            .setOngoing(true)
+            .setCategory(Notification.CATEGORY_SERVICE)
+
+        return notification.build()
+>>>>>>> 09498df47f76b138d8c7bd503211b1e005aa0971
     }
 
     override fun onDestroy() {

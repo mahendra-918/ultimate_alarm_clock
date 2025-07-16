@@ -1,0 +1,41 @@
+Next Steps - Second Half of GSoC
+
+Priority Features (Remaining Weeks)
+
+1. Multiple Smart Controls for Single Alarm
+Problem: Users can only set one smart control type per alarm (location OR weather OR activity).
+Solution: Allow combining multiple conditions with logical operators (AND/OR).
+Implementation: Extend AlarmModel, create condition builder UI, update backend evaluation logic.
+Example: "Wake me when it's sunny AND I'm at work OR when it's raining AND I'm at home"
+
+2. Timezone-Aware Alarms  
+Problem: Travelers struggle with alarms when crossing time zones.
+Solution: Automatic timezone detection and alarm adjustment.
+Implementation: Integrate timezone APIs, create conversion utilities, handle DST edge cases.
+Example: "Detected timezone change: NYC → London. Adjust alarm to 7:00 AM GMT?"
+
+3. Google Assistant Integration
+Problem: Users want voice control for alarm management.
+Solution: Deep Google Assistant integration for voice commands.
+Implementation: Google Assistant Actions SDK, voice command parsing, deep linking.
+Example: "Hey Google, set a smart alarm for 7 AM that only rings if it's sunny"
+
+4. Smart Home/IoT Integration
+Problem: Users want alarms to control their smart home environment.
+Solution: Integration with popular smart home platforms.
+Implementation: IoT platform APIs, device discovery, action scheduling.
+Example: "30 min before alarm: adjust thermostat, 15 min: brighten lights, alarm time: start coffee"
+
+Implementation Timeline
+- Weeks 1-2 (Second Half): Multiple Smart Controls
+- Weeks 3-4 (Second Half): Timezone-Aware Alarms  
+- Weeks 5-6 (Second Half): Google Assistant Integration
+- Weeks 7-8 (Second Half): Smart Home/IoT Integration
+
+Success Metrics
+- Support 5+ smart home device types
+- Handle 95% of timezone edge cases
+- Voice command accuracy >90%
+- 80% user adoption of multiple smart controls
+
+These features build upon the solid foundation from the first half while adding innovative functionality that differentiates Ultimate Alarm Clock from competitors.
