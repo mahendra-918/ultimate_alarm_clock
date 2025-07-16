@@ -124,11 +124,10 @@ class AlarmControlController extends GetxController {
       _currentTimeTimer?.cancel();
     }
 
-    // Set snooze duration - default to 5 minutes if it's 0
+    
     int snoozeDurationMinutes = currentlyRingingAlarm.value.snoozeDuration;
     if (snoozeDurationMinutes <= 0) {
-      snoozeDurationMinutes = 5; // Default to 5 minutes when snooze duration is 0
-      debugPrint('🔔 Snooze duration was 0, defaulting to 5 minutes');
+      snoozeDurationMinutes = 5;
     }
     minutes.value = snoozeDurationMinutes;
 
@@ -531,3 +530,4 @@ class AlarmControlController extends GetxController {
     }
   }
 }
+

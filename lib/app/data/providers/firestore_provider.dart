@@ -128,21 +128,37 @@ class FirestoreDb {
   }
 
   static Future<void> addUser(UserModel userModel) async {
-    final DocumentReference docRef = _usersCollection.doc(userModel.id);
-    final user = await docRef.get();
-    if (!user.exists) {
-      // Ensure receivedItems is initialized as an empty array
-      Map<String, dynamic> userData = userModel.toJson();
-      userData['receivedItems'] = userData['receivedItems'] ?? [];
-      await docRef.set(userData);
-      debugPrint('✅ Created new user document with receivedItems: ${userModel.id}');
-    } else {
-      // Check if existing user has receivedItems field, add it if missing
-      final data = user.data() as Map<String, dynamic>?;
-      if (data != null && !data.containsKey('receivedItems')) {
-        await docRef.update({'receivedItems': []});
-        debugPrint('✅ Added receivedItems field to existing user: ${userModel.id}');
+    try {
+      debugPrint('🔥 Attempting to add user to Firestore:');
+      debugPrint('   - User ID: ${userModel.id}');
+      debugPrint('   - Firebase Auth User: ${_firebaseAuthInstance.currentUser?.uid}');
+      debugPrint('   - User Email: ${userModel.email}');
+      
+      final DocumentReference docRef = _usersCollection.doc(userModel.id);
+      final user = await docRef.get();
+      
+      if (!user.exists) {
+        // Ensure receivedItems is initialized as an empty array
+        Map<String, dynamic> userData = userModel.toJson();
+        userData['receivedItems'] = userData['receivedItems'] ?? [];
+        
+        debugPrint('🔥 Creating new user document...');
+        await docRef.set(userData);
+        debugPrint('✅ Created new user document with receivedItems: ${userModel.id}');
+      } else {
+        // Check if existing user has receivedItems field, add it if missing
+        final data = user.data() as Map<String, dynamic>?;
+        if (data != null && !data.containsKey('receivedItems')) {
+          debugPrint('🔥 Adding receivedItems field to existing user...');
+          await docRef.update({'receivedItems': []});
+          debugPrint('✅ Added receivedItems field to existing user: ${userModel.id}');
+        } else {
+          debugPrint('✅ User document already exists with receivedItems: ${userModel.id}');
+        }
       }
+    } catch (e) {
+      debugPrint('❌ Error adding user to Firestore: $e');
+      rethrow;
     }
   }
 

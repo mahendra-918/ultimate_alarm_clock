@@ -52,7 +52,16 @@ class WeatherFetcherService() : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForeground(notificationId, getNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+        // CRITICAL: Start foreground service IMMEDIATELY to prevent timeout on strict devices
+        try {
+            startForeground(notificationId, getNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+            Log.d("WeatherFetcherService", "✅ Started foreground service successfully")
+        } catch (e: Exception) {
+            Log.e("WeatherFetcherService", "❌ Failed to start foreground service: ${e.message}")
+            // If we can't start foreground service, ring alarm immediately and stop
+            ringAlarm("Failed to start weather service: ${e.message}")
+            return START_NOT_STICKY
+        }
         
         if (intent != null) {
             alarmID = intent.getStringExtra("alarmID") ?: ""
@@ -70,9 +79,12 @@ class WeatherFetcherService() : Service() {
             
             // Process weather alarm in background
             processWeatherAlarmWithRetry(weatherTypesString)
+        } else {
+            Log.e("WeatherFetcherService", "Intent is null, ringing alarm with error")
+            ringAlarm("Weather service started with null intent")
         }
         
-        return START_STICKY
+        return START_NOT_STICKY
     }
     
     private fun processWeatherAlarmWithRetry(weatherTypesString: String) {
@@ -304,18 +316,19 @@ class WeatherFetcherService() : Service() {
             }
         }
 
-        Timer().schedule(1000) {
-            println("ANDROID STARTING APP")
-            this@WeatherFetcherService.startActivity(flutterIntent)
-            logdbHelper.insertLog(
-                "Alarm is ringing. $logMessage",
-                status = LogDatabaseHelper.Status.SUCCESS,
-                type = LogDatabaseHelper.LogType.NORMAL,
-                hasRung = 1
-            )
-            Timer().schedule(3000) {
-                stopSelf()
-            }
+        // Start alarm immediately after weather evaluation
+        println("ANDROID STARTING APP")
+        this@WeatherFetcherService.startActivity(flutterIntent)
+        logdbHelper.insertLog(
+            "Alarm is ringing. $logMessage",
+            status = LogDatabaseHelper.Status.SUCCESS,
+            type = LogDatabaseHelper.LogType.NORMAL,
+            hasRung = 1
+        )
+        
+        // Stop service after a short delay to ensure app launch
+        Timer().schedule(2000) {
+            stopSelf()
         }
     }
     
@@ -327,7 +340,9 @@ class WeatherFetcherService() : Service() {
             type = LogDatabaseHelper.LogType.NORMAL,
             hasRung = 0
         )
-        Timer().schedule(3000) {
+        
+        // Stop service immediately if alarm is canceled
+        Timer().schedule(1000) {
             stopSelf()
         }
     }
@@ -381,24 +396,35 @@ class WeatherFetcherService() : Service() {
 
 
     private fun getNotification(): Notification {
-        val intent = Intent(this, MainActivity::class.java) // Replace with your main activity
-        val pendingIntent =
-            PendingIntent.getActivity(
+        return try {
+            val intent = Intent(this, MainActivity::class.java)
+            val pendingIntent = PendingIntent.getActivity(
                 this,
                 0,
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
             )
 
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Checking Weather for alarm")
-            .setContentText("Evaluating weather conditions...")
-            .setSmallIcon(R.mipmap.launcher_icon) // Replace with your icon drawable
-            .setContentIntent(pendingIntent)
-            .setOngoing(true)
-            .setCategory(Notification.CATEGORY_SERVICE)
-
-        return notification.build()
+            NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle("Checking Weather for alarm")
+                .setContentText("Evaluating weather conditions...")
+                .setSmallIcon(R.mipmap.launcher_icon)
+                .setContentIntent(pendingIntent)
+                .setOngoing(true)
+                .setCategory(Notification.CATEGORY_SERVICE)
+                .setPriority(NotificationCompat.PRIORITY_LOW) // Low priority to avoid interruption
+                .setSound(null) // No sound for service notification
+                .setVibrate(null) // No vibration for service notification
+                .build()
+        } catch (e: Exception) {
+            Log.e("WeatherFetcherService", "Error creating notification: ${e.message}")
+            // Fallback: create minimal notification
+            Notification.Builder(this, CHANNEL_ID)
+                .setContentTitle("Weather Service")
+                .setContentText("Checking weather...")
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .build()
+        }
     }
 
     override fun onDestroy() {

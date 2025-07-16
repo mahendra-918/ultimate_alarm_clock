@@ -48,6 +48,17 @@ class LocationFetcherService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d("LocationFetcherService", "onStartCommand called")
         
+        // CRITICAL: Start foreground service IMMEDIATELY to prevent timeout on strict devices
+        try {
+            startForeground(notificationId, getNotification())
+            Log.d("LocationFetcherService", "✅ Started foreground service successfully")
+        } catch (e: Exception) {
+            Log.e("LocationFetcherService", "❌ Failed to start foreground service: ${e.message}")
+            // If we can't start foreground service, ring alarm immediately and stop
+            ringAlarmWithError("Failed to start location service: ${e.message}")
+            return START_NOT_STICKY
+        }
+        
         // Extract data from intent
         alarmID = intent?.getStringExtra("alarmID") ?: ""
         targetLocation = intent?.getStringExtra("location") ?: ""
@@ -66,14 +77,15 @@ class LocationFetcherService : Service() {
             return START_NOT_STICKY
         }
         
-        startForeground(notificationId, getNotification())
-        
-        try {
-            processLocationAlarm()
-        } catch (e: Exception) {
-            Log.e("LocationFetcherService", "Error processing location alarm: ${e.message}")
-            ringAlarmWithError("Error processing location: ${e.message}")
-        }
+        // Process location alarm in background thread to avoid blocking
+        Thread {
+            try {
+                processLocationAlarm()
+            } catch (e: Exception) {
+                Log.e("LocationFetcherService", "Error processing location alarm: ${e.message}")
+                ringAlarmWithError("Error processing location: ${e.message}")
+            }
+        }.start()
         
         return START_NOT_STICKY
     }
@@ -98,12 +110,13 @@ class LocationFetcherService : Service() {
             }
         }
         
-        Timer().schedule(3000) {
-            println("ANDROID STARTING APP DUE TO ERROR")
-            this@LocationFetcherService.startActivity(flutterIntent)
-            Timer().schedule(3000) {
-                stopSelf()
-            }
+        // Start alarm immediately when there's an error
+        println("ANDROID STARTING APP DUE TO ERROR")
+        this@LocationFetcherService.startActivity(flutterIntent)
+        
+        // Stop service after a short delay to ensure app launch
+        Timer().schedule(2000) {
+            stopSelf()
         }
     }
 
@@ -267,18 +280,19 @@ class LocationFetcherService : Service() {
                         }
                     }
 
-                Timer().schedule(9000){
-                    println("ANDROID STARTING APP")
-                    this@LocationFetcherService.startActivity(flutterIntent)
-                    logdbHelper.insertLog(
-                        logMessage,
-                        status = LogDatabaseHelper.Status.SUCCESS,
-                        type = LogDatabaseHelper.LogType.NORMAL,
-                        hasRung = 1
-                    )
-                    Timer().schedule(3000){
-                        stopSelf()
-                    }
+                // Start alarm immediately after location evaluation
+                println("ANDROID STARTING APP")
+                this@LocationFetcherService.startActivity(flutterIntent)
+                logdbHelper.insertLog(
+                    logMessage,
+                    status = LogDatabaseHelper.Status.SUCCESS,
+                    type = LogDatabaseHelper.LogType.NORMAL,
+                    hasRung = 1
+                )
+                
+                // Stop service after a short delay to ensure app launch
+                Timer().schedule(2000){
+                    stopSelf()
                 }
             } else {
                 logdbHelper.insertLog(
@@ -287,10 +301,9 @@ class LocationFetcherService : Service() {
                     type = LogDatabaseHelper.LogType.NORMAL,
                     hasRung = 0
                 )
-                Timer().schedule(9000){
-                    Timer().schedule(3000){
-                        stopSelf()
-                    }
+                // Stop service immediately if alarm is canceled
+                Timer().schedule(1000){
+                    stopSelf()
                 }
             }
         }
@@ -318,24 +331,35 @@ class LocationFetcherService : Service() {
     }
 
     private fun getNotification(): Notification {
-        val intent = Intent(this, MainActivity::class.java) // Replace with your main activity
-        val pendingIntent =
-            PendingIntent.getActivity(
+        return try {
+            val intent = Intent(this, MainActivity::class.java)
+            val pendingIntent = PendingIntent.getActivity(
                 this,
                 0,
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
             )
 
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Checking Location for alarm")
-            .setContentText("Evaluating location condition...")
-            .setSmallIcon(R.mipmap.launcher_icon) // Replace with your icon drawable
-            .setContentIntent(pendingIntent)
-            .setOngoing(true)
-            .setCategory(Notification.CATEGORY_SERVICE)
-
-        return notification.build()
+            NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle("Checking Location for alarm")
+                .setContentText("Evaluating location condition...")
+                .setSmallIcon(R.mipmap.launcher_icon)
+                .setContentIntent(pendingIntent)
+                .setOngoing(true)
+                .setCategory(Notification.CATEGORY_SERVICE)
+                .setPriority(NotificationCompat.PRIORITY_LOW) // Low priority to avoid interruption
+                .setSound(null) // No sound for service notification
+                .setVibrate(null) // No vibration for service notification
+                .build()
+        } catch (e: Exception) {
+            Log.e("LocationFetcherService", "Error creating notification: ${e.message}")
+            // Fallback: create minimal notification
+            Notification.Builder(this, CHANNEL_ID)
+                .setContentTitle("Location Service")
+                .setContentText("Checking location...")
+                .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+                .build()
+        }
     }
 
     override fun onDestroy() {
