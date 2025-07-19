@@ -405,38 +405,28 @@ class WeatherFetcherService() : Service() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
             )
 
-<<<<<<< HEAD
-            NotificationCompat.Builder(this, CHANNEL_ID)
+            val notification = NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("Checking Weather for alarm")
                 .setContentText("Evaluating weather conditions...")
                 .setSmallIcon(R.mipmap.launcher_icon)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
                 .setCategory(Notification.CATEGORY_SERVICE)
-                .setPriority(NotificationCompat.PRIORITY_LOW) // Low priority to avoid interruption
-                .setSound(null) // No sound for service notification
-                .setVibrate(null) // No vibration for service notification
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setSound(null)
+                .setVibrate(null)
                 .build()
+            
+            return notification
         } catch (e: Exception) {
             Log.e("WeatherFetcherService", "Error creating notification: ${e.message}")
             // Fallback: create minimal notification
-            Notification.Builder(this, CHANNEL_ID)
+            return Notification.Builder(this, CHANNEL_ID)
                 .setContentTitle("Weather Service")
                 .setContentText("Checking weather...")
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
                 .build()
         }
-=======
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Checking Weather for alarm")
-            .setContentText("Evaluating weather conditions...")
-            .setSmallIcon(R.mipmap.launcher_icon) // Replace with your icon drawable
-            .setContentIntent(pendingIntent)
-            .setOngoing(true)
-            .setCategory(Notification.CATEGORY_SERVICE)
-
-        return notification.build()
->>>>>>> 09498df47f76b138d8c7bd503211b1e005aa0971
     }
 
     override fun onDestroy() {

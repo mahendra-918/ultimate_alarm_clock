@@ -14,8 +14,8 @@ import 'package:ultimate_alarm_clock/app/modules/alarmRing/views/sunrise_effect_
 import '../controllers/alarm_ring_controller.dart';
 
 // ignore: must_be_immutable
-class AlarmControlView extends GetView<AlarmControlController> {
-  AlarmControlView({Key? key}) : super(key: key);
+class AlarmRingView extends GetView<AlarmRingController> {
+  AlarmRingView({Key? key}) : super(key: key);
 
   ThemeController themeController = Get.find<ThemeController>();
 

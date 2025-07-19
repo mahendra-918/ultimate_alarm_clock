@@ -50,8 +50,8 @@ class AppPages {
     ),
     GetPage(
       name: _Paths.ALARM_RING,
-      page: () => AlarmControlView(),
-      binding: AlarmControlBinding(),
+      page: () => AlarmRingView(),
+      binding: AlarmRingBinding(),
     ),
     GetPage(
       name: _Paths.SETTINGS,

@@ -1,3 +1,4 @@
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -29,7 +30,7 @@ import 'package:screen_brightness/screen_brightness.dart';
 
 import '../../home/controllers/home_controller.dart';
 
-class AlarmControlController extends GetxController {
+class AlarmRingController extends GetxController {
   MethodChannel alarmChannel = MethodChannel('ulticlock');
   RxString note = ''.obs;
   Timer? vibrationTimer;
@@ -129,7 +130,6 @@ class AlarmControlController extends GetxController {
     if (snoozeDurationMinutes <= 0) {
       snoozeDurationMinutes = 5; // Default to 5 minutes when snooze duration is 0
       debugPrint('🔔 Snooze duration was 0, defaulting to 5 minutes');
-    }
     }
     minutes.value = snoozeDurationMinutes;
 

@@ -20,6 +20,17 @@ import '../data/models/profile_model.dart';
 import '../data/providers/get_storage_provider.dart';
 import 'constants.dart';
 
+// Cache class for time until alarm calculations
+class _TimeUntilAlarmCache {
+  final DateTime nextAlarmTime;
+  final DateTime timestamp;
+
+  _TimeUntilAlarmCache({
+    required this.nextAlarmTime,
+    required this.timestamp,
+  });
+}
+
 class Utils {
   static String timeOfDayToString(TimeOfDay time) {
     final hours = time.hour.toString().padLeft(2, '0');
@@ -173,6 +184,15 @@ class Utils {
     return milliseconds;
   }
 
+  static int getMinutesToAlarm(DateTime now, DateTime alarmTime) {
+    if (alarmTime.isBefore(now)) {
+      alarmTime = alarmTime.add(const Duration(days: 1));
+    }
+
+    int minutes = alarmTime.difference(now).inMinutes;
+    return minutes;
+  }
+
   static String formatMilliseconds(int milliseconds) {
     final Duration duration = Duration(milliseconds: milliseconds);
     final int seconds = duration.inSeconds;
@@ -278,8 +298,30 @@ class Utils {
     return deg * (pi / 180);
   }
 
+  // Cache for timeUntilAlarm calculations
+  static Map<String, _TimeUntilAlarmCache> _timeUntilAlarmCache = {};
+
+  // Method to clear the time calculation cache
+  static void clearTimeUntilAlarmCache() {
+    _timeUntilAlarmCache.clear();
+  }
+
   static String timeUntilAlarm(TimeOfDay alarmTime, List<bool> days) {
     final now = DateTime.now();
+    
+    // Create cache key based on alarm parameters
+    final cacheKey = '${alarmTime.hour}:${alarmTime.minute}_${days.join('')}';
+    
+    // Check if we have cached data and if it's still valid (less than 1 minute old)
+    if (_timeUntilAlarmCache.containsKey(cacheKey)) {
+      final cachedData = _timeUntilAlarmCache[cacheKey]!;
+      if (now.difference(cachedData.timestamp).inSeconds < 60) {
+        // Recalculate only the duration from the cached next alarm time
+        final duration = cachedData.nextAlarmTime.difference(now);
+        return _formatDuration(duration);
+      }
+    }
+    
     final todayAlarm = DateTime(
       now.year,
       now.month,
@@ -288,66 +330,62 @@ class Utils {
       alarmTime.minute,
     );
 
-    Duration duration;
+    DateTime nextAlarmTime;
 
-    // Check if the alarm is a one-time alarm (no days selected)
+    // Optimized alarm calculation
     if (days.every((day) => !day)) {
-      if (now.isBefore(todayAlarm)) {
-        // Alarm is today
-        duration = todayAlarm.difference(now);
-      } else {
-        // Alarm is for tomorrow
-        final nextAlarm = todayAlarm.add(const Duration(days: 1));
-        duration = nextAlarm.difference(now);
-      }
+      // One-time alarm
+      nextAlarmTime = now.isBefore(todayAlarm) ? todayAlarm : todayAlarm.add(const Duration(days: 1));
     } else if (days.every((day) => day)) {
-      // Alarm repeats every day
-      if (now.isBefore(todayAlarm)) {
-        // Alarm is today
-      duration = todayAlarm.difference(now);
+      // Daily alarm  
+      nextAlarmTime = now.isBefore(todayAlarm) ? todayAlarm : todayAlarm.add(const Duration(days: 1));
     } else {
-        // Alarm is tomorrow
-        final nextAlarm = todayAlarm.add(const Duration(days: 1));
-        duration = nextAlarm.difference(now);
-      }
-    } else {
-      // Alarm repeats on specific days
-      // Check if today is a repeat day and the alarm hasn't passed yet
-      if (days[now.weekday - 1] && now.isBefore(todayAlarm)) {
-        duration = todayAlarm.difference(now);
+      // Weekly alarm - optimized logic
+      final currentDayIndex = now.weekday - 1;
+      
+      if (days[currentDayIndex] && now.isBefore(todayAlarm)) {
+        // Today is a repeat day and alarm hasn't passed
+        nextAlarmTime = todayAlarm;
       } else {
-        // Find the next day the alarm will ring
+        // Find next occurrence - improved algorithm
         int daysToAdd = 1;
-        bool foundNextAlarmDay = false;
+        bool found = false;
 
-      for (int i = 1; i <= 7; i++) {
-          // Get the next day's index (wrapping around if needed)
-          int nextDayIndex = (now.weekday - 1 + i) % 7;
-
-        if (days[nextDayIndex]) {
+        for (int i = 1; i <= 7; i++) {
+          int nextDayIndex = (currentDayIndex + i) % 7;
+          if (days[nextDayIndex]) {
             daysToAdd = i;
-            foundNextAlarmDay = true;
+            found = true;
             break;
           }
         }
         
-        if (!foundNextAlarmDay) {
+        if (!found) {
           return 'No upcoming alarms';
         }
         
-        final nextAlarm = DateTime(
-              now.year,
-              now.month,
+        nextAlarmTime = DateTime(
+          now.year,
+          now.month,
           now.day + daysToAdd,
-              alarmTime.hour,
-              alarmTime.minute,
-            );
-
-        duration = nextAlarm.difference(now);
+          alarmTime.hour,
+          alarmTime.minute,
+        );
       }
     }
 
-    // Format the duration into a human-readable string
+    // Cache the result
+    _timeUntilAlarmCache[cacheKey] = _TimeUntilAlarmCache(
+      nextAlarmTime: nextAlarmTime,
+      timestamp: now,
+    );
+
+    final duration = nextAlarmTime.difference(now);
+    return _formatDuration(duration);
+  }
+
+  // Optimized duration formatting with caching
+  static String _formatDuration(Duration duration) {
     if (duration.inMinutes < 1) {
       return 'less than 1 minute';
     } else if (duration.inHours < 1) {
