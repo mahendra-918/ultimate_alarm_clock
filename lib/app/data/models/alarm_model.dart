@@ -67,6 +67,9 @@ class AlarmModel {
   late int sunriseDuration;
   late double sunriseIntensity;
   late int sunriseColorScheme;
+  late String timezoneId;
+  late bool isTimezoneEnabled;
+  late int targetTimezoneOffset;
   @ignore
   List<Map>? offsetDetails;
 
@@ -125,7 +128,10 @@ class AlarmModel {
       required this.isSunriseEnabled,
       required this.sunriseDuration,
       required this.sunriseIntensity,
-      required this.sunriseColorScheme});
+      required this.sunriseColorScheme,
+      this.timezoneId = '',
+      this.isTimezoneEnabled = false,
+      this.targetTimezoneOffset = 0});
 
   AlarmModel.fromDocumentSnapshot({
     required firestore.DocumentSnapshot documentSnapshot,
@@ -234,6 +240,9 @@ if (offsetDetails != null) {
     sunriseDuration = documentSnapshot['sunriseDuration'] ?? 30;
     sunriseIntensity = documentSnapshot['sunriseIntensity'] ?? 1.0;
     sunriseColorScheme = documentSnapshot['sunriseColorScheme'] ?? 0;
+    timezoneId = documentSnapshot['timezoneId'] ?? '';
+    isTimezoneEnabled = documentSnapshot['isTimezoneEnabled'] ?? false;
+    targetTimezoneOffset = documentSnapshot['targetTimezoneOffset'] ?? 0;
   }
 
   AlarmModel fromMapSQFlite(Map<String, dynamic> map) {
@@ -294,6 +303,9 @@ if (offsetDetails != null) {
       sunriseDuration: map['sunriseDuration'] ?? 30,
       sunriseIntensity: map['sunriseIntensity'] ?? 1.0,
       sunriseColorScheme: map['sunriseColorScheme'] ?? 0,
+      timezoneId: map['timezoneId'] ?? '',
+      isTimezoneEnabled: map['isTimezoneEnabled'] == 1,
+      targetTimezoneOffset: map['targetTimezoneOffset'] ?? 0,
     );
   }
 
@@ -354,6 +366,9 @@ if (offsetDetails != null) {
       'sunriseDuration': sunriseDuration,
       'sunriseIntensity': sunriseIntensity,
       'sunriseColorScheme': sunriseColorScheme,
+      'timezoneId': timezoneId,
+      'isTimezoneEnabled': isTimezoneEnabled ? 1 : 0,
+      'targetTimezoneOffset': targetTimezoneOffset,
     };
   }
 
@@ -419,6 +434,9 @@ if (offsetDetails != null) {
     sunriseDuration = alarmData['sunriseDuration'] ?? 30;
     sunriseIntensity = alarmData['sunriseIntensity'] ?? 1.0;
     sunriseColorScheme = alarmData['sunriseColorScheme'] ?? 0;
+    timezoneId = alarmData['timezoneId'] ?? '';
+    isTimezoneEnabled = alarmData['isTimezoneEnabled'] ?? false;
+    targetTimezoneOffset = alarmData['targetTimezoneOffset'] ?? 0;
   }
 
   AlarmModel.fromJson(String alarmData, UserModel? user) {
@@ -484,7 +502,10 @@ if (offsetDetails != null) {
       'isSunriseEnabled': alarmRecord.isSunriseEnabled,
       'sunriseDuration': alarmRecord.sunriseDuration,
       'sunriseIntensity': alarmRecord.sunriseIntensity,
-      'sunriseColorScheme': alarmRecord.sunriseColorScheme
+      'sunriseColorScheme': alarmRecord.sunriseColorScheme,
+      'timezoneId': alarmRecord.timezoneId,
+      'isTimezoneEnabled': alarmRecord.isTimezoneEnabled,
+      'targetTimezoneOffset': alarmRecord.targetTimezoneOffset
     };
 
     if (alarmRecord.isSharedAlarmEnabled) {

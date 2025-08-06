@@ -28,7 +28,7 @@ class FirestoreDb {
     final dir = await getDatabasesPath();
     final dbPath = '$dir/alarms.db';
     print(dir);
-    db = await openDatabase(dbPath, version: 4, onCreate: _onCreate, onUpgrade: _onUpgrade);
+    db = await openDatabase(dbPath, version: 5, onCreate: _onCreate, onUpgrade: _onUpgrade);
     return db;
   }
 
@@ -47,6 +47,12 @@ class FirestoreDb {
       await db.execute('ALTER TABLE alarms ADD COLUMN sunriseDuration INTEGER NOT NULL DEFAULT 30');
       await db.execute('ALTER TABLE alarms ADD COLUMN sunriseIntensity REAL NOT NULL DEFAULT 1.0');
       await db.execute('ALTER TABLE alarms ADD COLUMN sunriseColorScheme INTEGER NOT NULL DEFAULT 0');
+    }
+    if (oldVersion < 5) {
+      // Add timezone columns
+      await db.execute('ALTER TABLE alarms ADD COLUMN timezoneId TEXT NOT NULL DEFAULT ""');
+      await db.execute('ALTER TABLE alarms ADD COLUMN isTimezoneEnabled INTEGER NOT NULL DEFAULT 0');
+      await db.execute('ALTER TABLE alarms ADD COLUMN targetTimezoneOffset INTEGER NOT NULL DEFAULT 0');
     }
   }
 
@@ -108,7 +114,10 @@ class FirestoreDb {
         isSunriseEnabled INTEGER NOT NULL DEFAULT 0,
         sunriseDuration INTEGER NOT NULL DEFAULT 30,
         sunriseIntensity REAL NOT NULL DEFAULT 1.0,
-        sunriseColorScheme INTEGER NOT NULL DEFAULT 0
+        sunriseColorScheme INTEGER NOT NULL DEFAULT 0,
+        timezoneId TEXT NOT NULL DEFAULT "",
+        isTimezoneEnabled INTEGER NOT NULL DEFAULT 0,
+        targetTimezoneOffset INTEGER NOT NULL DEFAULT 0
 
       )
     ''');
