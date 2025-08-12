@@ -176,43 +176,54 @@ class AlarmRingController extends GetxController {
   }
 
   Future<void> _fadeInAlarmVolume() async {
-    await FlutterVolumeController.setVolume(
-      currentlyRingingAlarm.value.volMin / 10.0,
-      stream: AudioStream.alarm,
-    );
-    await Future.delayed(const Duration(milliseconds: 2000));
+    debugPrint('🔊 Starting ascending volume: ${currentlyRingingAlarm.value.volMin}% → ${currentlyRingingAlarm.value.volMax}% over ${currentlyRingingAlarm.value.gradient}s');
+    
+    // Set initial volume
+    double startVolume = currentlyRingingAlarm.value.volMin / 10.0;
+    double endVolume = currentlyRingingAlarm.value.volMax / 10.0;
+    int durationMs = currentlyRingingAlarm.value.gradient * 1000;
+    
+    await FlutterVolumeController.setVolume(startVolume, stream: AudioStream.alarm);
+    debugPrint('🔊 Initial volume set to: ${(startVolume * 100).toInt()}%');
+    
+    // Wait a moment for the alarm to start playing
+    await Future.delayed(const Duration(milliseconds: 500));
 
-    double vol = currentlyRingingAlarm.value.volMin / 10.0;
-    double diff = (currentlyRingingAlarm.value.volMax -
-        currentlyRingingAlarm.value.volMin) /
-        10.0;
-    int len = currentlyRingingAlarm.value.gradient * 1000;
-    double steps = (diff / 0.01).abs();
-    int stepLen = max(4, (steps > 0) ? len ~/ steps : len);
-    int lastTick = DateTime.now().millisecondsSinceEpoch;
+    // Calculate step parameters
+    double volumeDifference = endVolume - startVolume;
+    int updateIntervalMs = 100; // Update every 100ms for smooth transition
+    int totalSteps = durationMs ~/ updateIntervalMs;
+    double volumeStepSize = volumeDifference / totalSteps;
+    
+    double currentVolume = startVolume;
+    int stepCount = 0;
+    
+    debugPrint('🔊 Volume gradient params: steps=$totalSteps, stepSize=${(volumeStepSize * 100).toStringAsFixed(1)}%, interval=${updateIntervalMs}ms');
 
-    Timer.periodic(Duration(milliseconds: stepLen), (Timer t) {
+    Timer.periodic(Duration(milliseconds: updateIntervalMs), (Timer timer) {
       if (!isAlarmActive) {
-        t.cancel();
+        debugPrint('🔊 Alarm no longer active, stopping volume gradient');
+        timer.cancel();
         return;
       }
 
-      var now = DateTime.now().millisecondsSinceEpoch;
-      var tick = (now - lastTick) / len;
-      lastTick = now;
-      vol += diff * tick;
+      stepCount++;
+      currentVolume = startVolume + (volumeStepSize * stepCount);
+      
+      // Clamp volume within bounds
+      currentVolume = currentVolume.clamp(startVolume, endVolume);
+      
+      // Round to 2 decimal places for cleaner volume values
+      currentVolume = (currentVolume * 100).round() / 100;
 
-      vol = max(currentlyRingingAlarm.value.volMin / 10.0, vol);
-      vol = min(currentlyRingingAlarm.value.volMax / 10.0, vol);
-      vol = (vol * 100).round() / 100;
+      FlutterVolumeController.setVolume(currentVolume, stream: AudioStream.alarm);
+      
+      debugPrint('🔊 Step $stepCount/$totalSteps: Volume = ${(currentVolume * 100).toInt()}%');
 
-      FlutterVolumeController.setVolume(
-        vol,
-        stream: AudioStream.alarm,
-      );
-
-      if (vol >= currentlyRingingAlarm.value.volMax / 10.0) {
-        t.cancel();
+      // Stop when we reach the end volume or complete all steps
+      if (currentVolume >= endVolume || stepCount >= totalSteps) {
+        debugPrint('🔊 Volume gradient completed at ${(currentVolume * 100).toInt()}%');
+        timer.cancel();
       }
     });
   }
@@ -362,7 +373,10 @@ class AlarmRingController extends GetxController {
     if (!isPreviewMode.value) {
       FlutterVolumeController.updateShowSystemUI(false);
 
-      // _fadeInAlarmVolume();     TODO fix volume fade-in
+      // Start ascending volume if enabled
+      if (currentlyRingingAlarm.value.gradient > 0) {
+        _fadeInAlarmVolume();
+      }
 
       vibrationTimer =
           Timer.periodic(const Duration(milliseconds: 3500), (Timer timer) {
