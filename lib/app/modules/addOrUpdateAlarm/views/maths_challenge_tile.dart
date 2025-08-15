@@ -263,13 +263,23 @@ class MathsChallenge extends StatelessWidget {
                                               Utils.hapticFeedback();
                                               controller.numMathsQuestions.value = value;
                                             },
-                                            textStyle: TextStyle(
-                                              color: themeController.primaryDisabledTextColor.value,
-                                              fontSize: 16,
+                                            itemWidth: Utils
+                                                .getResponsiveNumberPickerItemWidth(
+                                              context,
+                                              screenWidth: MediaQuery.of(context).size.width,
+                                              baseWidthFactor: 0.2,
                                             ),
-                                            selectedTextStyle: TextStyle(
+                                            textStyle: Utils
+                                                .getResponsiveNumberPickerTextStyle(
+                                              context,
+                                              baseFontSize: 16,
+                                              color: themeController.primaryDisabledTextColor.value,
+                                            ),
+                                            selectedTextStyle: Utils
+                                                .getResponsiveNumberPickerSelectedTextStyle(
+                                              context,
+                                              baseFontSize: 20,
                                               color: kprimaryColor,
-                                              fontSize: 20,
                                               fontWeight: FontWeight.w600,
                                             ),
                                           ),

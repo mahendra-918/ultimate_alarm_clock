@@ -108,19 +108,55 @@ class IsarDb {
 
   void _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
-      // Add weatherConditionType column
-      await db.execute('ALTER TABLE alarms ADD COLUMN weatherConditionType INTEGER NOT NULL DEFAULT 2');
+      // Add weatherConditionType column if it doesn't exist
+      try {
+        await db.execute('ALTER TABLE alarms ADD COLUMN weatherConditionType INTEGER NOT NULL DEFAULT 2');
+      } catch (e) {
+        if (!e.toString().contains('duplicate column name')) {
+          rethrow;
+        }
+      }
     }
     if (oldVersion < 3) {
-      // Add activityConditionType column
-      await db.execute('ALTER TABLE alarms ADD COLUMN activityConditionType INTEGER NOT NULL DEFAULT 2');
+      // Add activityConditionType column if it doesn't exist
+      try {
+        await db.execute('ALTER TABLE alarms ADD COLUMN activityConditionType INTEGER NOT NULL DEFAULT 2');
+      } catch (e) {
+        if (!e.toString().contains('duplicate column name')) {
+          rethrow;
+        }
+      }
     }
     if (oldVersion < 4) {
-      // Add sunrise alarm columns
-      await db.execute('ALTER TABLE alarms ADD COLUMN isSunriseEnabled INTEGER NOT NULL DEFAULT 0');
-      await db.execute('ALTER TABLE alarms ADD COLUMN sunriseDuration INTEGER NOT NULL DEFAULT 30');
-      await db.execute('ALTER TABLE alarms ADD COLUMN sunriseIntensity REAL NOT NULL DEFAULT 1.0');
-      await db.execute('ALTER TABLE alarms ADD COLUMN sunriseColorScheme INTEGER NOT NULL DEFAULT 0');
+      // Add sunrise alarm columns if they don't exist
+      try {
+        await db.execute('ALTER TABLE alarms ADD COLUMN isSunriseEnabled INTEGER NOT NULL DEFAULT 0');
+      } catch (e) {
+        if (!e.toString().contains('duplicate column name')) {
+          rethrow;
+        }
+      }
+      try {
+        await db.execute('ALTER TABLE alarms ADD COLUMN sunriseDuration INTEGER NOT NULL DEFAULT 30');
+      } catch (e) {
+        if (!e.toString().contains('duplicate column name')) {
+          rethrow;
+        }
+      }
+      try {
+        await db.execute('ALTER TABLE alarms ADD COLUMN sunriseIntensity REAL NOT NULL DEFAULT 1.0');
+      } catch (e) {
+        if (!e.toString().contains('duplicate column name')) {
+          rethrow;
+        }
+      }
+      try {
+        await db.execute('ALTER TABLE alarms ADD COLUMN sunriseColorScheme INTEGER NOT NULL DEFAULT 0');
+      } catch (e) {
+        if (!e.toString().contains('duplicate column name')) {
+          rethrow;
+        }
+      }
     }
   }
 
@@ -677,23 +713,28 @@ class IsarDb {
   }
 
   static Future<List<TimerModel>> getAllTimers() async {
-    final sql = await IsarDb().getTimerSQLiteDatabase();
-    List<Map<String, dynamic>> maps = await sql!.query(
-      'timers',
-      columns: [
-        'id',
-        'startedOn',
-        'timerValue',
-        'timeElapsed',
-        'ringtoneName',
-        'timerName',
-        'isPaused',
-      ],
-    );
-    if (maps.isNotEmpty) {
-      return maps.map((timer) => TimerModel.fromMap(timer)).toList();
+    try {
+      final sql = await IsarDb().getTimerSQLiteDatabase();
+      List<Map<String, dynamic>> maps = await sql!.query(
+        'timers',
+        columns: [
+          'id',
+          'startedOn',
+          'timerValue',
+          'timeElapsed',
+          'ringtoneName',
+          'timerName',
+          'isPaused',
+        ],
+      );
+      if (maps.isNotEmpty) {
+        return maps.map((timer) => TimerModel.fromMap(timer)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error getting timers: $e');
+      return [];
     }
-    return [];
   }
 
   static Future updateTimerTick(TimerModel timer) async {

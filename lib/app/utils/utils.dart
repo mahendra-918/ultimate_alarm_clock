@@ -922,4 +922,99 @@ class Utils {
     final width = MediaQuery.of(context).size.width;
     return width < 360 ? 14 : 30;
   }
+
+  /// Get responsive font size for NumberPicker text styles
+  /// Considers both app scaling factor and system text scale factor
+  static double getResponsiveNumberPickerFontSize(
+    BuildContext context, {
+    required double baseSize,
+    double? appScalingFactor,
+  }) {
+    final systemScaleFactor = MediaQuery.textScaleFactorOf(context);
+    final effectiveAppScalingFactor = appScalingFactor ?? 1.0;
+    
+    // Combine app scaling with system accessibility scaling
+    // Apply a reasonable limit to prevent excessive scaling
+    final combinedScaleFactor = (effectiveAppScalingFactor * systemScaleFactor)
+        .clamp(0.5, 2.5);
+    
+    return baseSize * combinedScaleFactor;
+  }
+
+  /// Get responsive TextStyle for NumberPicker selected text
+  static TextStyle getResponsiveNumberPickerSelectedTextStyle(
+    BuildContext context, {
+    required double baseFontSize,
+    required Color color,
+    double? appScalingFactor,
+    FontWeight fontWeight = FontWeight.bold,
+  }) {
+    return TextStyle(
+      fontSize: getResponsiveNumberPickerFontSize(
+        context,
+        baseSize: baseFontSize,
+        appScalingFactor: appScalingFactor,
+      ),
+      fontWeight: fontWeight,
+      color: color,
+    );
+  }
+
+  /// Get responsive TextStyle for NumberPicker unselected text
+  static TextStyle getResponsiveNumberPickerTextStyle(
+    BuildContext context, {
+    required double baseFontSize,
+    required Color color,
+    double? appScalingFactor,
+    FontWeight fontWeight = FontWeight.normal,
+  }) {
+    return TextStyle(
+      fontSize: getResponsiveNumberPickerFontSize(
+        context,
+        baseSize: baseFontSize,
+        appScalingFactor: appScalingFactor,
+      ),
+      fontWeight: fontWeight,
+      color: color,
+    );
+  }
+
+  /// Get responsive item width for NumberPicker
+  /// Scales with both screen width and font scaling
+  static double getResponsiveNumberPickerItemWidth(
+    BuildContext context, {
+    required double screenWidth,
+    required double baseWidthFactor,
+    double? appScalingFactor,
+  }) {
+    final systemScaleFactor = MediaQuery.textScaleFactorOf(context);
+    final effectiveAppScalingFactor = appScalingFactor ?? 1.0;
+    
+    // Scale item width proportionally with font scaling
+    final combinedScaleFactor = (effectiveAppScalingFactor * systemScaleFactor)
+        .clamp(0.8, 2.0);
+    
+    return screenWidth * baseWidthFactor * combinedScaleFactor;
+  }
+
+  /// Get responsive item height for NumberPicker
+  /// Scales with font scaling to prevent text cutoff
+  static double getResponsiveNumberPickerItemHeight(
+    BuildContext context, {
+    required double baseFontSize,
+    double? appScalingFactor,
+  }) {
+    final systemScaleFactor = MediaQuery.textScaleFactorOf(context);
+    final effectiveAppScalingFactor = appScalingFactor ?? 1.0;
+    
+    // Scale item height proportionally with font scaling
+    final combinedScaleFactor = (effectiveAppScalingFactor * systemScaleFactor)
+        .clamp(0.5, 2.5);
+    
+    // Calculate height based on font size with padding
+    final scaledFontSize = baseFontSize * combinedScaleFactor;
+    
+    // Add padding around the text (1.8x font size gives good spacing)
+    return scaledFontSize * 1.8;
+  }
 }

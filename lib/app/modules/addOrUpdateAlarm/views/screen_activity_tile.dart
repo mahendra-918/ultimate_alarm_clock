@@ -329,14 +329,24 @@ class ScreenActivityTile extends StatelessWidget {
                     controller.activityInterval.value = value;
                     controller.isActivityenabled.value = value > 0;
                   },
-                  selectedTextStyle: TextStyle(
+                  itemWidth: Utils
+                      .getResponsiveNumberPickerItemWidth(
+                    context,
+                    screenWidth: MediaQuery.of(context).size.width,
+                    baseWidthFactor: 0.25,
+                  ),
+                  selectedTextStyle: Utils
+                      .getResponsiveNumberPickerSelectedTextStyle(
+                    context,
+                    baseFontSize: 24,
                     color: kprimaryColor,
-                    fontSize: 24,
                     fontWeight: FontWeight.w600,
                   ),
-                  textStyle: TextStyle(
+                  textStyle: Utils
+                      .getResponsiveNumberPickerTextStyle(
+                    context,
+                    baseFontSize: 18,
                     color: themeController.primaryTextColor.value,
-                    fontSize: 18,
                   ),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(8),

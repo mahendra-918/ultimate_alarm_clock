@@ -27,31 +27,47 @@ class FirebaseMessagingService : FirebaseMessagingService() {
         super.onMessageReceived(remoteMessage)
         
         Log.d("FCM", "📱 FCM Message received: ${remoteMessage.data}")
+        Log.d("FCM", "📱 Notification: ${remoteMessage.notification}")
         Log.d("FCM", "📱 App state: ${if (isAppInForeground()) "FOREGROUND" else "BACKGROUND/KILLED"}")
         
         val data = remoteMessage.data
         val notificationType = data["type"]
+        val silent = data["silent"]
         
+        Log.d("FCM", "🔍 Notification type: $notificationType, Silent: $silent")
+        
+        // Handle silent notifications (don't show UI notification)
+        if (silent == "true") {
+            Log.d("FCM", "🔇 Silent notification - processing without UI")
+            when (notificationType) {
+                "rescheduleAlarm" -> handleRescheduleAlarm(data)
+                "sharedAlarm" -> handleSharedAlarmData(data)
+            }
+            return
+        }
+        
+        // Handle notifications that should show UI
         when (notificationType) {
             "rescheduleAlarm" -> {
                 Log.d("FCM", "🔔 Received reschedule alarm notification")
                 handleRescheduleAlarm(data)
                 
-                
                 val alarmTime = data["newAlarmTime"] ?: "Unknown"
                 val ownerName = data["ownerName"] ?: "Someone"
                 showNotification(
-                    "Shared Alarm Updated! 🔔",
-                    "$ownerName updated your shared alarm to $alarmTime"
+                    "🔔 Shared Alarm Updated!",
+                    "$ownerName updated your shared alarm to $alarmTime",
+                    "alarm_updates"
                 )
             }
-            "sharedAlarm" -> {
+            "sharedAlarm", "sharedItem" -> {
                 Log.d("FCM", "🔔 Received shared alarm notification")
+                handleSharedAlarmData(data)
                 
-                showNotification(
-                    remoteMessage.notification?.title ?: "Shared Alarm",
-                    remoteMessage.notification?.body ?: "You have a new shared alarm"
-                )
+                val title = remoteMessage.notification?.title ?: "🔔 New Shared Alarm!"
+                val body = remoteMessage.notification?.body ?: "You have received a new shared alarm"
+                
+                showNotification(title, body, "shared_alarms")
             }
             else -> {
                 Log.d("FCM", "🔔 Received general notification")
@@ -59,10 +75,36 @@ class FirebaseMessagingService : FirebaseMessagingService() {
                 if (remoteMessage.notification != null) {
                     showNotification(
                         remoteMessage.notification!!.title ?: "Notification",
-                        remoteMessage.notification!!.body ?: "You have a new notification"
+                        remoteMessage.notification!!.body ?: "You have a new notification",
+                        "default_channel"
                     )
                 }
             }
+        }
+    }
+
+    private fun handleSharedAlarmData(data: Map<String, String>) {
+        try {
+            Log.d("FCM", "🔄 Processing shared alarm data: $data")
+            
+            val sharedItemId = data["sharedItemId"]
+            val message = data["message"]
+            
+            Log.d("FCM", "📦 Shared item ID: $sharedItemId")
+            Log.d("FCM", "💬 Message: $message")
+            
+            // Store received shared alarm info for app to process
+            val sharedPreferences = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val editor = sharedPreferences.edit()
+            
+            editor.putString("flutter.last_received_shared_alarm_id", sharedItemId ?: "")
+            editor.putString("flutter.last_received_shared_alarm_message", message ?: "")
+            editor.putLong("flutter.last_received_shared_alarm_timestamp", System.currentTimeMillis())
+            editor.apply()
+            
+            Log.d("FCM", "✅ Shared alarm data stored for app processing")
+        } catch (e: Exception) {
+            Log.e("FCM", "❌ Error processing shared alarm data: ${e.message}")
         }
     }
 
@@ -238,33 +280,89 @@ class FirebaseMessagingService : FirebaseMessagingService() {
         Log.d("FCM", "🧹 Cleared shared alarm data")
     }
 
-    private fun showNotification(title: String, message: String) {
+    private fun showNotification(title: String, message: String, channelId: String = "alarm_updates") {
         try {
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             
-            
+            // Create notification channels
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val channel = NotificationChannel(
-                    "alarm_updates",
-                    "Alarm Updates",
-                    NotificationManager.IMPORTANCE_HIGH
-                )
-                notificationManager.createNotificationChannel(channel)
+                createNotificationChannels(notificationManager)
             }
             
+            // Create intent for when notification is tapped
+            val intent = Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                putExtra("from_notification", true)
+                putExtra("notification_type", channelId)
+            }
             
-            val notification = NotificationCompat.Builder(this, "alarm_updates")
+            val pendingIntent = PendingIntent.getActivity(
+                this, 
+                System.currentTimeMillis().toInt(), 
+                intent, 
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+            )
+            
+            val notification = NotificationCompat.Builder(this, channelId)
                 .setContentTitle(title)
                 .setContentText(message)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(message))
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
                 .setAutoCancel(true)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setDefaults(NotificationCompat.DEFAULT_ALL)
+                .setContentIntent(pendingIntent)
                 .build()
             
-            notificationManager.notify(System.currentTimeMillis().toInt(), notification)
-            Log.d("FCM", "📬 Notification shown: $title - $message")
+            val notificationId = System.currentTimeMillis().toInt()
+            notificationManager.notify(notificationId, notification)
+            
+            Log.d("FCM", "📬 Notification shown: $title - $message (Channel: $channelId, ID: $notificationId)")
         } catch (e: Exception) {
             Log.e("FCM", "❌ Error showing notification: ${e.message}")
+        }
+    }
+
+    private fun createNotificationChannels(notificationManager: NotificationManager) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // Alarm updates channel
+            val alarmUpdatesChannel = NotificationChannel(
+                "alarm_updates",
+                "Alarm Updates", 
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notifications for shared alarm updates"
+                enableVibration(true)
+                enableLights(true)
+                setSound(android.provider.Settings.System.DEFAULT_NOTIFICATION_URI, null)
+            }
+            
+            // Shared alarms channel
+            val sharedAlarmsChannel = NotificationChannel(
+                "shared_alarms",
+                "Shared Alarms",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notifications for new shared alarms"
+                enableVibration(true)
+                enableLights(true)
+                setSound(android.provider.Settings.System.DEFAULT_NOTIFICATION_URI, null)
+            }
+            
+            // Default channel
+            val defaultChannel = NotificationChannel(
+                "default_channel",
+                "General Notifications",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "General app notifications"
+            }
+            
+            notificationManager.createNotificationChannel(alarmUpdatesChannel)
+            notificationManager.createNotificationChannel(sharedAlarmsChannel)
+            notificationManager.createNotificationChannel(defaultChannel)
+            
+            Log.d("FCM", "✅ Notification channels created")
         }
     }
 

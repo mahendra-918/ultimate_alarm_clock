@@ -253,12 +253,23 @@ class AlarmOffset extends StatelessWidget {
                         Utils.hapticFeedback();
                         controller.offsetDuration.value = value;
                       },
-                      selectedTextStyle: TextStyle(
+                      itemWidth: Utils
+                          .getResponsiveNumberPickerItemWidth(
+                        context,
+                        screenWidth: MediaQuery.of(context).size.width,
+                        baseWidthFactor: 0.25,
+                      ),
+                      selectedTextStyle: Utils
+                          .getResponsiveNumberPickerSelectedTextStyle(
+                        context,
+                        baseFontSize: 22,
                         color: kprimaryColor,
                         fontWeight: FontWeight.bold,
-                        fontSize: 22,
                       ),
-                      textStyle: TextStyle(
+                      textStyle: Utils
+                          .getResponsiveNumberPickerTextStyle(
+                        context,
+                        baseFontSize: 16,
                         color: themeController.primaryTextColor.value.withOpacity(0.5),
                       ),
                       decoration: BoxDecoration(
