@@ -751,6 +751,7 @@ class MainActivity : FlutterActivity() {
 
     private fun getSystemRingtones(category: String): List<Map<String, String>> {
         val ringtonesList = mutableListOf<Map<String, String>>()
+        val seenTitles = mutableSetOf<String>()
         
         val ringtoneType = when (category.lowercase()) {
             "alarm" -> RingtoneManager.TYPE_ALARM
@@ -769,7 +770,8 @@ class MainActivity : FlutterActivity() {
             val uri = ringtoneManager.getRingtoneUri(cursor.position)
             val id = cursor.getString(RingtoneManager.ID_COLUMN_INDEX)
             
-            if (title != null && uri != null) {
+            if (title != null && uri != null && !seenTitles.contains(title)) {
+                seenTitles.add(title)
                 val ringtoneMap = mapOf(
                     "title" to title,
                     "uri" to uri.toString(),

@@ -168,7 +168,7 @@ class AddOrUpdateAlarmController extends GetxController {
   final storage = Get.find<GetStorageProvider>();
 
   final RxBool isGuardian = false.obs;
-  final RxInt guardianTimer = 0.obs;
+  final RxInt guardianTimer = 120.obs; // Default to 2 minutes (120 seconds)
   final RxString guardian = ''.obs;
   final RxBool isCall = false.obs;
   

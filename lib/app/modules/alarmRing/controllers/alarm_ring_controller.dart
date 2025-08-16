@@ -351,6 +351,12 @@ class AlarmRingController extends GetxController {
     
     // Don't start guardian functionality in preview mode
     if (currentlyRingingAlarm.value.isGuardian && !isPreviewMode.value) {
+      // Use the actual guardianTimer value from the alarm, default to 120 if not set
+      int timerDuration = currentlyRingingAlarm.value.guardianTimer > 0 
+          ? currentlyRingingAlarm.value.guardianTimer 
+          : 120;
+      guardianCoundown.value = timerDuration;
+      
       guardianTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
         if (guardianCoundown.value == 0) {
           currentlyRingingAlarm.value.isCall
