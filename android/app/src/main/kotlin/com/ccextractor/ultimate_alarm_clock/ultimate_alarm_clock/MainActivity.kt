@@ -205,6 +205,7 @@ class MainActivity : FlutterActivity() {
                 val intervalToAlarm = call.argument<Number>("intervalToAlarm")?.toLong() ?: 0L
                 val weatherTypes = call.argument<String>("weatherTypes") ?: "[]"
                 val alarmID = call.argument<String>("alarmID") ?: ""
+                val smartControlCombinationType = call.argument<Int>("smartControlCombinationType") ?: 0
                 
                 // Only cancel existing alarms if we're scheduling a new alarm with a different time
                 // Check if there's already an alarm scheduled for this exact time
@@ -293,7 +294,8 @@ class MainActivity : FlutterActivity() {
                     weatherTypes,
                     weatherConditionType,
                     isSharedAlarm,
-                    alarmID
+                    alarmID,
+                    smartControlCombinationType
                 )
 
                 // Update tracking variables to prevent unnecessary cancellations

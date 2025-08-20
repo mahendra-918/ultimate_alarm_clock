@@ -251,10 +251,10 @@ class LocationFetcherService : Service() {
                 }
                 4 -> { // Cancel when AWAY from location (beyond 500m)
                     shouldRingAlarm = isWithin500m
-                    logMessage = if (!isWithin500m) {
-                        "Alarm didn't ring. You are ${distance}m away from chosen location (beyond 500m)"
-                    } else {
+                    logMessage = if (isWithin500m) {
                         "Alarm is ringing. You are ${distance}m from chosen location (within 500m)"
+                    } else {
+                        "Alarm didn't ring. You are ${distance}m away from chosen location (beyond 500m)"
                     }
                 }
                 else -> { // Default fallback

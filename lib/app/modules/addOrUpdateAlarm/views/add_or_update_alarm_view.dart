@@ -22,6 +22,7 @@ import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/repeat_o
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/repeat_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/screen_activity_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/setting_selector.dart';
+import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/smart_control_combination_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/shake_to_dismiss_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/shared_alarm_tile.dart';
 import 'package:ultimate_alarm_clock/app/modules/addOrUpdateAlarm/views/shared_users_tile.dart';
@@ -809,6 +810,14 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                             () => controller.alarmSettingType.value == 1
                                 ? Column(
                                     children: [
+                                      SmartControlCombinationTile(
+                                        controller: controller,
+                                        themeController: themeController,
+                                      ),
+                                      Divider(
+                                        color: themeController
+                                            .primaryDisabledTextColor.value,
+                                      ),
                                       ScreenActivityTile(
                                         controller: controller,
                                         themeController: themeController,
@@ -991,6 +1000,7 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                 deleteAfterGoesOff:
                                     controller.deleteAfterGoesOff.value,
                                 snoozeDuration: controller.snoozeDuration.value,
+                                maxSnoozeCount: controller.maxSnoozeCount.value,
                                 volMax: controller.volMax.value,
                                 volMin: controller.volMin.value,
                                 gradient: controller.gradient.value,

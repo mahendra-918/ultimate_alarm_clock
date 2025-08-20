@@ -186,6 +186,13 @@ class AddOrUpdateAlarmController extends GetxController {
   final RxList<TimezoneData> filteredTimezoneList = <TimezoneData>[].obs;
   final RxString timezoneSearchQuery = ''.obs;
   final RxString deviceTimezoneId = ''.obs;
+  
+  // Smart Control Combination Variables
+  final RxInt smartControlCombinationType = SmartControlCombinationType.and.index.obs;
+
+  void setSmartControlCombinationType(SmartControlCombinationType type) {
+    smartControlCombinationType.value = type.index;
+  }
 
   void toggleIsPlaying() {
     isPlaying.toggle();
@@ -1105,6 +1112,9 @@ class AddOrUpdateAlarmController extends GetxController {
       selectedTimezoneId.value = alarmRecord.value.timezoneId;
       isTimezoneEnabled.value = alarmRecord.value.isTimezoneEnabled;
       targetTimezoneOffset.value = alarmRecord.value.targetTimezoneOffset;
+      
+      // Initialize smart control combination type
+      smartControlCombinationType.value = alarmRecord.value.smartControlCombinationType;
       isActivityMonitorenabled.value =
           alarmRecord.value.isActivityEnabled ? 1 : 0;
       snoozeDuration.value = alarmRecord.value.snoozeDuration;
@@ -1308,6 +1318,7 @@ class AddOrUpdateAlarmController extends GetxController {
       'isSharedAlarmEnabled': isSharedAlarmEnabled.value,
       'offsetDuration': offsetDuration.value,
       'isOffsetBefore': isOffsetBefore.value,
+      'smartControlCombinationType': smartControlCombinationType.value,
     });
 
     addListeners();
@@ -1415,6 +1426,7 @@ class AddOrUpdateAlarmController extends GetxController {
     setupListener<WeatherConditionType>(weatherConditionType, 'weatherConditionType');
     setupListener<int>(offsetDuration, 'offsetDuration');
     setupListener<bool>(isOffsetBefore, 'isOffsetBefore');
+    setupListener<int>(smartControlCombinationType, 'smartControlCombinationType');
   }
 
   // adds listener to rxVar variable
@@ -1473,6 +1485,7 @@ class AddOrUpdateAlarmController extends GetxController {
     }
 
     
+    debugPrint('🔔 Creating alarm with maxSnoozeCount: ${maxSnoozeCount.value}');
     return AlarmModel(
       snoozeDuration: snoozeDuration.value,
       maxSnoozeCount: maxSnoozeCount.value,
@@ -1536,6 +1549,7 @@ class AddOrUpdateAlarmController extends GetxController {
       timezoneId: selectedTimezoneId.value,
       isTimezoneEnabled: isTimezoneEnabled.value,
       targetTimezoneOffset: targetTimezoneOffset.value,
+      smartControlCombinationType: smartControlCombinationType.value,
     );
   }
 

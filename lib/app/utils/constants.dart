@@ -40,6 +40,11 @@ enum ActivityConditionType {
   cancelWhenInactive 
 }
 
+enum SmartControlCombinationType {
+  and,  // All enabled smart controls must pass for alarm to ring
+  or    // At least one enabled smart control must pass for alarm to ring
+}
+
 const Color kprimaryColor = Color(0xffAFFC41);
 
 // Dark Theme Color Palette

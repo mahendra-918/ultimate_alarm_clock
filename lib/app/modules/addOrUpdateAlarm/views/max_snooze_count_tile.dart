@@ -58,6 +58,7 @@ class MaxSnoozeCountTile extends StatelessWidget {
                               onChanged: (value) {
                                 Utils.hapticFeedback();
                                 controller.maxSnoozeCount.value = value;
+                                debugPrint('🔔 Max snooze count updated to: $value');
                               },
                               itemWidth: Utils
                                   .getResponsiveNumberPickerItemWidth(

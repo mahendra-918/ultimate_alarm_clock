@@ -76,6 +76,12 @@
             android:exported="true"></service>
 
         <service
+            android:name=".SmartControlCombinationService"
+            android:foregroundServiceType="systemExempted"
+            android:enabled="true"
+            android:exported="true"></service>
+
+        <service
             android:name=".SpotifyPlayerService"
             android:enabled="true"
             android:exported="true"></service>

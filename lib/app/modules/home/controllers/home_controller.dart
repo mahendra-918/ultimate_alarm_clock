@@ -1061,6 +1061,7 @@ class HomeController extends GetxController {
         'location': alarm.location,
         'weatherTypes': jsonEncode(alarm.weatherTypes),
         'alarmID': alarmId,
+        'smartControlCombinationType': alarm.smartControlCombinationType,
       });
       
       // Track each alarm type separately - never override the other type

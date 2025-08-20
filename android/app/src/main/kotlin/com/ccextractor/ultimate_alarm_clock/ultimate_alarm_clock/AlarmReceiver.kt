@@ -74,42 +74,86 @@ class AlarmReceiver : BroadcastReceiver() {
         val isLocationEnabled = intent.getIntExtra("isLocation", 0) == 1
         val isActivityEnabled = intent.getIntExtra("isActivity", 0) == 1
         val isWeatherEnabled = intent.getIntExtra("isWeather", 0) == 1
+        val smartControlCombinationType = intent.getIntExtra("smartControlCombinationType", 0) // 0=AND, 1=OR
 
         Log.d("AlarmReceiver", "Screen On: $screenOnTimeInMillis, Screen Off: $screenOffTimeInMillis")
         Log.d("AlarmReceiver", "Condition Type: $activityConditionType, Interval: $activityInterval minutes")
         Log.d("AlarmReceiver", "Location Enabled: $isLocationEnabled, Activity Enabled: $isActivityEnabled")
         Log.d("AlarmReceiver", "Weather Enabled: $isWeatherEnabled")
+        Log.d("AlarmReceiver", "Smart Control Combination Type: $smartControlCombinationType (0=AND, 1=OR)")
         
-        // If location condition is enabled, start LocationFetcherService to handle location logic
-        if (isLocationEnabled) {
-            Log.d("AlarmReceiver", "Location condition enabled, starting LocationFetcherService")
-            val locationConditionType = intent.getIntExtra("locationConditionType", 2)
-            Log.d("AlarmReceiver", "Passing locationConditionType: $locationConditionType to LocationFetcherService")
-            val locationIntent = Intent(context, LocationFetcherService::class.java).apply {
-                putExtra("alarmID", intent.getStringExtra("alarmID"))
-                putExtra("location", intent.getStringExtra("location"))
-                putExtra("locationConditionType", locationConditionType)
-                putExtra("isSharedAlarm", isSharedAlarm)
-            }
-            context.startForegroundService(locationIntent)
-            return // LocationFetcherService will handle the rest
-        }
+        // Count enabled smart controls
+        val enabledSmartControls = mutableListOf<String>()
+        if (isLocationEnabled) enabledSmartControls.add("location")
+        if (isActivityEnabled) enabledSmartControls.add("activity")
+        if (isWeatherEnabled) enabledSmartControls.add("weather")
         
-        // If weather condition is enabled, start WeatherFetcherService to handle weather logic
-        if (isWeatherEnabled) {
-            Log.d("AlarmReceiver", "Weather condition enabled, starting WeatherFetcherService")
-            val weatherIntent = Intent(context, WeatherFetcherService::class.java).apply {
-                putExtra("alarmID", intent.getStringExtra("alarmID"))
-                putExtra("weatherTypes", intent.getStringExtra("weatherTypes"))
-                putExtra("weatherConditionType", intent.getIntExtra("weatherConditionType", 2))
-                putExtra("isSharedAlarm", isSharedAlarm)
+        Log.d("AlarmReceiver", "Enabled smart controls: ${enabledSmartControls.joinToString(", ")}")
+        
+        // If only one or no smart controls are enabled, handle directly
+        if (enabledSmartControls.size <= 1) {
+            // Use original priority logic for single/no smart controls
+            if (isLocationEnabled) {
+                Log.d("AlarmReceiver", "Single smart control: Location enabled, starting LocationFetcherService")
+                val locationConditionType = intent.getIntExtra("locationConditionType", 2)
+                val locationIntent = Intent(context, LocationFetcherService::class.java).apply {
+                    putExtra("alarmID", intent.getStringExtra("alarmID"))
+                    putExtra("location", intent.getStringExtra("location"))
+                    putExtra("locationConditionType", locationConditionType)
+                    putExtra("isSharedAlarm", isSharedAlarm)
+                }
+                context.startForegroundService(locationIntent)
+                return
             }
-            context.startForegroundService(weatherIntent)
-            return // WeatherFetcherService will handle the rest
+            
+            if (isWeatherEnabled) {
+                Log.d("AlarmReceiver", "Single smart control: Weather enabled, starting WeatherFetcherService")
+                val weatherIntent = Intent(context, WeatherFetcherService::class.java).apply {
+                    putExtra("alarmID", intent.getStringExtra("alarmID"))
+                    putExtra("weatherTypes", intent.getStringExtra("weatherTypes"))
+                    putExtra("weatherConditionType", intent.getIntExtra("weatherConditionType", 2))
+                    putExtra("isSharedAlarm", isSharedAlarm)
+                }
+                context.startForegroundService(weatherIntent)
+                return
+            }
+        } else {
+            // Multiple smart controls enabled - use combination logic
+            Log.d("AlarmReceiver", "Multiple smart controls enabled, using combination logic")
+            val smartControlIntent = Intent(context, SmartControlCombinationService::class.java).apply {
+                putExtra("alarmID", intent.getStringExtra("alarmID"))
+                putExtra("isSharedAlarm", isSharedAlarm)
+                putExtra("smartControlCombinationType", smartControlCombinationType)
+                
+                // Location data
+                putExtra("isLocationEnabled", isLocationEnabled)
+                if (isLocationEnabled) {
+                    putExtra("location", intent.getStringExtra("location"))
+                    putExtra("locationConditionType", intent.getIntExtra("locationConditionType", 2))
+                }
+                
+                // Weather data
+                putExtra("isWeatherEnabled", isWeatherEnabled)
+                if (isWeatherEnabled) {
+                    putExtra("weatherTypes", intent.getStringExtra("weatherTypes"))
+                    putExtra("weatherConditionType", intent.getIntExtra("weatherConditionType", 2))
+                }
+                
+                // Activity data
+                putExtra("isActivityEnabled", isActivityEnabled)
+                if (isActivityEnabled) {
+                    putExtra("activityConditionType", activityConditionType)
+                    putExtra("activityInterval", activityInterval)
+                    putExtra("screenOnTime", screenOnTimeInMillis)
+                    putExtra("screenOffTime", screenOffTimeInMillis)
+                }
+            }
+            context.startForegroundService(smartControlIntent)
+            return
         }
         
         // If no screen activity monitoring (off or no data), ring the alarm
-        if (!isActivityEnabled || activityConditionType == 0 || Math.abs(screenOnTimeInMillis - screenOffTimeInMillis) < 180000 || screenOnTimeInMillis - screenOffTimeInMillis == 0L) {
+        if (!isActivityEnabled || activityConditionType == 0 || (screenOnTimeInMillis == 0L && screenOffTimeInMillis == 0L)) {
             println("ANDROID STARTING APP")
             context.startActivity(flutterIntent)
 
@@ -123,10 +167,10 @@ class AlarmReceiver : BroadcastReceiver() {
                 return
             }
             
-            if((screenOnTimeInMillis - screenOffTimeInMillis) == 0L) {
-                // if alarm rings (no smart controls used)
+            if(screenOnTimeInMillis == 0L && screenOffTimeInMillis == 0L) {
+                // if alarm rings (no screen activity data)
                 logdbHelper.insertLog(
-                    "Alarm is ringing",
+                    "Alarm is ringing (no screen activity data available)",
                     status = LogDatabaseHelper.Status.SUCCESS,
                     type = LogDatabaseHelper.LogType.NORMAL,
                     hasRung = 1
@@ -135,7 +179,7 @@ class AlarmReceiver : BroadcastReceiver() {
             }
 
             logdbHelper.insertLog(
-                "Alarm is ringing (no screen activity monitoring)",
+                "Alarm is ringing (screen activity monitoring disabled)",
                 status = LogDatabaseHelper.Status.SUCCESS,
                 type = LogDatabaseHelper.LogType.NORMAL,
                 hasRung = 1

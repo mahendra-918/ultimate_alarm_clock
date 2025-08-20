@@ -117,12 +117,14 @@ class NotificationsController extends GetxController {
         'isSharedAlarm': true,
         'isActivityEnabled': alarm.isActivityEnabled,
         'isLocationEnabled': alarm.isLocationEnabled,
+        'locationConditionType': alarm.locationConditionType,
         'isWeatherEnabled': alarm.isWeatherEnabled,
         'weatherConditionType': alarm.weatherConditionType,
         'intervalToAlarm': intervalToAlarm,
         'location': alarm.location,
         'weatherTypes': jsonEncode(alarm.weatherTypes),
         'alarmID': alarm.firestoreId ?? '',
+        'smartControlCombinationType': alarm.smartControlCombinationType,
       });
       
       // Update the home controller's shared alarm cache

@@ -209,8 +209,13 @@ class WeatherFetcherService() : Service() {
                 Log.d("Weather", "Current weather: $currentWeather")
                 Log.d("WeatherTypes", "Selected types: $weatherTypesString")
                 
+                // Check if all weather types are selected (special case)
+                val allWeatherTypes = "sunny,cloudy,rainy,windy,stormy"
+                val allTypesSelected = weatherTypesString == allWeatherTypes
+                
                 val weatherMatches = weatherTypesString.contains(currentWeather)
                 Log.d("WeatherMatch", "Weather matches selected types: $weatherMatches")
+                Log.d("WeatherMatch", "All weather types selected: $allTypesSelected")
                 
                 // Add condition type name for better debugging
                 val conditionTypeName = when (weatherConditionType) {
@@ -238,17 +243,35 @@ class WeatherFetcherService() : Service() {
                         shouldRing = weatherMatches
                         Log.d("WeatherCondition", "RING_WHEN_MATCH: shouldRing = $shouldRing (${if (weatherMatches) "weather matches" else "weather doesn't match"})")
                     }
-                    2 -> { // cancelWhenMatch - cancel when weather matches selected types (original behavior)
-                        shouldRing = !weatherMatches
-                        Log.d("WeatherCondition", "CANCEL_WHEN_MATCH: shouldRing = $shouldRing (${if (!weatherMatches) "weather doesn't match, so ring" else "weather matches, so cancel"})")
+                    2 -> { // cancelWhenMatch - cancel when weather matches selected types
+                        if (allTypesSelected) {
+                            // Special case: if all weather types are selected, always ring (user wants no weather restrictions)
+                            shouldRing = true
+                            Log.d("WeatherCondition", "CANCEL_WHEN_MATCH: All weather types selected - treating as no weather restrictions, shouldRing = true")
+                        } else {
+                            shouldRing = !weatherMatches
+                            Log.d("WeatherCondition", "CANCEL_WHEN_MATCH: shouldRing = $shouldRing (${if (!weatherMatches) "weather doesn't match, so ring" else "weather matches, so cancel"})")
+                        }
                     }
                     3 -> { // ringWhenDifferent - ring when weather is different from selected types
-                        shouldRing = !weatherMatches
-                        Log.d("WeatherCondition", "RING_WHEN_DIFFERENT: shouldRing = $shouldRing (${if (!weatherMatches) "weather is different, so ring" else "weather matches, so don't ring"})")
+                        if (allTypesSelected) {
+                            // Special case: if all weather types are selected, never ring (no weather is different from all types)
+                            shouldRing = false
+                            Log.d("WeatherCondition", "RING_WHEN_DIFFERENT: All weather types selected - no weather can be different, shouldRing = false")
+                        } else {
+                            shouldRing = !weatherMatches
+                            Log.d("WeatherCondition", "RING_WHEN_DIFFERENT: shouldRing = $shouldRing (${if (!weatherMatches) "weather is different, so ring" else "weather matches, so don't ring"})")
+                        }
                     }
                     4 -> { // cancelWhenDifferent - cancel when weather is different from selected types
-                        shouldRing = weatherMatches
-                        Log.d("WeatherCondition", "CANCEL_WHEN_DIFFERENT: shouldRing = $shouldRing (${if (weatherMatches) "weather matches, so ring" else "weather is different, so cancel"})")
+                        if (allTypesSelected) {
+                            // Special case: if all weather types are selected, always ring (no weather is different to cancel)
+                            shouldRing = true
+                            Log.d("WeatherCondition", "CANCEL_WHEN_DIFFERENT: All weather types selected - no weather is different to cancel, shouldRing = true")
+                        } else {
+                            shouldRing = weatherMatches
+                            Log.d("WeatherCondition", "CANCEL_WHEN_DIFFERENT: shouldRing = $shouldRing (${if (weatherMatches) "weather matches, so ring" else "weather is different, so cancel"})")
+                        }
                     }
                     else -> {
                         shouldRing = true

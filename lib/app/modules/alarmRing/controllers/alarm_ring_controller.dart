@@ -40,6 +40,7 @@ class AlarmRingController extends GetxController {
   RxInt minutes = 1.obs;
   RxInt seconds = 0.obs;
   RxInt snoozeCount = 0.obs;
+  RxInt maxSnoozeCount = 3.obs; // Will be initialized from alarm model
   RxBool showButton = false.obs;
   StreamSubscription? _sensorSubscription;
   HomeController homeController = Get.find<HomeController>();
@@ -93,16 +94,9 @@ class AlarmRingController extends GetxController {
   }
 
   void startSnooze() async {
-    int actualMaxSnoozeCount = currentlyRingingAlarm.value.maxSnoozeCount;
-  
-    if (currentlyRingingAlarm.value.isarId > 0) {
-      final dbAlarm = await IsarDb.getAlarm(currentlyRingingAlarm.value.isarId);
-      if (dbAlarm != null) {
-        actualMaxSnoozeCount = dbAlarm.maxSnoozeCount;
-      }
-    }
-    
-    if (snoozeCount.value >= actualMaxSnoozeCount) {
+    debugPrint('🔔 Snooze attempt: ${snoozeCount.value + 1}/${maxSnoozeCount.value}');
+    if (snoozeCount.value >= maxSnoozeCount.value) {
+      debugPrint('🔔 Max snooze limit reached: ${snoozeCount.value}/${maxSnoozeCount.value}');
       Get.snackbar(
         "Max Snooze Limit",
         "You've reached the maximum snooze limit",
@@ -114,6 +108,7 @@ class AlarmRingController extends GetxController {
       return;
     }
     snoozeCount.value++;
+    debugPrint('🔔 Snoozed successfully: ${snoozeCount.value}/${maxSnoozeCount.value}');
     
     Vibration.cancel();
     vibrationTimer!.cancel();
@@ -339,11 +334,28 @@ class AlarmRingController extends GetxController {
       isPreviewMode.value = false;
     }
 
-    if (currentlyRingingAlarm.value.isarId > 0) {
+    // Initialize maxSnoozeCount with the correct value from alarm model
+    // For local alarms, try to get fresh data from database
+    // For shared alarms, use the value from the alarm model
+    if (currentlyRingingAlarm.value.isarId > 0 && 
+        !currentlyRingingAlarm.value.isSharedAlarmEnabled) {
       final dbAlarm = await IsarDb.getAlarm(currentlyRingingAlarm.value.isarId);
-      if (dbAlarm != null && dbAlarm.maxSnoozeCount != currentlyRingingAlarm.value.maxSnoozeCount) {
+      if (dbAlarm != null) {
+        maxSnoozeCount.value = dbAlarm.maxSnoozeCount;
         currentlyRingingAlarm.value.maxSnoozeCount = dbAlarm.maxSnoozeCount;
+        debugPrint('🔔 Set maxSnoozeCount to ${dbAlarm.maxSnoozeCount} '
+            'from local database');
+      } else {
+        maxSnoozeCount.value = currentlyRingingAlarm.value.maxSnoozeCount;
+        debugPrint('🔔 Set maxSnoozeCount to '
+            '${currentlyRingingAlarm.value.maxSnoozeCount} '
+            'from alarm model (db not found)');
       }
+    } else {
+      maxSnoozeCount.value = currentlyRingingAlarm.value.maxSnoozeCount;
+      debugPrint('🔔 Set maxSnoozeCount to '
+          '${currentlyRingingAlarm.value.maxSnoozeCount} '
+          'from alarm model (shared or no isar ID)');
     }
     
     // Initialize sunrise effect if enabled

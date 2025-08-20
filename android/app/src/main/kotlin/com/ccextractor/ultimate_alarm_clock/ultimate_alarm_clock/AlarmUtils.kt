@@ -28,7 +28,8 @@ object AlarmUtils {
         weatherTypes: String,
         weatherConditionType: Int,
         isShared: Boolean = false,
-        alarmID: String = ""
+        alarmID: String = "",
+        smartControlCombinationType: Int = 0
     ) {
         val alarmType = if (isShared) "shared" else "local"
         val logdbHelper = LogDatabaseHelper(context)
@@ -47,6 +48,7 @@ object AlarmUtils {
                 putExtra("isWeather", isWeather)
                 putExtra("weatherTypes", weatherTypes)
                 putExtra("weatherConditionType", weatherConditionType)
+                putExtra("smartControlCombinationType", smartControlCombinationType)
                 if (isShared) {
                     putExtra("isSharedAlarm", true)
                     Log.d("AlarmUtils", "Setting isSharedAlarm flag in intent")

@@ -70,6 +70,7 @@ class AlarmModel {
   late String timezoneId;
   late bool isTimezoneEnabled;
   late int targetTimezoneOffset;
+  late int smartControlCombinationType;
   @ignore
   List<Map>? offsetDetails;
 
@@ -131,7 +132,8 @@ class AlarmModel {
       required this.sunriseColorScheme,
       this.timezoneId = '',
       this.isTimezoneEnabled = false,
-      this.targetTimezoneOffset = 0});
+      this.targetTimezoneOffset = 0,
+      this.smartControlCombinationType = 0});
 
   AlarmModel.fromDocumentSnapshot({
     required firestore.DocumentSnapshot documentSnapshot,
@@ -243,6 +245,7 @@ if (offsetDetails != null) {
     timezoneId = documentSnapshot['timezoneId'] ?? '';
     isTimezoneEnabled = documentSnapshot['isTimezoneEnabled'] ?? false;
     targetTimezoneOffset = documentSnapshot['targetTimezoneOffset'] ?? 0;
+    smartControlCombinationType = documentSnapshot['smartControlCombinationType'] ?? 0;
   }
 
   AlarmModel fromMapSQFlite(Map<String, dynamic> map) {
@@ -306,6 +309,7 @@ if (offsetDetails != null) {
       timezoneId: map['timezoneId'] ?? '',
       isTimezoneEnabled: map['isTimezoneEnabled'] == 1,
       targetTimezoneOffset: map['targetTimezoneOffset'] ?? 0,
+      smartControlCombinationType: map['smartControlCombinationType'] ?? 0,
     );
   }
 
@@ -369,6 +373,7 @@ if (offsetDetails != null) {
       'timezoneId': timezoneId,
       'isTimezoneEnabled': isTimezoneEnabled ? 1 : 0,
       'targetTimezoneOffset': targetTimezoneOffset,
+      'smartControlCombinationType': smartControlCombinationType,
     };
   }
 
@@ -437,6 +442,7 @@ if (offsetDetails != null) {
     timezoneId = alarmData['timezoneId'] ?? '';
     isTimezoneEnabled = alarmData['isTimezoneEnabled'] ?? false;
     targetTimezoneOffset = alarmData['targetTimezoneOffset'] ?? 0;
+    smartControlCombinationType = alarmData['smartControlCombinationType'] ?? 0;
   }
 
   AlarmModel.fromJson(String alarmData, UserModel? user) {
@@ -505,7 +511,8 @@ if (offsetDetails != null) {
       'sunriseColorScheme': alarmRecord.sunriseColorScheme,
       'timezoneId': alarmRecord.timezoneId,
       'isTimezoneEnabled': alarmRecord.isTimezoneEnabled,
-      'targetTimezoneOffset': alarmRecord.targetTimezoneOffset
+      'targetTimezoneOffset': alarmRecord.targetTimezoneOffset,
+      'smartControlCombinationType': alarmRecord.smartControlCombinationType,
     };
 
     if (alarmRecord.isSharedAlarmEnabled) {
