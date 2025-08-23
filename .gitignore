@@ -57,4 +57,5 @@ app.*.map.json
 /.fvm
 /.tmp
 /caches
-/.fvmrc
+/.fvmrcandroid/app/build/
+*.lock

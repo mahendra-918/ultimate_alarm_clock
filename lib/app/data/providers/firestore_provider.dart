@@ -28,7 +28,7 @@ class FirestoreDb {
     final dir = await getDatabasesPath();
     final dbPath = '$dir/alarms.db';
     print(dir);
-    db = await openDatabase(dbPath, version: 5, onCreate: _onCreate, onUpgrade: _onUpgrade);
+    db = await openDatabase(dbPath, version: 6, onCreate: _onCreate, onUpgrade: _onUpgrade);
     return db;
   }
 
@@ -53,6 +53,10 @@ class FirestoreDb {
       await db.execute('ALTER TABLE alarms ADD COLUMN timezoneId TEXT NOT NULL DEFAULT ""');
       await db.execute('ALTER TABLE alarms ADD COLUMN isTimezoneEnabled INTEGER NOT NULL DEFAULT 0');
       await db.execute('ALTER TABLE alarms ADD COLUMN targetTimezoneOffset INTEGER NOT NULL DEFAULT 0');
+    }
+    if (oldVersion < 6) {
+      // Add smart control combination type column
+      await db.execute('ALTER TABLE alarms ADD COLUMN smartControlCombinationType INTEGER NOT NULL DEFAULT 0');
     }
   }
 
@@ -117,7 +121,8 @@ class FirestoreDb {
         sunriseColorScheme INTEGER NOT NULL DEFAULT 0,
         timezoneId TEXT NOT NULL DEFAULT "",
         isTimezoneEnabled INTEGER NOT NULL DEFAULT 0,
-        targetTimezoneOffset INTEGER NOT NULL DEFAULT 0
+        targetTimezoneOffset INTEGER NOT NULL DEFAULT 0,
+        smartControlCombinationType INTEGER NOT NULL DEFAULT 0
 
       )
     ''');
@@ -206,7 +211,11 @@ class FirestoreDb {
             e.toString().contains('isSunriseEnabled') ||
             e.toString().contains('sunriseDuration') ||
             e.toString().contains('sunriseIntensity') ||
-            e.toString().contains('sunriseColorScheme')) {
+            e.toString().contains('sunriseColorScheme') ||
+            e.toString().contains('smartControlCombinationType') ||
+            e.toString().contains('timezoneId') ||
+            e.toString().contains('isTimezoneEnabled') ||
+            e.toString().contains('targetTimezoneOffset')) {
           // If new columns don't exist, insert without them for backward compatibility
           Map<String, dynamic> fallbackMap = Map.from(alarmRecord.toSQFliteMap());
           fallbackMap.remove('locationConditionType');
@@ -216,6 +225,10 @@ class FirestoreDb {
           fallbackMap.remove('sunriseDuration');
           fallbackMap.remove('sunriseIntensity');
           fallbackMap.remove('sunriseColorScheme');
+          fallbackMap.remove('smartControlCombinationType');
+          fallbackMap.remove('timezoneId');
+          fallbackMap.remove('isTimezoneEnabled');
+          fallbackMap.remove('targetTimezoneOffset');
           await sql!
               .insert('alarms', fallbackMap)
               .then((value) => print('insert success (backward compatibility)'));
@@ -366,14 +379,38 @@ class FirestoreDb {
     final sql = await FirestoreDb().getSQLiteDatabase();
     
     try {
-      
+      // Try to update with all fields including new columns
+      await sql!.update(
+        'alarms',
+        alarmRecord.toSQFliteMap(),
+        where: 'alarmID = ?',
+        whereArgs: [alarmRecord.alarmID],
+      );
     } catch (e) {
-      if (e.toString().contains('locationConditionType') || e.toString().contains('weatherConditionType') || e.toString().contains('activityConditionType')) {
+      if (e.toString().contains('locationConditionType') || 
+          e.toString().contains('weatherConditionType') || 
+          e.toString().contains('activityConditionType') ||
+          e.toString().contains('smartControlCombinationType') ||
+          e.toString().contains('timezoneId') ||
+          e.toString().contains('isTimezoneEnabled') ||
+          e.toString().contains('targetTimezoneOffset') ||
+          e.toString().contains('isSunriseEnabled') ||
+          e.toString().contains('sunriseDuration') ||
+          e.toString().contains('sunriseIntensity') ||
+          e.toString().contains('sunriseColorScheme')) {
       
         Map<String, dynamic> fallbackMap = Map.from(alarmRecord.toSQFliteMap());
         fallbackMap.remove('locationConditionType');
         fallbackMap.remove('weatherConditionType');
         fallbackMap.remove('activityConditionType');
+        fallbackMap.remove('smartControlCombinationType');
+        fallbackMap.remove('timezoneId');
+        fallbackMap.remove('isTimezoneEnabled');
+        fallbackMap.remove('targetTimezoneOffset');
+        fallbackMap.remove('isSunriseEnabled');
+        fallbackMap.remove('sunriseDuration');
+        fallbackMap.remove('sunriseIntensity');
+        fallbackMap.remove('sunriseColorScheme');
         await sql!.update(
           'alarms',
           fallbackMap,

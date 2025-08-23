@@ -245,7 +245,9 @@ if (offsetDetails != null) {
     timezoneId = documentSnapshot['timezoneId'] ?? '';
     isTimezoneEnabled = documentSnapshot['isTimezoneEnabled'] ?? false;
     targetTimezoneOffset = documentSnapshot['targetTimezoneOffset'] ?? 0;
-    smartControlCombinationType = documentSnapshot['smartControlCombinationType'] ?? 0;
+    // Handle smartControlCombinationType field safely
+    final data = documentSnapshot.data() as Map<String, dynamic>?;
+    smartControlCombinationType = data?['smartControlCombinationType'] ?? 0;
   }
 
   AlarmModel fromMapSQFlite(Map<String, dynamic> map) {
