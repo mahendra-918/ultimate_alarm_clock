@@ -57,5 +57,20 @@ app.*.map.json
 /.fvm
 /.tmp
 /caches
-/.fvmrcandroid/app/build/
+
+# Build artifacts
+android/app/build/
+android/.gradle/
+**/build/
+
+# Lock files
 *.lock
+ios/Podfile.lock
+
+# Node modules
+node_modules/
+**/node_modules/
+
+# Package managers
+package-lock.json
+yarn.lock
