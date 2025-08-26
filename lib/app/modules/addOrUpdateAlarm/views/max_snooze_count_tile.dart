@@ -49,35 +49,45 @@ class MaxSnoozeCountTile extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Obx(
-                            () => NumberPicker(
-                              value: controller.maxSnoozeCount.value <= 0
-                                  ? 1
-                                  : controller.maxSnoozeCount.value,
-                              minValue: 1,
-                              maxValue: 10,
-                              onChanged: (value) {
-                                Utils.hapticFeedback();
-                                controller.maxSnoozeCount.value = value;
-                                debugPrint('🔔 Max snooze count updated to: $value');
-                              },
-                              itemWidth: Utils
-                                  .getResponsiveNumberPickerItemWidth(
-                                context,
-                                screenWidth: MediaQuery.of(context).size.width,
-                                baseWidthFactor: 0.2,
+                            () => Container(
+                              constraints: BoxConstraints(
+                                maxHeight: MediaQuery.of(context).size.height * 0.25,
+                                minHeight: 120,
                               ),
-                              textStyle: Utils
-                                  .getResponsiveNumberPickerTextStyle(
-                                context,
-                                baseFontSize: 16,
-                                color: themeController.primaryDisabledTextColor.value,
-                              ),
-                              selectedTextStyle: Utils
-                                  .getResponsiveNumberPickerSelectedTextStyle(
-                                context,
-                                baseFontSize: 20,
-                                color: kprimaryColor,
-                                fontWeight: FontWeight.w600,
+                              child: NumberPicker(
+                                value: controller.maxSnoozeCount.value <= 0
+                                    ? 1
+                                    : controller.maxSnoozeCount.value,
+                                minValue: 1,
+                                maxValue: 10,
+                                onChanged: (value) {
+                                  Utils.hapticFeedback();
+                                  controller.maxSnoozeCount.value = value;
+                                  debugPrint('🔔 Max snooze count updated to: $value');
+                                },
+                                itemWidth: Utils
+                                    .getResponsiveNumberPickerItemWidth(
+                                  context,
+                                  screenWidth: MediaQuery.of(context).size.width,
+                                  baseWidthFactor: 0.2,
+                                ),
+                                itemHeight: Utils.getResponsiveNumberPickerItemHeight(
+                                  context,
+                                  baseFontSize: 20,
+                                ),
+                                textStyle: Utils
+                                    .getResponsiveNumberPickerTextStyle(
+                                  context,
+                                  baseFontSize: 16,
+                                  color: themeController.primaryDisabledTextColor.value,
+                                ),
+                                selectedTextStyle: Utils
+                                    .getResponsiveNumberPickerSelectedTextStyle(
+                                  context,
+                                  baseFontSize: 20,
+                                  color: kprimaryColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                           ),

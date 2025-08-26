@@ -930,15 +930,25 @@ class Utils {
     required double baseSize,
     double? appScalingFactor,
   }) {
-    final systemScaleFactor = MediaQuery.textScaleFactorOf(context);
+    final systemScaleFactor = MediaQuery.textScalerOf(context).scale(1.0);
     final effectiveAppScalingFactor = appScalingFactor ?? 1.0;
     
     // Combine app scaling with system accessibility scaling
-    // Apply a reasonable limit to prevent excessive scaling
+    // Apply a reasonable limit to prevent excessive scaling while maintaining accessibility
     final combinedScaleFactor = (effectiveAppScalingFactor * systemScaleFactor)
-        .clamp(0.5, 2.5);
+        .clamp(0.5, 3.0); // Increased upper limit for better accessibility
     
-    return baseSize * combinedScaleFactor;
+    // Apply gradual scaling reduction for very large fonts to maintain layout
+    double scaledSize = baseSize * combinedScaleFactor;
+    
+    // For very large base sizes, apply more conservative scaling
+    if (baseSize > 30 && combinedScaleFactor > 2.0) {
+      // Reduce the impact of extreme scaling for large base fonts
+      final moderateScaleFactor = 2.0 + (combinedScaleFactor - 2.0) * 0.7;
+      scaledSize = baseSize * moderateScaleFactor;
+    }
+    
+    return scaledSize;
   }
 
   /// Get responsive TextStyle for NumberPicker selected text
@@ -987,14 +997,20 @@ class Utils {
     required double baseWidthFactor,
     double? appScalingFactor,
   }) {
-    final systemScaleFactor = MediaQuery.textScaleFactorOf(context);
+    final systemScaleFactor = MediaQuery.textScalerOf(context).scale(1.0);
     final effectiveAppScalingFactor = appScalingFactor ?? 1.0;
     
     // Scale item width proportionally with font scaling
     final combinedScaleFactor = (effectiveAppScalingFactor * systemScaleFactor)
-        .clamp(0.8, 2.0);
+        .clamp(0.8, 2.5); // Increased upper limit for better accessibility
     
-    return screenWidth * baseWidthFactor * combinedScaleFactor;
+    // Calculate responsive width
+    final calculatedWidth = screenWidth * baseWidthFactor * combinedScaleFactor;
+    
+    // Ensure minimum width for accessibility
+    const minWidth = 60.0; // Minimum touchable area
+    
+    return calculatedWidth < minWidth ? minWidth : calculatedWidth;
   }
 
   /// Get responsive item height for NumberPicker
@@ -1004,17 +1020,28 @@ class Utils {
     required double baseFontSize,
     double? appScalingFactor,
   }) {
-    final systemScaleFactor = MediaQuery.textScaleFactorOf(context);
+    final systemScaleFactor = MediaQuery.textScalerOf(context).scale(1.0);
     final effectiveAppScalingFactor = appScalingFactor ?? 1.0;
     
     // Scale item height proportionally with font scaling
     final combinedScaleFactor = (effectiveAppScalingFactor * systemScaleFactor)
-        .clamp(0.5, 2.5);
+        .clamp(0.5, 3.0); // Increased upper limit for better accessibility
     
     // Calculate height based on font size with padding
     final scaledFontSize = baseFontSize * combinedScaleFactor;
     
-    // Add padding around the text (1.8x font size gives good spacing)
-    return scaledFontSize * 1.8;
+    // Increase padding multiplier for larger text scales to prevent cutoff
+    double paddingMultiplier = 1.8;
+    if (combinedScaleFactor > 2.0) {
+      paddingMultiplier = 2.2; // More padding for extreme scaling
+    } else if (combinedScaleFactor > 1.5) {
+      paddingMultiplier = 2.0; // Moderate increase for medium scaling
+    }
+    
+    // Ensure minimum height for accessibility
+    final calculatedHeight = scaledFontSize * paddingMultiplier;
+    const minHeight = 50.0; // Minimum touchable area per accessibility guidelines
+    
+    return calculatedHeight < minHeight ? minHeight : calculatedHeight;
   }
 }

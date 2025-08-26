@@ -96,34 +96,44 @@ class SnoozeSettingsTile extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   Obx(
-                                    () => NumberPicker(
-                                      value: controller.snoozeDuration.value <= 0
-                                          ? 0
-                                          : controller.snoozeDuration.value,
-                                      minValue: 0,
-                                      maxValue: 60,
-                                      onChanged: (value) {
-                                        Utils.hapticFeedback();
-                                        controller.snoozeDuration.value = value;
-                                      },
-                                      itemWidth: Utils
-                                          .getResponsiveNumberPickerItemWidth(
-                                        context,
-                                        screenWidth: MediaQuery.of(context).size.width,
-                                        baseWidthFactor: 0.2,
+                                    () => Container(
+                                      constraints: BoxConstraints(
+                                        maxHeight: MediaQuery.of(context).size.height * 0.25,
+                                        minHeight: 120,
                                       ),
-                                      textStyle: Utils
-                                          .getResponsiveNumberPickerTextStyle(
-                                        context,
-                                        baseFontSize: 20,
-                                        color: themeController.primaryDisabledTextColor.value,
-                                      ),
-                                      selectedTextStyle: Utils
-                                          .getResponsiveNumberPickerSelectedTextStyle(
-                                        context,
-                                        baseFontSize: 32,
-                                        color: kprimaryColor,
-                                        fontWeight: FontWeight.bold,
+                                      child: NumberPicker(
+                                        value: controller.snoozeDuration.value <= 0
+                                            ? 0
+                                            : controller.snoozeDuration.value,
+                                        minValue: 0,
+                                        maxValue: 60,
+                                        onChanged: (value) {
+                                          Utils.hapticFeedback();
+                                          controller.snoozeDuration.value = value;
+                                        },
+                                        itemWidth: Utils
+                                            .getResponsiveNumberPickerItemWidth(
+                                          context,
+                                          screenWidth: MediaQuery.of(context).size.width,
+                                          baseWidthFactor: 0.2,
+                                        ),
+                                        itemHeight: Utils.getResponsiveNumberPickerItemHeight(
+                                          context,
+                                          baseFontSize: 32,
+                                        ),
+                                        textStyle: Utils
+                                            .getResponsiveNumberPickerTextStyle(
+                                          context,
+                                          baseFontSize: 20,
+                                          color: themeController.primaryDisabledTextColor.value,
+                                        ),
+                                        selectedTextStyle: Utils
+                                            .getResponsiveNumberPickerSelectedTextStyle(
+                                          context,
+                                          baseFontSize: 32,
+                                          color: kprimaryColor,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -178,34 +188,44 @@ class SnoozeSettingsTile extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   Obx(
-                                    () => NumberPicker(
-                                      value: controller.maxSnoozeCount.value <= 0
-                                          ? 1
-                                          : controller.maxSnoozeCount.value,
-                                      minValue: 1,
-                                      maxValue: 10,
-                                      onChanged: (value) {
-                                        Utils.hapticFeedback();
-                                        controller.maxSnoozeCount.value = value;
-                                      },
-                                      itemWidth: Utils
-                                          .getResponsiveNumberPickerItemWidth(
-                                        context,
-                                        screenWidth: MediaQuery.of(context).size.width,
-                                        baseWidthFactor: 0.2,
+                                    () => Container(
+                                      constraints: BoxConstraints(
+                                        maxHeight: MediaQuery.of(context).size.height * 0.25,
+                                        minHeight: 120,
                                       ),
-                                      textStyle: Utils
-                                          .getResponsiveNumberPickerTextStyle(
-                                        context,
-                                        baseFontSize: 20,
-                                        color: themeController.primaryDisabledTextColor.value,
-                                      ),
-                                      selectedTextStyle: Utils
-                                          .getResponsiveNumberPickerSelectedTextStyle(
-                                        context,
-                                        baseFontSize: 32,
-                                        color: kprimaryColor,
-                                        fontWeight: FontWeight.bold,
+                                      child: NumberPicker(
+                                        value: controller.maxSnoozeCount.value <= 0
+                                            ? 1
+                                            : controller.maxSnoozeCount.value,
+                                        minValue: 1,
+                                        maxValue: 10,
+                                        onChanged: (value) {
+                                          Utils.hapticFeedback();
+                                          controller.maxSnoozeCount.value = value;
+                                        },
+                                        itemWidth: Utils
+                                            .getResponsiveNumberPickerItemWidth(
+                                          context,
+                                          screenWidth: MediaQuery.of(context).size.width,
+                                          baseWidthFactor: 0.2,
+                                        ),
+                                        itemHeight: Utils.getResponsiveNumberPickerItemHeight(
+                                          context,
+                                          baseFontSize: 32,
+                                        ),
+                                        textStyle: Utils
+                                            .getResponsiveNumberPickerTextStyle(
+                                          context,
+                                          baseFontSize: 20,
+                                          color: themeController.primaryDisabledTextColor.value,
+                                        ),
+                                        selectedTextStyle: Utils
+                                            .getResponsiveNumberPickerSelectedTextStyle(
+                                          context,
+                                          baseFontSize: 32,
+                                          color: kprimaryColor,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
                                   ),

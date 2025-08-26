@@ -614,85 +614,128 @@ class TimerView extends GetView<TimerController> {
 
   Widget _buildAdaptiveTimerPicker(BuildContext context, double width, double height, ThemeController themeController) {
     // Check if font scaling is too high for NumberPicker
-    final systemScale = MediaQuery.textScaleFactorOf(context);
+    final systemScale = MediaQuery.textScalerOf(context).scale(1.0);
     final combinedScale = systemScale;
-    final useCustomPicker = combinedScale > 1.5;
+    final useCustomPicker = combinedScale > 1.2;
 
     if (useCustomPicker) {
-      // Use simplified custom picker for timer
-      return SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _buildTimerUnitColumn(
-              context: context,
-              label: 'Hours',
-              value: controller.hours.value,
-              minValue: 0,
-              maxValue: 99,
-              onChanged: (value) {
-                Utils.hapticFeedback();
-                controller.hours.value = value;
-                controller.setTextFieldTimerTime();
-              },
-              width: width,
-              themeController: themeController,
-              systemScale: systemScale,
-            ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: width * 0.02),
-              child: Text(
-                ':',
-                style: TextStyle(
-                  fontSize: (24 * systemScale).clamp(20.0, 40.0),
-                  fontWeight: FontWeight.bold,
-                  color: themeController.primaryDisabledTextColor.value,
+      // Use enhanced scrollable custom picker for timer
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              kprimaryColor.withOpacity(0.02),
+              kprimaryColor.withOpacity(0.05),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: kprimaryColor.withOpacity(0.1),
+            width: 1,
+          ),
+        ),
+        child: IntrinsicHeight(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Hours picker
+              Expanded(
+                flex: 3,
+                child: _buildTimerUnitColumn(
+                  context: context,
+                  label: 'Hours',
+                  value: controller.hours.value,
+                  minValue: 0,
+                  maxValue: 99,
+                  onChanged: (value) {
+                    Utils.hapticFeedback();
+                    controller.hours.value = value;
+                    controller.setTextFieldTimerTime();
+                  },
+                  width: width,
+                  themeController: themeController,
+                  systemScale: systemScale,
                 ),
               ),
-            ),
-            _buildTimerUnitColumn(
-              context: context,
-              label: 'Minutes',
-              value: controller.minutes.value,
-              minValue: 0,
-              maxValue: 59,
-              onChanged: (value) {
-                Utils.hapticFeedback();
-                controller.minutes.value = value;
-                controller.setTextFieldTimerTime();
-              },
-              width: width,
-              themeController: themeController,
-              systemScale: systemScale,
-            ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: width * 0.02),
-              child: Text(
-                ':',
-                style: TextStyle(
-                  fontSize: (24 * systemScale).clamp(20.0, 40.0),
-                  fontWeight: FontWeight.bold,
-                  color: themeController.primaryDisabledTextColor.value,
+              
+              // Colon separator
+              Container(
+                width: 24,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Center(
+                  child: Text(
+                    ':',
+                    style: TextStyle(
+                      fontSize: (32 * systemScale).clamp(24.0, 48.0),
+                      fontWeight: FontWeight.bold,
+                      color: kprimaryColor.withOpacity(0.8),
+                    ),
+                  ),
                 ),
               ),
-            ),
-            _buildTimerUnitColumn(
-              context: context,
-              label: 'Seconds',
-              value: controller.seconds.value,
-              minValue: 0,
-              maxValue: 59,
-              onChanged: (value) {
-                Utils.hapticFeedback();
-                controller.seconds.value = value;
-                controller.setTextFieldTimerTime();
-              },
-              width: width,
-              themeController: themeController,
-              systemScale: systemScale,
-            ),
-          ],
+              
+              // Minutes picker
+              Expanded(
+                flex: 3,
+                child: _buildTimerUnitColumn(
+                  context: context,
+                  label: 'Minutes',
+                  value: controller.minutes.value,
+                  minValue: 0,
+                  maxValue: 59,
+                  onChanged: (value) {
+                    Utils.hapticFeedback();
+                    controller.minutes.value = value;
+                    controller.setTextFieldTimerTime();
+                  },
+                  width: width,
+                  themeController: themeController,
+                  systemScale: systemScale,
+                ),
+              ),
+              
+              // Colon separator
+              Container(
+                width: 24,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Center(
+                  child: Text(
+                    ':',
+                    style: TextStyle(
+                      fontSize: (32 * systemScale).clamp(24.0, 48.0),
+                      fontWeight: FontWeight.bold,
+                      color: kprimaryColor.withOpacity(0.8),
+                    ),
+                  ),
+                ),
+              ),
+              
+              // Seconds picker
+              Expanded(
+                flex: 3,
+                child: _buildTimerUnitColumn(
+                  context: context,
+                  label: 'Seconds',
+                  value: controller.seconds.value,
+                  minValue: 0,
+                  maxValue: 59,
+                  onChanged: (value) {
+                    Utils.hapticFeedback();
+                    controller.seconds.value = value;
+                    controller.setTextFieldTimerTime();
+                  },
+                  width: width,
+                  themeController: themeController,
+                  systemScale: systemScale,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     } else {
@@ -913,6 +956,27 @@ class TimerView extends GetView<TimerController> {
     required ThemeController themeController,
     required double systemScale,
   }) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final itemHeight = (50 * systemScale).clamp(40.0, 80.0);
+    final totalHeight = (screenHeight * 0.22).clamp(140.0, 280.0);
+    
+    // Create list of values for infinite scrolling
+    List<int> values = [];
+    for (int i = minValue; i <= maxValue; i++) {
+      values.add(i);
+    }
+    
+    // For infinite scrolling, create a large virtual list
+    final valuesCount = values.length;
+    final virtualListSize = valuesCount * 1000;
+    final centerOffset = virtualListSize ~/ 2;
+    
+    // Calculate initial scroll position
+    final initialVirtualIndex = centerOffset + (value - minValue);
+    final scrollController = FixedExtentScrollController(
+      initialItem: initialVirtualIndex,
+    );
+    
     return Column(
       children: [
         Text(
@@ -923,75 +987,119 @@ class TimerView extends GetView<TimerController> {
             color: themeController.primaryDisabledTextColor.value,
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.2,
-          ),
+          height: totalHeight,
           width: (width * 0.18).clamp(70.0, 100.0),
           decoration: BoxDecoration(
-            color: kprimaryColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: kprimaryColor.withOpacity(0.3)),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                themeController.primaryTextColor.value.withOpacity(0.02),
+                themeController.primaryTextColor.value.withOpacity(0.05),
+                themeController.primaryTextColor.value.withOpacity(0.02),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: kprimaryColor.withOpacity(0.15),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: kprimaryColor.withOpacity(0.08),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+              BoxShadow(
+                color: Colors.white.withOpacity(0.1),
+                blurRadius: 1,
+                offset: const Offset(0, -1),
+              ),
+            ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          child: Stack(
             children: [
-              // Plus button
-              InkWell(
-                onTap: () {
-                  Utils.hapticFeedback();
-                  int newValue = value + 1;
-                  if (newValue > maxValue) newValue = minValue;
-                  onChanged(newValue);
-                },
-                borderRadius: BorderRadius.circular(8),
+              // Selection highlight
+              Positioned(
+                top: (totalHeight - itemHeight) / 2,
+                left: 4,
+                right: 4,
+                height: itemHeight,
                 child: Container(
-                  padding: EdgeInsets.all((8 * systemScale).clamp(6.0, 12.0)),
-                  child: Icon(
-                    Icons.keyboard_arrow_up,
-                    color: kprimaryColor,
-                    size: (20 * systemScale).clamp(16.0, 28.0),
-                  ),
-                ),
-              ),
-              // Current value display
-              Flexible(
-                child: Container(
-                  padding: EdgeInsets.symmetric(
-                    vertical: (4 * systemScale).clamp(2.0, 8.0),
-                    horizontal: 4,
-                  ),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      value.toString().padLeft(2, '0'),
-                      style: TextStyle(
-                        fontSize: (20 * systemScale).clamp(16.0, 32.0),
-                        fontWeight: FontWeight.bold,
-                        color: kprimaryColor,
-                      ),
-                      textAlign: TextAlign.center,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        kprimaryColor.withOpacity(0.15),
+                        kprimaryColor.withOpacity(0.25),
+                      ],
                     ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: kprimaryColor.withOpacity(0.4),
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: kprimaryColor.withOpacity(0.2),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              // Minus button
-              InkWell(
-                onTap: () {
+              
+              // Scrollable list with infinite scrolling
+              ListWheelScrollView.useDelegate(
+                controller: scrollController,
+                itemExtent: itemHeight,
+                physics: const FixedExtentScrollPhysics(),
+                onSelectedItemChanged: (index) {
                   Utils.hapticFeedback();
-                  int newValue = value - 1;
-                  if (newValue < minValue) newValue = maxValue;
-                  onChanged(newValue);
+                  final actualIndex = index % valuesCount;
+                  final actualValue = values[actualIndex];
+                  onChanged(actualValue);
                 },
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: EdgeInsets.all((8 * systemScale).clamp(6.0, 12.0)),
-                  child: Icon(
-                    Icons.keyboard_arrow_down,
-                    color: kprimaryColor,
-                    size: (20 * systemScale).clamp(16.0, 28.0),
-                  ),
+                childDelegate: ListWheelChildBuilderDelegate(
+                  builder: (context, index) {
+                    if (index < 0 || index >= virtualListSize) return null;
+                    
+                    final actualIndex = index % valuesCount;
+                    final itemValue = values[actualIndex];
+                    final isSelected = (index - scrollController.initialItem).abs() == 0;
+                    
+                    return Container(
+                      alignment: Alignment.center,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          itemValue.toString().padLeft(2, '0'),
+                          style: TextStyle(
+                            fontSize: isSelected 
+                                ? (28 * systemScale).clamp(24.0, 48.0)
+                                : (20 * systemScale).clamp(16.0, 36.0),
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: isSelected 
+                                ? kprimaryColor 
+                                : themeController.primaryTextColor.value.withOpacity(0.6),
+                            shadows: isSelected ? [
+                              Shadow(
+                                color: kprimaryColor.withOpacity(0.3),
+                                blurRadius: 1,
+                                offset: const Offset(0, 1),
+                              ),
+                            ] : null,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    );
+                  },
+                  childCount: virtualListSize,
                 ),
               ),
             ],

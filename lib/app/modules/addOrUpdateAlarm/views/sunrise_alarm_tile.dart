@@ -96,11 +96,15 @@ class SunriseAlarmTile extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'Sunrise Alarm Settings'.tr,
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            color: themeController.primaryTextColor.value,
-                            fontWeight: FontWeight.w600,
+                        Expanded(
+                          child: Text(
+                            'Sunrise Alarm Settings'.tr,
+                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              color: themeController.primaryTextColor.value,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
                           ),
                         ),
                         IconButton(

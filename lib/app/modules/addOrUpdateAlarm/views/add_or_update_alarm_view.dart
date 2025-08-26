@@ -188,10 +188,10 @@ class AddOrUpdateAlarmView extends GetView<AddOrUpdateAlarmController> {
                                                 ? Obx(
                                                     () {
                                                       // Check if font scaling is too high for NumberPicker
-                                                      final systemScale = MediaQuery.textScaleFactorOf(context);
+                                                      final systemScale = MediaQuery.textScalerOf(context).scale(1.0);
                                                       final appScale = controller.homeController.scalingFactor.value;
                                                       final combinedScale = systemScale * appScale;
-                                                      final useCustomPicker = combinedScale > 1.3;
+                                                      final useCustomPicker = combinedScale > 1.2;
 
                                                       if (useCustomPicker) {
                                                         // Use custom time picker for better scaling

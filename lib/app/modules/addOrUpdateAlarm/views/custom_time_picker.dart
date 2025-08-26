@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:ultimate_alarm_clock/app/utils/constants.dart';
 import 'package:ultimate_alarm_clock/app/utils/utils.dart';
 
 /// Custom time picker designed for better font scaling and accessibility
@@ -36,75 +34,207 @@ class CustomTimePicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
-    final systemScale = MediaQuery.textScaleFactorOf(context);
+    final systemScale = MediaQuery.textScalerOf(context).scale(1.0);
     final effectiveScale = scalingFactor * systemScale;
 
     // Calculate responsive widths
     final timeUnitWidth = (width * 0.18).clamp(80.0, 120.0);
     final meridiemWidth = (width * 0.2).clamp(80.0, 100.0);
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Hours picker
-          _buildTimeUnitPicker(
-            context: context,
-            value: hours,
-            minValue: is24Hour ? 0 : 1,
-            maxValue: is24Hour ? 23 : 12,
-            onChanged: onHoursChanged,
-            width: timeUnitWidth,
-            effectiveScale: effectiveScale,
-          ),
-          
-          // Colon separator
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: width * 0.02),
-            child: Text(
-              ':',
-              style: TextStyle(
-                fontSize: (32 * effectiveScale).clamp(24.0, 48.0),
-                fontWeight: FontWeight.bold,
-                color: disabledTextColor,
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            primaryColor.withOpacity(0.02),
+            primaryColor.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: primaryColor.withOpacity(0.1),
+          width: 1,
+        ),
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Hours picker
+            Expanded(
+              flex: 3,
+              child: _buildTimeUnitPicker(
+                context: context,
+                value: hours,
+                minValue: is24Hour ? 0 : 1,
+                maxValue: is24Hour ? 23 : 12,
+                onChanged: onHoursChanged,
+                width: timeUnitWidth,
+                effectiveScale: effectiveScale,
               ),
             ),
-          ),
-          
-          // Minutes picker
-          _buildTimeUnitPicker(
-            context: context,
-            value: minutes,
-            minValue: 0,
-            maxValue: 59,
-            onChanged: onMinutesChanged,
-            width: timeUnitWidth,
-            effectiveScale: effectiveScale,
-          ),
-          
-          // AM/PM picker (for 12-hour format)
-          if (!is24Hour) ...[
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: width * 0.02),
-              child: Text(
-                '',
-                style: TextStyle(
-                  fontSize: (32 * effectiveScale).clamp(24.0, 48.0),
-                  fontWeight: FontWeight.bold,
-                  color: disabledTextColor,
+            
+            // Colon separator
+            Container(
+              width: 24,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Center(
+                child: Text(
+                  ':',
+                  style: TextStyle(
+                    fontSize: (32 * effectiveScale).clamp(24.0, 48.0),
+                    fontWeight: FontWeight.bold,
+                    color: primaryColor.withOpacity(0.8),
+                  ),
                 ),
               ),
             ),
-            _buildMeridiemPicker(
-              context: context,
-              width: meridiemWidth,
-              effectiveScale: effectiveScale,
+            
+            // Minutes picker
+            Expanded(
+              flex: 3,
+              child: _buildTimeUnitPicker(
+                context: context,
+                value: minutes,
+                minValue: 0,
+                maxValue: 59,
+                onChanged: onMinutesChanged,
+                width: timeUnitWidth,
+                effectiveScale: effectiveScale,
+              ),
             ),
+            
+            // AM/PM picker (for 12-hour format)
+            if (!is24Hour) ...[
+              Container(
+                width: 16,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Center(
+                  child: Container(
+                    width: 2,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          primaryColor.withOpacity(0.2),
+                          primaryColor.withOpacity(0.6),
+                          primaryColor.withOpacity(0.2),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(1),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: _buildMeridiemPicker(
+                  context: context,
+                  width: meridiemWidth,
+                  effectiveScale: effectiveScale,
+                ),
+              ),
+            ],
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Common decoration for all time pickers to ensure consistent styling
+  BoxDecoration _getPickerDecoration() {
+    return BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          textColor.withOpacity(0.02),
+          textColor.withOpacity(0.05),
+          textColor.withOpacity(0.02),
         ],
       ),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(
+        color: primaryColor.withOpacity(0.15),
+        width: 1.5,
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: primaryColor.withOpacity(0.08),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
+        ),
+        BoxShadow(
+          color: Colors.white.withOpacity(0.1),
+          blurRadius: 1,
+          offset: const Offset(0, -1),
+        ),
+      ],
+    );
+  }
+
+  /// Common selection highlight decoration for all pickers
+  BoxDecoration _getSelectionDecoration() {
+    return BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          primaryColor.withOpacity(0.15),
+          primaryColor.withOpacity(0.25),
+        ],
+      ),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(
+        color: primaryColor.withOpacity(0.4),
+        width: 1,
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: primaryColor.withOpacity(0.2),
+          blurRadius: 4,
+          offset: const Offset(0, 1),
+        ),
+      ],
+    );
+  }
+
+  /// Common text style for all pickers to ensure consistency
+  TextStyle _getPickerTextStyle({
+    required double effectiveScale,
+    required bool isSelected,
+    double? letterSpacing,
+    bool isAmPm = false,
+  }) {
+    // AM/PM picker uses slightly smaller text
+    final selectedSize = isAmPm ? 24.0 : 28.0;
+    final unselectedSize = isAmPm ? 18.0 : 20.0;
+    final selectedClampMax = isAmPm ? 42.0 : 48.0;
+    final unselectedClampMax = isAmPm ? 32.0 : 36.0;
+    final unselectedClampMin = isAmPm ? 14.0 : 16.0;
+    
+    return TextStyle(
+      fontSize: isSelected 
+          ? (selectedSize * effectiveScale).clamp(20.0, selectedClampMax)
+          : (unselectedSize * effectiveScale).clamp(unselectedClampMin, unselectedClampMax),
+      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+      color: isSelected 
+          ? primaryColor 
+          : textColor.withOpacity(0.6),
+      letterSpacing: letterSpacing,
+      shadows: isSelected ? [
+        Shadow(
+          color: primaryColor.withOpacity(0.3),
+          blurRadius: 1,
+          offset: const Offset(0, 1),
+        ),
+      ] : null,
     );
   }
 
@@ -117,65 +247,83 @@ class CustomTimePicker extends StatelessWidget {
     required double width,
     required double effectiveScale,
   }) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final itemHeight = (50 * effectiveScale).clamp(40.0, 80.0);
+    final totalHeight = (screenHeight * 0.22).clamp(140.0, 280.0);
+    
+    // Create list of values
+    List<int> values = [];
+    for (int i = minValue; i <= maxValue; i++) {
+      values.add(i);
+    }
+    
+    // For infinite scrolling, we create a large virtual list
+    final valuesCount = values.length;
+    final virtualListSize = valuesCount * 1000; // Large enough for smooth infinite scrolling
+    final centerOffset = virtualListSize ~/ 2;
+    
+    // Calculate initial scroll position in the virtual list
+    final initialVirtualIndex = centerOffset + (value - minValue);
+    final scrollController = FixedExtentScrollController(
+      initialItem: initialVirtualIndex,
+    );
+    
     return Container(
-      width: width,
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.25,
-      ),
-      decoration: BoxDecoration(
-        color: primaryColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: primaryColor.withOpacity(0.3)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      height: totalHeight,
+      margin: const EdgeInsets.symmetric(horizontal: 2),
+      decoration: _getPickerDecoration(),
+      child: Stack(
         children: [
-          // Plus button
-          _buildControlButton(
-            context: context,
-            icon: Icons.keyboard_arrow_up,
-            onPressed: () {
-              Utils.hapticFeedback();
-              int newValue = value + 1;
-              if (newValue > maxValue) newValue = minValue;
-              onChanged(newValue);
-            },
-            effectiveScale: effectiveScale,
-          ),
-          
-          // Current value display
-          Flexible(
+          // Selection highlight
+          Positioned(
+            top: (totalHeight - itemHeight) / 2,
+            left: 4,
+            right: 4,
+            height: itemHeight,
             child: Container(
-              padding: EdgeInsets.symmetric(
-                vertical: (4 * effectiveScale).clamp(2.0, 12.0),
-                horizontal: 4,
-              ),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  value.toString().padLeft(2, '0'),
-                  style: TextStyle(
-                    fontSize: (24 * effectiveScale).clamp(20.0, 48.0),
-                    fontWeight: FontWeight.bold,
-                    color: primaryColor,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
+              decoration: _getSelectionDecoration(),
             ),
           ),
           
-          // Minus button
-          _buildControlButton(
-            context: context,
-            icon: Icons.keyboard_arrow_down,
-            onPressed: () {
+          // Scrollable list with infinite scrolling
+          ListWheelScrollView.useDelegate(
+            controller: scrollController,
+            itemExtent: itemHeight,
+            perspective: 0.003,
+            diameterRatio: 1.5,
+            physics: const FixedExtentScrollPhysics(),
+            onSelectedItemChanged: (virtualIndex) {
+              // Convert virtual index to actual value index
+              final actualIndex = virtualIndex % valuesCount;
+              final actualValue = values[actualIndex];
               Utils.hapticFeedback();
-              int newValue = value - 1;
-              if (newValue < minValue) newValue = maxValue;
-              onChanged(newValue);
+              onChanged(actualValue);
             },
-            effectiveScale: effectiveScale,
+            childDelegate: ListWheelChildBuilderDelegate(
+              builder: (context, virtualIndex) {
+                // Convert virtual index to actual value index
+                final actualIndex = virtualIndex % valuesCount;
+                final itemValue = values[actualIndex];
+                final isSelected = itemValue == value;
+                
+                return Container(
+                  height: itemHeight,
+                  alignment: Alignment.center,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      itemValue.toString().padLeft(2, '0'),
+                      style: _getPickerTextStyle(
+                        effectiveScale: effectiveScale,
+                        isSelected: isSelected,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                );
+              },
+              childCount: virtualListSize,
+            ),
           ),
         ],
       ),
@@ -187,82 +335,83 @@ class CustomTimePicker extends StatelessWidget {
     required double width,
     required double effectiveScale,
   }) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final itemHeight = (50 * effectiveScale).clamp(40.0, 80.0);
+    final totalHeight = (screenHeight * 0.22).clamp(140.0, 280.0);
+    
+    final meridiemOptions = ['AM', 'PM'];
+    
+    // For infinite scrolling with AM/PM
+    final virtualListSize = 1000; // Large enough for smooth infinite scrolling
+    final centerOffset = virtualListSize ~/ 2;
+    
+    // Calculate initial scroll position in the virtual list
+    final initialVirtualIndex = centerOffset + meridiemIndex;
+    final scrollController = FixedExtentScrollController(
+      initialItem: initialVirtualIndex,
+    );
+    
     return Container(
-      width: width,
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.25,
-      ),
-      decoration: BoxDecoration(
-        color: primaryColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: primaryColor.withOpacity(0.3)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      height: totalHeight,
+      margin: const EdgeInsets.symmetric(horizontal: 2),
+      decoration: _getPickerDecoration(),
+      child: Stack(
         children: [
-          // Toggle button
-          _buildControlButton(
-            context: context,
-            icon: Icons.swap_vert,
-            onPressed: () {
-              Utils.hapticFeedback();
-              onMeridiemChanged(meridiemIndex == 0 ? 1 : 0);
-            },
-            effectiveScale: effectiveScale,
-          ),
-          
-          // Current AM/PM display
-          Flexible(
+          // Selection highlight
+          Positioned(
+            top: (totalHeight - itemHeight) / 2,
+            left: 4,
+            right: 4,
+            height: itemHeight,
             child: Container(
-              padding: EdgeInsets.symmetric(
-                vertical: (4 * effectiveScale).clamp(2.0, 12.0),
-                horizontal: 4,
-              ),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  meridiemIndex == 0 ? 'AM' : 'PM',
-                  style: TextStyle(
-                    fontSize: (20 * effectiveScale).clamp(16.0, 36.0),
-                    fontWeight: FontWeight.bold,
-                    color: primaryColor,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
+              decoration: _getSelectionDecoration(),
             ),
           ),
           
-          // Spacer for symmetry
-          Flexible(
-            child: SizedBox(height: (20 * effectiveScale).clamp(16.0, 40.0)),
+          // Scrollable list with infinite scrolling
+          ListWheelScrollView.useDelegate(
+            controller: scrollController,
+            itemExtent: itemHeight,
+            perspective: 0.003,
+            diameterRatio: 1.5,
+            physics: const FixedExtentScrollPhysics(),
+            onSelectedItemChanged: (virtualIndex) {
+              // Convert virtual index to actual meridiem index (0 or 1)
+              final actualIndex = virtualIndex % meridiemOptions.length;
+              Utils.hapticFeedback();
+              onMeridiemChanged(actualIndex);
+            },
+            childDelegate: ListWheelChildBuilderDelegate(
+              builder: (context, virtualIndex) {
+                // Convert virtual index to actual meridiem index
+                final actualIndex = virtualIndex % meridiemOptions.length;
+                final isSelected = actualIndex == meridiemIndex;
+                
+                return Container(
+                  height: itemHeight,
+                  alignment: Alignment.center,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      meridiemOptions[actualIndex],
+                      style: _getPickerTextStyle(
+                        effectiveScale: effectiveScale,
+                        isSelected: isSelected,
+                        letterSpacing: 1.2,
+                        isAmPm: true,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                );
+              },
+              childCount: virtualListSize,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildControlButton({
-    required BuildContext context,
-    required IconData icon,
-    required VoidCallback onPressed,
-    required double effectiveScale,
-  }) {
-    return InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: EdgeInsets.all((6 * effectiveScale).clamp(4.0, 12.0)),
-        constraints: BoxConstraints(
-          minHeight: 32,
-          minWidth: 32,
-        ),
-        child: Icon(
-          icon,
-          color: primaryColor,
-          size: (20 * effectiveScale).clamp(16.0, 32.0),
-        ),
-      ),
-    );
-  }
+
 }
