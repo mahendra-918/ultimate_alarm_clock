@@ -63,23 +63,54 @@ class IsarDb {
   Future<Database?> getTimerSQLiteDatabase() async {
     Database? db;
     final dir = await getDatabasesPath();
-    // await deleteDatabase(dir);
-    db = await openDatabase(
-      '$dir/timer.db',
-      version: 1,
-      onCreate: (Database db, int version) async {
-        await db.execute('''
-          CREATE TABLE timers ( 
-            id integer primary key autoincrement, 
-            startedOn text not null,
-            timerValue integer not null,
-            timeElapsed integer not null,
-            ringtoneName text not null,
-            timerName text not null,
-            isPaused integer not null)
-        ''');
-      },
-    );
+    final dbPath = '$dir/timer.db';
+    
+    try {
+      db = await openDatabase(
+        dbPath,
+        version: 1,
+        onCreate: (Database db, int version) async {
+          debugPrint('🔧 Creating timers table...');
+          await db.execute('''
+            CREATE TABLE timers ( 
+              id integer primary key autoincrement, 
+              startedOn text not null,
+              timerValue integer not null,
+              timeElapsed integer not null,
+              ringtoneName text not null,
+              timerName text not null,
+              isPaused integer not null)
+          ''');
+          debugPrint('✅ Timers table created successfully');
+        },
+        onOpen: (Database db) async {
+          // Check if table exists and create if it doesn't
+          var result = await db.rawQuery(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='timers'"
+          );
+          
+          if (result.isEmpty) {
+            debugPrint('🔧 Timers table not found, creating it...');
+            await db.execute('''
+              CREATE TABLE timers ( 
+                id integer primary key autoincrement, 
+                startedOn text not null,
+                timerValue integer not null,
+                timeElapsed integer not null,
+                ringtoneName text not null,
+                timerName text not null,
+                isPaused integer not null)
+            ''');
+            debugPrint('✅ Timers table created in onOpen');
+          } else {
+            debugPrint('✅ Timers table already exists');
+          }
+        },
+      );
+    } catch (e) {
+      debugPrint('🚨 Error creating timer database: $e');
+    }
+    
     return db;
   }
 
@@ -674,12 +705,42 @@ class IsarDb {
     final isarProvider = IsarDb();
     final sql = await IsarDb().getTimerSQLiteDatabase();
     final db = await isarProvider.db;
+    
+    // Ensure table exists before inserting
+    await _ensureTimersTableExists(sql!);
+    
     await db.writeTxn(() async {
       await db.timerModels.put(timer);
     });
 
-    await sql!.insert('timers', timer.toMap());
+    await sql.insert('timers', timer.toMap());
     return timer;
+  }
+
+  
+  static Future<void> _ensureTimersTableExists(Database db) async {
+    try {
+      var result = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='timers'"
+      );
+      
+      if (result.isEmpty) {
+        debugPrint('🔧 Force creating timers table...');
+        await db.execute('''
+          CREATE TABLE timers ( 
+            id integer primary key autoincrement, 
+            startedOn text not null,
+            timerValue integer not null,
+            timeElapsed integer not null,
+            ringtoneName text not null,
+            timerName text not null,
+            isPaused integer not null)
+        ''');
+        debugPrint('✅ Timers table force created');
+      }
+    } catch (e) {
+      debugPrint('🚨 Error ensuring timers table exists: $e');
+    }
   }
 
   static Future<int> updateTimer(TimerModel timer) async {
@@ -715,7 +776,11 @@ class IsarDb {
   static Future<List<TimerModel>> getAllTimers() async {
     try {
       final sql = await IsarDb().getTimerSQLiteDatabase();
-      List<Map<String, dynamic>> maps = await sql!.query(
+      
+      // Ensure table exists before querying
+      await _ensureTimersTableExists(sql!);
+      
+      List<Map<String, dynamic>> maps = await sql.query(
         'timers',
         columns: [
           'id',
